@@ -35,6 +35,14 @@ import { StudentAITutor } from "./pages/student/StudentAITutor";
 // Faculty Pages
 import { FacultyDashboard } from "./pages/faculty/FacultyDashboard";
 import { FacultyCourses } from "./pages/faculty/FacultyCourses";
+import { FacultyAttendance } from "./pages/faculty/FacultyAttendance";
+import { FacultyAssignments } from "./pages/faculty/FacultyAssignments";
+import { FacultyMarks } from "./pages/faculty/FacultyMarks";
+import { FacultyExams } from "./pages/faculty/FacultyExams";
+import { FacultyAnalytics } from "./pages/faculty/FacultyAnalytics";
+import { FacultyStudents } from "./pages/faculty/FacultyStudents";
+import { FacultyAnnouncements } from "./pages/faculty/FacultyAnnouncements";
+import { FacultyLeave } from "./pages/faculty/FacultyLeave";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/institution/InstitutionDashboard";
@@ -77,14 +85,14 @@ const App = () => (
               {/* Faculty Routes */}
               <Route path="/faculty" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyDashboard /></ProtectedRoute>} />
               <Route path="/faculty/courses" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyCourses /></ProtectedRoute>} />
-              <Route path="/faculty/attendance" element={<ProtectedRoute allowedRoles={['faculty']}><GenericPage title="Attendance Management" subtitle="Mark and manage student attendance" Layout={FacultyLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/faculty/assignments" element={<ProtectedRoute allowedRoles={['faculty']}><GenericPage title="Assignments" subtitle="Create and grade assignments" Layout={FacultyLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/faculty/marks" element={<ProtectedRoute allowedRoles={['faculty']}><GenericPage title="Marks Entry" subtitle="Enter and manage student marks" Layout={FacultyLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/faculty/exams" element={<ProtectedRoute allowedRoles={['faculty']}><GenericPage title="Exam Papers" subtitle="Upload and manage exam papers" Layout={FacultyLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/faculty/analytics" element={<ProtectedRoute allowedRoles={['faculty']}><GenericPage title="Analytics" subtitle="View course and student analytics" Layout={FacultyLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/faculty/students" element={<ProtectedRoute allowedRoles={['faculty']}><GenericPage title="Students" subtitle="View and manage your students" Layout={FacultyLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/faculty/announcements" element={<ProtectedRoute allowedRoles={['faculty']}><GenericPage title="Announcements" subtitle="Post announcements to students" Layout={FacultyLayout}><></></GenericPage></ProtectedRoute>} />
-              <Route path="/faculty/leave" element={<ProtectedRoute allowedRoles={['faculty']}><GenericPage title="Leave Requests" subtitle="Submit and track leave requests" Layout={FacultyLayout}><></></GenericPage></ProtectedRoute>} />
+              <Route path="/faculty/attendance" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAttendance /></ProtectedRoute>} />
+              <Route path="/faculty/assignments" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAssignments /></ProtectedRoute>} />
+              <Route path="/faculty/marks" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyMarks /></ProtectedRoute>} />
+              <Route path="/faculty/exams" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyExams /></ProtectedRoute>} />
+              <Route path="/faculty/analytics" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAnalytics /></ProtectedRoute>} />
+              <Route path="/faculty/students" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyStudents /></ProtectedRoute>} />
+              <Route path="/faculty/announcements" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAnnouncements /></ProtectedRoute>} />
+              <Route path="/faculty/leave" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyLeave /></ProtectedRoute>} />
 
               {/* Institution Routes */}
               <Route path="/institution" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionDashboard /></ProtectedRoute>} />

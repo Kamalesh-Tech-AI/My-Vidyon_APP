@@ -61,18 +61,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let role: UserRole = 'student';
 
     // Check for specific admin and institution email IDs
-    if (credentials.email === 'ADMINERP@gmail.com') {
+    if (credentials.email === 'ADMINERP@gmail.com' || credentials.email.includes('admin')) {
       role = 'admin';
-    } else if (credentials.email === 'INST@gmail.com') {
+    } else if (credentials.email === 'INST@gmail.com' || credentials.email.includes('institution')) {
       role = 'institution';
-    } else if (credentials.email.includes('faculty')) {
+    } else if (credentials.email.includes('STAFF') || credentials.email.includes('faculty')) {
       role = 'faculty';
-    } else if (credentials.email.includes('student')) {
+    } else if (credentials.email.includes('STU') || credentials.email.includes('student')) {
       role = 'student';
-    } else if (credentials.email.includes('institution')) {
-      role = 'institution';
-    } else if (credentials.email.includes('admin')) {
-      role = 'admin';
     }
 
     const user = { ...DEMO_USERS[role], email: credentials.email };

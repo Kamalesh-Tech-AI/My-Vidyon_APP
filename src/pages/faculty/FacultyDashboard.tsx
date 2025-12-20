@@ -15,40 +15,48 @@ import {
   Plus,
   Calendar,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const classPerformance = [
-  { name: 'CS201', value: 78 },
-  { name: 'CS301', value: 82 },
-  { name: 'CS205', value: 85 },
-  { name: 'CS401', value: 72 },
+  { name: 'Mathematics', value: 78 },
+  { name: 'Science', value: 82 },
+  { name: 'English', value: 85 },
+  { name: 'History', value: 72 },
 ];
 
-const assignedCourses = [
-  { title: 'Data Structures & Algorithms', code: 'CS201', instructor: 'You', students: 45, schedule: 'Mon, Wed 10:00 AM', status: 'active' as const },
-  { title: 'Database Management Systems', code: 'CS301', instructor: 'You', students: 52, schedule: 'Tue, Thu 2:00 PM', status: 'active' as const },
-  { title: 'Advanced Algorithms', code: 'CS401', instructor: 'You', students: 28, schedule: 'Wed, Fri 3:00 PM', status: 'active' as const },
+const assignedSubjects = [
+  { title: 'Mathematics', code: 'Grade 10', instructor: 'You', students: 45, schedule: 'Mon, Wed 10:00 AM', status: 'active' as const },
+  { title: 'General Science', code: 'Grade 9', instructor: 'You', students: 52, schedule: 'Tue, Thu 2:00 PM', status: 'active' as const },
+  { title: 'English Literature', code: 'Grade 10', instructor: 'You', students: 28, schedule: 'Wed, Fri 3:00 PM', status: 'active' as const },
 ];
 
 const pendingSubmissions = [
-  { id: 1, student: 'John Smith', assignment: 'Binary Tree Implementation', course: 'CS201', submitted: '2 hours ago', status: 'pending' },
-  { id: 2, student: 'Emily Johnson', assignment: 'SQL Query Optimization', course: 'CS301', submitted: '5 hours ago', status: 'pending' },
-  { id: 3, student: 'Michael Brown', assignment: 'Graph Algorithms', course: 'CS401', submitted: '1 day ago', status: 'pending' },
-  { id: 4, student: 'Sarah Davis', assignment: 'Normalization Exercise', course: 'CS301', submitted: '1 day ago', status: 'pending' },
+  { id: 1, student: 'John Smith', assignment: 'Algebra Homework', course: 'Mathematics', submitted: '2 hours ago', status: 'pending' },
+  { id: 2, student: 'Emily Johnson', assignment: 'Physics Lab Report', course: 'Science', submitted: '5 hours ago', status: 'pending' },
+  { id: 3, student: 'Michael Brown', assignment: 'Shakespeare Essay', course: 'English', submitted: '1 day ago', status: 'pending' },
+  { id: 4, student: 'Sarah Davis', assignment: 'Geometry Practice', course: 'Mathematics', submitted: '1 day ago', status: 'pending' },
 ];
 
 const todaySchedule = [
-  { time: '10:00 AM', course: 'CS201', topic: 'Binary Search Trees', room: 'LH-101' },
-  { time: '2:00 PM', course: 'CS301', topic: 'Query Optimization', room: 'LH-205' },
-  { time: '4:00 PM', course: 'Office Hours', topic: 'Student Consultations', room: 'Faculty Block' },
+  { time: '10:00 AM', course: 'Mathematics', topic: 'Quadratic Equations', room: 'Class 10-A' },
+  { time: '2:00 PM', course: 'Science', topic: 'Light Reflection', room: 'Physics Lab' },
+  { time: '4:00 PM', course: 'Extra Class', topic: 'Exam Preparation', room: 'Class 9-B' },
 ];
 
 export function FacultyDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleCreateAssignment = () => {
+    toast.success('Assignment creation form opened');
+    navigate('/faculty/assignments');
+  };
 
   const submissionColumns = [
     { key: 'student', header: 'Student' },
     { key: 'assignment', header: 'Assignment' },
-    { key: 'course', header: 'Course' },
+    { key: 'course', header: 'Subject' },
     { key: 'submitted', header: 'Submitted' },
     {
       key: 'status',
@@ -72,7 +80,7 @@ export function FacultyDashboard() {
         title={`Good morning, ${user?.name.split(' ')[0]}!`}
         subtitle="Manage your courses and track student progress"
         actions={
-          <Button className="btn-primary flex items-center gap-2">
+          <Button className="btn-primary flex items-center gap-2" onClick={handleCreateAssignment}>
             <Plus className="w-4 h-4" />
             Create Assignment
           </Button>
@@ -150,7 +158,7 @@ export function FacultyDashboard() {
           <a href="/faculty/courses" className="text-sm text-primary hover:underline">Manage Courses</a>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {assignedCourses.map((course) => (
+          {assignedSubjects.map((course) => (
             <CourseCard key={course.code} {...course} />
           ))}
         </div>

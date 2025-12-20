@@ -17,35 +17,35 @@ import {
 } from 'lucide-react';
 
 const enrollmentTrend = [
-  { name: 'Jan', value: 1200 },
-  { name: 'Feb', value: 1350 },
-  { name: 'Mar', value: 1480 },
-  { name: 'Apr', value: 1620 },
-  { name: 'May', value: 1750 },
-  { name: 'Jun', value: 1890 },
+  { name: 'Jan', value: 850 },
+  { name: 'Feb', value: 920 },
+  { name: 'Mar', value: 1050 },
+  { name: 'Apr', value: 1180 },
+  { name: 'May', value: 1250 },
+  { name: 'Jun', value: 1320 },
 ];
 
-const departmentDistribution = [
-  { name: 'Engineering', value: 850 },
-  { name: 'Business', value: 620 },
-  { name: 'Sciences', value: 480 },
-  { name: 'Arts', value: 320 },
-  { name: 'Law', value: 180 },
+const classDistribution = [
+  { name: 'Grade 10', value: 250 },
+  { name: 'Grade 9', value: 280 },
+  { name: 'Grade 8', value: 220 },
+  { name: 'Grade 11', value: 180 },
+  { name: 'Grade 12', value: 150 },
 ];
 
 const feeCollection = [
-  { name: 'Q1', value: 2.5 },
-  { name: 'Q2', value: 3.2 },
-  { name: 'Q3', value: 2.8 },
-  { name: 'Q4', value: 3.8 },
+  { name: 'Jan', value: 1.2 },
+  { name: 'Feb', value: 1.5 },
+  { name: 'Mar', value: 1.8 },
+  { name: 'Apr', value: 2.1 },
 ];
 
 const recentAdmissions = [
-  { id: 1, name: 'James Wilson', program: 'B.Tech Computer Science', date: 'Dec 15, 2025', status: 'confirmed' },
-  { id: 2, name: 'Olivia Martinez', program: 'MBA Finance', date: 'Dec 14, 2025', status: 'pending' },
-  { id: 3, name: 'William Anderson', program: 'B.Sc Physics', date: 'Dec 14, 2025', status: 'confirmed' },
-  { id: 4, name: 'Sophia Thomas', program: 'LLB', date: 'Dec 13, 2025', status: 'documents' },
-  { id: 5, name: 'Benjamin Jackson', program: 'B.Com', date: 'Dec 12, 2025', status: 'confirmed' },
+  { id: 1, name: 'James Wilson', program: 'Grade 10-A', date: 'Dec 15, 2025', status: 'confirmed' },
+  { id: 2, name: 'Olivia Martinez', program: 'Grade 9-B', date: 'Dec 14, 2025', status: 'pending' },
+  { id: 3, name: 'William Anderson', program: 'Grade 8-C', date: 'Dec 14, 2025', status: 'confirmed' },
+  { id: 4, name: 'Sophia Thomas', program: 'Grade 11-A', date: 'Dec 13, 2025', status: 'documents' },
+  { id: 5, name: 'Benjamin Jackson', program: 'Grade 12-B', date: 'Dec 12, 2025', status: 'confirmed' },
 ];
 
 const topPerformingDepts = [
@@ -102,18 +102,18 @@ export function InstitutionDashboard() {
           changeType="positive"
         />
         <StatCard
-          title="Faculty Members"
-          value={124}
+          title="Total Teachers"
+          value={125}
           icon={Users}
-          iconColor="text-primary"
-          change="98% active"
+          iconColor="text-faculty"
+          change="+4 this month"
         />
         <StatCard
-          title="Departments"
-          value={12}
+          title="Total Classes"
+          value={45}
           icon={Building}
-          iconColor="text-info"
-          change="5 courses each avg."
+          iconColor="text-institution"
+          change="Across all grades"
         />
         <StatCard
           title="Revenue (YTD)"
@@ -131,9 +131,11 @@ export function InstitutionDashboard() {
           <h3 className="font-semibold mb-4">Enrollment Trend</h3>
           <AreaChart data={enrollmentTrend} color="hsl(var(--institution))" height={280} />
         </div>
-        <div className="dashboard-card">
-          <h3 className="font-semibold mb-4">Students by Department</h3>
-          <DonutChart data={departmentDistribution} height={280} />
+        <div className="dashboard-card pt-6">
+          <h3 className="font-semibold mb-6">Class Enrollment Distribution</h3>
+          <div className="h-[300px]">
+            <DonutChart data={classDistribution} />
+          </div>
         </div>
       </div>
 

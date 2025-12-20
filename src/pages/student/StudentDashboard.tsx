@@ -31,22 +31,22 @@ const gradeDistribution = [
   { name: 'C Grade', value: 1 },
 ];
 
-const enrolledCourses = [
-  { title: 'Data Structures & Algorithms', code: 'CS201', instructor: 'Dr. Smith', progress: 75, students: 45, schedule: 'Mon, Wed 10:00 AM' },
-  { title: 'Database Management Systems', code: 'CS301', instructor: 'Prof. Johnson', progress: 60, students: 52, schedule: 'Tue, Thu 2:00 PM' },
-  { title: 'Web Development', code: 'CS205', instructor: 'Ms. Davis', progress: 85, students: 38, schedule: 'Mon, Fri 11:00 AM' },
+const enrolledSubjects = [
+  { title: 'Mathematics', code: 'Grade 10', instructor: 'Dr. Smith', progress: 75, students: 45, schedule: 'Mon, Wed 10:00 AM' },
+  { title: 'General Science', code: 'Grade 10', instructor: 'Prof. Johnson', progress: 60, students: 52, schedule: 'Tue, Thu 2:00 PM' },
+  { title: 'English Literature', code: 'Grade 10', instructor: 'Ms. Davis', progress: 85, students: 38, schedule: 'Mon, Fri 11:00 AM' },
 ];
 
 const upcomingAssignments = [
-  { title: 'Binary Tree Implementation', course: 'Data Structures & Algorithms', dueDate: 'Dec 22, 2025', status: 'pending' as const },
-  { title: 'SQL Query Optimization', course: 'Database Management Systems', dueDate: 'Dec 20, 2025', status: 'submitted' as const },
-  { title: 'React Portfolio Project', course: 'Web Development', dueDate: 'Dec 18, 2025', status: 'graded' as const, grade: '95', maxGrade: '100' },
+  { title: 'Algebra Homework', course: 'Mathematics', dueDate: 'Dec 22, 2025', status: 'pending' as const },
+  { title: 'Physics Lab Report', course: 'General Science', dueDate: 'Dec 20, 2025', status: 'submitted' as const },
+  { title: 'Shakespeare Essay', course: 'English Literature', dueDate: 'Dec 18, 2025', status: 'graded' as const, grade: '95', maxGrade: '100' },
 ];
 
 const notifications = [
-  { title: 'Assignment Graded', message: 'Your React Portfolio Project has been graded. You scored 95/100.', type: 'success' as const, time: '2 hours ago' },
-  { title: 'New Material Uploaded', message: 'New lecture slides for Database Management have been uploaded.', type: 'info' as const, time: '5 hours ago' },
-  { title: 'Fee Payment Reminder', message: 'Your semester fee payment is due in 5 days.', type: 'warning' as const, time: '1 day ago' },
+  { title: 'Assignment Graded', message: 'Your Shakespeare Essay has been graded. You scored 95/100.', type: 'success' as const, time: '2 hours ago' },
+  { title: 'New Material Uploaded', message: 'New lecture notes for Mathematics have been uploaded.', type: 'info' as const, time: '5 hours ago' },
+  { title: 'Exam Reminder', message: 'Your Unit Test - II for Mathematics is scheduled for next Monday.', type: 'warning' as const, time: '1 day ago' },
 ];
 
 export function StudentDashboard() {
@@ -63,11 +63,11 @@ export function StudentDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
-          title="Enrolled Courses"
-          value={7}
+          title="Subjects"
+          value={3}
           icon={BookOpen}
           iconColor="text-student"
-          change="2 in progress"
+          change="Academic Year 2025"
         />
         <StatCard
           title="Attendance Rate"
@@ -109,13 +109,13 @@ export function StudentDashboard() {
       {/* Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Courses */}
-        <div className="xl:col-span-2">
+        <div className="mb-8 xl:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">My Courses</h3>
+            <h3 className="font-semibold">My Subjects</h3>
             <a href="/student/courses" className="text-sm text-primary hover:underline">View All</a>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {enrolledCourses.map((course) => (
+            {enrolledSubjects.map((course) => (
               <CourseCard key={course.code} {...course} />
             ))}
           </div>

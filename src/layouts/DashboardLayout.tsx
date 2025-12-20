@@ -40,7 +40,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
 
   if (!user) return null;
 
@@ -109,28 +109,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
           })}
         </nav>
 
-        {/* Role Switcher (Demo) */}
-        {sidebarOpen && (
-          <div className="absolute bottom-20 left-4 right-4">
-            <p className="text-xs text-sidebar-muted mb-2 px-3">Demo: Switch Role</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['student', 'faculty', 'institution', 'admin'] as UserRole[]).map((role) => (
-                <button
-                  key={role}
-                  onClick={() => switchRole(role)}
-                  className={cn(
-                    'text-xs py-1.5 px-2 rounded-lg transition-colors',
-                    user.role === role
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                      : 'text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent'
-                  )}
-                >
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+
 
         {/* User Profile */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
