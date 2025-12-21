@@ -1,12 +1,13 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FacultyLayout } from '@/layouts/FacultyLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, FileText, Download, MoreVertical } from 'lucide-react';
-import { toast } from 'sonner';
 
-const assignments = [
+const initialAssignments = [
     { id: 1, title: 'Algebra Homework', subject: 'Mathematics', class: 'Grade 10-A', dueDate: 'Dec 22, 2025', submissions: '42/45', status: 'active' },
     { id: 2, title: 'Physics Lab Report', subject: 'Science', class: 'Grade 9-B', dueDate: 'Dec 25, 2025', submissions: '12/52', status: 'active' },
     { id: 3, title: 'Shakespeare Essay', subject: 'English', class: 'Grade 10-C', dueDate: 'Dec 18, 2025', submissions: '28/28', status: 'closed' },
@@ -14,6 +15,25 @@ const assignments = [
 ];
 
 export function FacultyAssignments() {
+    const navigate = useNavigate();
+    const [assignments, setAssignments] = useState(initialAssignments);
+
+    useEffect(() => {
+        const storedAssignments = localStorage.getItem('faculty_assignments');
+        if (storedAssignments) {
+            const parsed = JSON.parse(storedAssignments);
+            // Combine initial and stored, removing duplicates if needed (simple concat here)
+            // Ideally we'd have a database. For now we just show both or just the stored one if we want full persistence simulation
+            // But to keep the "demo" data visible + new data, we concat:
+            if (Array.isArray(parsed)) {
+                setAssignments([...initialAssignments, ...parsed.map((p: any) => ({
+                    ...p,
+                    id: p.id || Math.random() // Ensure ID
+                }))]);
+            }
+        }
+    }, []);
+
     const columns = [
         { key: 'title', header: 'Assignment Title' },
         { key: 'subject', header: 'Subject' },
@@ -25,7 +45,7 @@ export function FacultyAssignments() {
             header: 'Status',
             render: (item: typeof assignments[0]) => (
                 <Badge variant={item.status === 'active' ? 'success' : 'outline'}>
-                    {item.status.toUpperCase()}
+                    {item.status.toString().toUpperCase()}
                 </Badge>
             ),
         },
@@ -53,7 +73,7 @@ export function FacultyAssignments() {
                 actions={
                     <Button
                         className="btn-primary flex items-center gap-2"
-                        onClick={() => toast.success('Redirecting to Assignment Creator...')}
+                        onClick={() => navigate('/faculty/assignments/create')}
                     >
                         <Plus className="w-4 h-4" />
                         Create Assignment
@@ -62,42 +82,22 @@ export function FacultyAssignments() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="dashboard-card">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                            <Plus className="w-5 h-5 text-primary" />
+                {[
+                    { label: 'Total Active', value: assignments.filter(a => a.status === 'active').length, icon: Plus, color: 'text-primary', bg: 'bg-primary/10' },
+                    { label: 'Graded', value: '45', icon: FileText, color: 'text-success', bg: 'bg-success/10' },
+                    { label: 'Pending Review', value: '8', icon: Download, color: 'text-warning', bg: 'bg-warning/10' },
+                    { label: 'Due Today', value: '2', icon: Search, color: 'text-info', bg: 'bg-info/10' },
+                ].map((stat, idx) => (
+                    <div key={idx} className="dashboard-card">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className={`p-2 rounded-lg ${stat.bg}`}>
+                                <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                            </div>
+                            <h4 className="font-medium">{stat.label}</h4>
                         </div>
-                        <h4 className="font-medium">Total Active</h4>
+                        <p className="text-2xl font-bold">{stat.value}</p>
                     </div>
-                    <p className="text-2xl font-bold">12</p>
-                </div>
-                <div className="dashboard-card">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-success/10 rounded-lg">
-                            <FileText className="w-5 h-5 text-success" />
-                        </div>
-                        <h4 className="font-medium">Graded</h4>
-                    </div>
-                    <p className="text-2xl font-bold">45</p>
-                </div>
-                <div className="dashboard-card">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-warning/10 rounded-lg">
-                            <Download className="w-5 h-5 text-warning" />
-                        </div>
-                        <h4 className="font-medium">Pending Review</h4>
-                    </div>
-                    <p className="text-2xl font-bold">8</p>
-                </div>
-                <div className="dashboard-card">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-info/10 rounded-lg">
-                            <Search className="w-5 h-5 text-info" />
-                        </div>
-                        <h4 className="font-medium">Due Today</h4>
-                    </div>
-                    <p className="text-2xl font-bold">2</p>
-                </div>
+                ))}
             </div>
 
             <div className="dashboard-card">
