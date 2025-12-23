@@ -152,7 +152,7 @@
   }
 
   .nav-link-active {
-    @apply bg-primary/20 text-primary font-bold shadow-sm;
+    @apply bg-black/10 text-black font-bold shadow-sm;
   }
 
   .page-header {
@@ -249,5 +249,8 @@
 
   .bg-sidebar-gradient {
     background: #FAB75A;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-muted: 0 0% 20%;
+    --sidebar-accent: 36 92% 60%;
   }
 }

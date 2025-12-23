@@ -79,7 +79,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         </button>
 
         <div className="flex items-center gap-2">
-          <img src="/vidyon-logo-v2.png" alt="Vidyon Logo" className="h-10 w-auto" />
+          <img src="/vidyon-logo-v2.png" alt="Vidyon Logo" className="h-14 w-auto" />
           <span className="font-semibold text-sm hidden sm:block">{ROLE_LABELS[user.role]} Portal</span>
         </div>
 
@@ -105,8 +105,8 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         sidebarOpen ? 'w-64' : 'w-20',
         'hidden lg:block'
       )}>
-        <div className="h-16 flex items-center gap-3 px-4 border-b border-sidebar-border bg-sidebar-gradient overflow-hidden">
-          <img src="/vidyon-logo-v2.png" alt="Vidyon Logo" className={cn("h-12 w-auto transition-all", !sidebarOpen && "mx-auto")} />
+        <div className="h-32 flex items-center gap-3 px-4 border-b border-sidebar-border bg-sidebar-gradient overflow-hidden">
+          <img src="/vidyon-logo-v2.png" alt="Vidyon Logo" className={cn("h-24 w-auto transition-all", !sidebarOpen && "mx-auto")} />
           {sidebarOpen && (
             <div className="animate-fade-in truncate">
               <span className="text-[10px] text-black font-bold uppercase tracking-wider block opacity-70 leading-none">
@@ -150,14 +150,14 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
               )}
             >
               <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
-                <span className="text-sm font-medium text-sidebar-foreground group-hover:text-primary transition-colors">
+                <span className="text-sm font-medium text-sidebar-foreground transition-colors">
                   {user.name.split(' ').map(n => n[0]).join('')}
                 </span>
               </div>
               {sidebarOpen && (
                 <div className="flex-1 min-w-0 animate-fade-in text-left">
-                  <p className="text-sm font-bold text-sidebar-foreground truncate group-hover:text-primary transition-colors">{user.name}</p>
-                  <p className="text-xs text-sidebar-muted truncate group-hover:text-sidebar-foreground transition-colors">{user.email}</p>
+                  <p className="text-sm font-bold text-sidebar-foreground truncate transition-colors">{user.name}</p>
+                  <p className="text-xs text-sidebar-muted truncate transition-colors">{user.email}</p>
                 </div>
               )}
             </Link>
@@ -177,7 +177,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         {/* Toggle Button */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-card border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors"
+          className="absolute -right-3 top-36 w-6 h-6 bg-card border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors"
         >
           <ChevronDown className={cn('w-4 h-4 transition-transform', sidebarOpen ? 'rotate-90' : '-rotate-90')} />
         </button>

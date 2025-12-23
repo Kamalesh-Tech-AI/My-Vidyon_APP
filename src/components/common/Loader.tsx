@@ -25,8 +25,8 @@ const Loader = ({ fullScreen = true }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
+                        height={128}
+                        width={128}
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.1s forwards' }}
                     >
@@ -49,8 +49,8 @@ const Loader = ({ fullScreen = true }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
+                        height={128}
+                        width={128}
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.2s forwards' }}
                     >
@@ -69,15 +69,15 @@ const Loader = ({ fullScreen = true }) => {
                     </svg>
 
                     {/* Space */}
-                    <div className="w-4 md:w-8" />
+                    <div className="w-8 md:w-16" />
 
                     {/* Letter V */}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
+                        height={128}
+                        width={128}
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.4s forwards' }}
                     >
@@ -100,8 +100,8 @@ const Loader = ({ fullScreen = true }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
+                        height={128}
+                        width={128}
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.5s forwards' }}
                     >
@@ -124,8 +124,8 @@ const Loader = ({ fullScreen = true }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
+                        height={128}
+                        width={128}
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.6s forwards' }}
                     >
@@ -148,8 +148,8 @@ const Loader = ({ fullScreen = true }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
+                        height={128}
+                        width={128}
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.7s forwards' }}
                     >
@@ -172,8 +172,8 @@ const Loader = ({ fullScreen = true }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
+                        height={128}
+                        width={128}
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.8s forwards' }}
                     >
@@ -199,8 +199,8 @@ const Loader = ({ fullScreen = true }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 64 64"
-                        height={64}
-                        width={64}
+                        height={128}
+                        width={128}
                         className="inline-block opacity-0"
                         style={{ animation: 'slideUp 0.3s ease-out 0.9s forwards' }}
                     >
