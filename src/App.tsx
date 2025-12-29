@@ -74,18 +74,13 @@ import { ParentSettings } from "./pages/parent/ParentSettings";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { AdminInstitutions } from "./pages/admin/AdminInstitutions";
 import { AdminUsers } from "./pages/admin/AdminUsers";
-import { AddInstitution } from "./pages/admin/AddInstitution";
-import { InstitutionDetail } from "./pages/admin/InstitutionDetail";
 import { AdminInstitutionAnalytics } from "./pages/admin/AdminInstitutionAnalytics";
-import { AdminRoles } from "./pages/admin/AdminRoles";
-import { AdminAPI } from "./pages/admin/AdminAPI";
-import { AdminDatabase } from "./pages/admin/AdminDatabase";
-import { AdminMonitoring } from "./pages/admin/AdminMonitoring";
-import { AdminFeatures } from "./pages/admin/AdminFeatures";
-import { AdminConfig } from "./pages/admin/AdminConfig";
 import { AdminSettings } from "./pages/admin/AdminSettings";
+import { AdminStructure } from "./pages/admin/AdminStructure";
+import { AdminSubjects } from "./pages/admin/AdminSubjects";
+import { AdminApprovals } from "./pages/admin/AdminApprovals";
+import { AdminAnnouncements } from "./pages/admin/AdminAnnouncements";
 
 const queryClient = new QueryClient();
 
@@ -168,18 +163,17 @@ const App = () => {
                 <Route path="/parent/settings" element={<ProtectedRoute allowedRoles={['parent']}><ParentSettings /></ProtectedRoute>} />
 
                 {/* Admin Routes */}
+                {/* School Admin Routes - Replaced previous SaaS Admin Routes */}
                 <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-                <Route path="/admin/add-institution" element={<ProtectedRoute allowedRoles={['admin']}><AddInstitution /></ProtectedRoute>} />
-                <Route path="/admin/institutions" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstitutions /></ProtectedRoute>} />
-                <Route path="/admin/institutions/:institutionId" element={<ProtectedRoute allowedRoles={['admin']}><InstitutionDetail /></ProtectedRoute>} />
-                <Route path="/admin/institutions/:institutionId/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstitutionAnalytics /></ProtectedRoute>} />
+                <Route path="/admin/structure" element={<ProtectedRoute allowedRoles={['admin']}><AdminStructure /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
-                <Route path="/admin/roles" element={<ProtectedRoute allowedRoles={['admin']}><AdminRoles /></ProtectedRoute>} />
-                <Route path="/admin/api" element={<ProtectedRoute allowedRoles={['admin']}><AdminAPI /></ProtectedRoute>} />
-                <Route path="/admin/database" element={<ProtectedRoute allowedRoles={['admin']}><AdminDatabase /></ProtectedRoute>} />
-                <Route path="/admin/monitoring" element={<ProtectedRoute allowedRoles={['admin']}><AdminMonitoring /></ProtectedRoute>} />
-                <Route path="/admin/features" element={<ProtectedRoute allowedRoles={['admin']}><AdminFeatures /></ProtectedRoute>} />
-                <Route path="/admin/config" element={<ProtectedRoute allowedRoles={['admin']}><AdminConfig /></ProtectedRoute>} />
+
+                {/* School Admin Routes - Activated */}
+                <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={['admin']}><AdminSubjects /></ProtectedRoute>} />
+                <Route path="/admin/approvals" element={<ProtectedRoute allowedRoles={['admin']}><AdminApprovals /></ProtectedRoute>} />
+                <Route path="/admin/communication" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} />
+                <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstitutionAnalytics /></ProtectedRoute>} />
+
                 <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
 
                 {/* Catch-all */}

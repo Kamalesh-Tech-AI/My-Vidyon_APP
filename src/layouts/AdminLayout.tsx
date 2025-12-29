@@ -6,12 +6,10 @@ import {
   Building2,
   Users,
   Shield,
-  Plug,
-  Database,
-  Activity,
-  Flag,
+  GraduationCap,
+  Megaphone,
+  BarChart3,
   Settings,
-  Globe,
 } from 'lucide-react';
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -19,14 +17,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const adminNavItems = [
     { label: t.nav.dashboard, href: '/admin', icon: LayoutDashboard },
-    { label: t.nav.institutions, href: '/admin/institutions', icon: Building2 },
-    { label: t.nav.users, href: '/admin/users', icon: Users },
-    { label: t.nav.roles, href: '/admin/roles', icon: Shield },
-    { label: t.nav.api, href: '/admin/api', icon: Plug },
-    { label: t.nav.database, href: '/admin/database', icon: Database },
-    { label: t.nav.monitoring, href: '/admin/monitoring', icon: Activity },
-    { label: t.nav.features, href: '/admin/features', icon: Flag },
-    { label: t.nav.config, href: '/admin/config', icon: Globe },
+    { label: 'School Structure', href: '/admin/structure', icon: Building2 }, // Setup Board, Class, Section
+    { label: 'My Subjects', href: '/admin/subjects', icon: GraduationCap }, // Subject Master & Allocation
+    { label: t.nav.users, href: '/admin/users', icon: Users }, // Students, Staff, Parents
+    { label: 'Approvals', href: '/admin/approvals', icon: Shield }, // Leaves, Marks
+    { label: 'Announcements', href: '/admin/communication', icon: Megaphone }, // Notices
+    { label: t.nav.analytics, href: '/admin/reports', icon: BarChart3 }, // Reports
     { label: t.nav.settings, href: '/admin/settings', icon: Settings },
   ];
 
