@@ -5,6 +5,22 @@ import { LanguageSelector } from '@/components/common/LanguageSelector';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 
+
+
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+
 const ADS_DATA = [
   {
     title: "All-in-One Management",
@@ -32,6 +48,29 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [currentAd, setCurrentAd] = useState(0);
+
+  // Contact Admin State
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [contactSubject, setContactSubject] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  const handleContactSubmit = async () => {
+    if (!contactSubject || !contactMessage) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsSending(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsSending(false);
+      setIsContactOpen(false);
+      toast.success("Message sent to administrator successfully.");
+      setContactSubject('');
+      setContactMessage('');
+    }, 1500);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -110,9 +149,6 @@ export function LoginPage() {
                 <label className="text-sm font-semibold text-foreground/80">
                   {t.login.password}
                 </label>
-                <a href="#" className="text-xs font-medium text-primary hover:underline">
-                  {t.login.forgotPassword}
-                </a>
               </div>
               <div className="relative">
                 <input
@@ -159,14 +195,59 @@ export function LoginPage() {
             </Button>
           </form>
 
+
+
           <div className="mt-10 text-center">
             <p className="text-sm text-muted-foreground">
               {t.login.noAccount}{' '}
-              <a href="#" className="text-primary font-bold hover:underline">
+              <button
+                type="button"
+                onClick={() => setIsContactOpen(true)}
+                className="text-primary font-bold hover:underline"
+              >
                 {t.login.contactAdmin}
-              </a>
+              </button>
             </p>
           </div>
+
+          <Dialog open={isContactOpen} onOpenChange={setIsContactOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Contact Administrator</DialogTitle>
+                <DialogDescription>
+                  Need help? Send a message to the system administrator.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject</Label>
+                  <Input
+                    id="subject"
+                    placeholder="e.g. Account Access Issue"
+                    value={contactSubject}
+                    onChange={(e) => setContactSubject(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea
+                    id="message"
+                    placeholder="Describe your issue..."
+                    className="min-h-[100px]"
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsContactOpen(false)}>Cancel</Button>
+                <Button onClick={handleContactSubmit} disabled={isSending}>
+                  {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Send Message
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <p className="mt-12 text-center text-xs text-muted-foreground/60">
             {t.login.copyright}
