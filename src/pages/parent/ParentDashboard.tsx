@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { ChildCard } from '@/components/cards/ChildCard';
-import { Phone, Shield, School, User } from 'lucide-react';
+import { Phone, Shield, School, User, Calendar, CreditCard, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 // Helper to deduce performance mock based on nothing (random/demo)
@@ -165,5 +165,4 @@ export function ParentDashboard() {
     );
 }
 
-// Add missing icons locally for the component
-import { Loader2, Phone, School, User, Calendar, CreditCard } from 'lucide-react';
+
