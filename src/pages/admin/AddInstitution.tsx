@@ -54,6 +54,7 @@ interface Student {
     id: string;
     name: string;
     registerNumber: string;
+    register_number?: string; // Support for snake_case from bulk upload
     class: string;
     section: string;
     dob: string;
@@ -62,19 +63,22 @@ interface Student {
     parentContact: string;
     email: string;
     address: string;
+    password?: string;
 }
 
 interface Staff {
     id: string;
     name: string;
     staffId: string;
+    staff_id?: string; // Support for snake_case from bulk upload
     role: string;
     subjectAssigned: string;
     classAssigned: string;
     sectionAssigned: string; // Added section
     email: string;
     phone: string;
-    dob: string; // Added for password generation
+    dob: string;
+    password?: string;
 }
 
 const steps = [
@@ -106,6 +110,10 @@ export function AddInstitution() {
     const [logoUrl, setLogoUrl] = useState('');
     const [institutionStatus, setInstitutionStatus] = useState('active');
     const [institutionId, setInstitutionId] = useState(''); // School Code
+
+    // Admin Credentials
+    const [adminEmail, setAdminEmail] = useState('');
+    const [adminPassword, setAdminPassword] = useState('');
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(isEditMode);
@@ -400,6 +408,7 @@ export function AddInstitution() {
             parentContact: '',
             email: '',
             address: '',
+            password: '',
         }]);
     };
 
@@ -423,6 +432,7 @@ export function AddInstitution() {
             email: '',
             phone: '',
             dob: '',
+            password: '',
         }]);
     };
 
@@ -434,9 +444,33 @@ export function AddInstitution() {
         setStaff(staff.map(s => s.id === staffId ? { ...s, [field]: value } : s));
     };
 
+    const validateStep = (step: number) => {
+        switch (step) {
+            case 1:
+                if (!institutionName) { toast.error('Institution Name is required'); return false; }
+                if (!institutionId) { toast.error('School Code is required'); return false; }
+                if (!institutionType) { toast.error('Institution Type is required'); return false; }
+                if (!address) { toast.error('Address is required'); return false; }
+                if (!city) { toast.error('City is required'); return false; }
+                if (!state) { toast.error('State is required'); return false; }
+                if (!contactEmail) { toast.error('Contact Email is required'); return false; }
+                if (!contactPhone) { toast.error('Contact Phone is required'); return false; }
+                if (!academicYear) { toast.error('Academic Year is required'); return false; }
+                return true;
+            case 2:
+                if (!adminEmail) { toast.error('Admin Email is required'); return false; }
+                if (!adminPassword) { toast.error('Admin Password is required'); return false; }
+                return true;
+            default:
+                return true;
+        }
+    };
+
     const handleNext = () => {
-        if (currentStep < 6) {
-            setCurrentStep(currentStep + 1);
+        if (validateStep(currentStep)) {
+            if (currentStep < 6) {
+                setCurrentStep(currentStep + 1);
+            }
         }
     };
 
@@ -447,29 +481,54 @@ export function AddInstitution() {
     };
 
     const handleSubmit = async () => {
+        // Final validation across all critical steps
+        if (!validateStep(1) || !validateStep(2)) return;
+
         setIsSubmitting(true);
-        const loadingToast = toast.loading('Step 1/6: Uploading logo...');
+        const loadingToast = toast.loading('Initializing onboarding sequence...');
 
         try {
             // 1. Upload Logo if exists
             let uploadedLogoUrl = '';
             if (logo) {
+                console.log('Step 1/6: Logo details:', { name: logo.name, size: logo.size, type: logo.type });
+                toast.loading('Step 1/6: Uploading logo (timeout in 15s)...', { id: loadingToast });
+
                 const fileExt = logo.name.split('.').pop();
                 const fileName = `${institutionId}-${Math.random()}.${fileExt}`;
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('logos')
-                    .upload(fileName, logo);
 
-                if (uploadError) throw new Error(`Logo upload failed: ${uploadError.message}`);
+                try {
+                    // Timeout-safe upload
+                    const uploadPromise = supabase.storage
+                        .from('logos')
+                        .upload(fileName, logo, { upsert: true });
 
-                const { data: { publicUrl } } = supabase.storage
-                    .from('logos')
-                    .getPublicUrl(fileName);
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Logo upload timed out (15s). Please check your connection or bucket settings.')), 15000)
+                    );
 
-                uploadedLogoUrl = publicUrl;
+                    const { data: uploadData, error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
+
+                    if (uploadError) {
+                        console.error('Logo upload error:', uploadError);
+                        toast.error('Logo upload failed, but continuing with onboarding...', { duration: 3000 });
+                    } else {
+                        const { data: { publicUrl } } = supabase.storage
+                            .from('logos')
+                            .getPublicUrl(fileName);
+                        uploadedLogoUrl = publicUrl;
+                        console.log('Logo uploaded successfully:', uploadedLogoUrl);
+                    }
+                } catch (timeoutErr: any) {
+                    console.warn('Logo upload skipped due to error/timeout:', timeoutErr.message);
+                    toast.error('Logo upload timed out. Continuing without logo...', { duration: 4000 });
+                }
+            } else {
+                console.log('Step 1/6: Skipping logo upload (none selected)');
             }
 
             // 2. Create/Update Institution
+            console.log('Step 2/6: Saving institution details...');
             toast.loading('Step 2/6: Saving institution details...', { id: loadingToast });
             const institutionData: any = {
                 institution_id: institutionId,
@@ -481,7 +540,9 @@ export function AddInstitution() {
                 email: contactEmail,
                 phone: contactPhone,
                 academic_year: academicYear,
-                status: institutionStatus
+                status: institutionStatus,
+                admin_email: adminEmail,
+                admin_password: adminPassword,
             };
 
             if (uploadedLogoUrl) {
@@ -496,6 +557,26 @@ export function AddInstitution() {
                 .upsert([institutionData], { onConflict: 'institution_id' });
 
             if (instError) throw new Error(`Failed to create institution: ${instError.message}`);
+            console.log('Institution record saved successfully.');
+
+            // 2.5 Provision Institution Admin account
+            if (adminEmail && adminPassword) {
+                toast.loading('Step 2.5/6: Provisioning institution admin...', { id: loadingToast });
+                const { error: adminProvError } = await supabase.functions.invoke('create-user', {
+                    body: {
+                        email: adminEmail,
+                        password: adminPassword,
+                        role: 'institution',
+                        full_name: `${institutionName} Admin`,
+                        institution_id: institutionId,
+                        staff_id: `ADM-${institutionId}`
+                    }
+                });
+                if (adminProvError) {
+                    console.error('Failed to provision institution admin:', adminProvError);
+                    toast.error('Institution created, but admin account provisioning failed. Please create it manually.', { id: loadingToast });
+                }
+            }
 
             // 3. Create Groups & Classes
             toast.loading('Step 3/6: Creating groups and classes...', { id: loadingToast });
@@ -562,6 +643,7 @@ export function AddInstitution() {
                 // Provision Auth Accounts for Students
                 const studentProvisionData = finalStudents.filter(s => s.email).map(s => ({
                     ...s,
+                    register_number: s.register_number || s.registerNumber,
                     role: 'student'
                 }));
 
@@ -592,6 +674,7 @@ export function AddInstitution() {
                 // Ensure manual staff entries have faculty role if not specified
                 const staffToProvision = finalStaff.filter(s => s.email).map(s => ({
                     ...s,
+                    staff_id: s.staff_id || s.staffId,
                     role: s.role || 'faculty'
                 }));
 
@@ -636,9 +719,17 @@ export function AddInstitution() {
             toast.success('Institution onboarding completed successfully!');
             navigate('/admin');
         } catch (error: any) {
+            console.error('Onboarding failed at some step:', error);
             toast.dismiss(loadingToast);
-            toast.error(`Error: ${error.message}`);
-            console.error(error);
+
+            // Handle different error objects (Supabase vs Standard)
+            const errorMessage = error.message || error.error_description || error.msg || 'An unknown error occurred';
+            toast.error(`Onboarding Error: ${errorMessage}`);
+
+            // If it failed at Step 1, it might be storage permissions
+            if (errorMessage.toLowerCase().includes('storage') || errorMessage.toLowerCase().includes('bucket')) {
+                toast.error('Storage error detected. Please ensure the "logos" bucket exists and has correct RLS policies.');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -782,6 +873,40 @@ export function AddInstitution() {
             case 2:
                 return (
                     <div className="space-y-6">
+                        <Card className="p-6 border-primary/20 bg-primary/5">
+                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                <UserCog className="w-5 h-5 text-primary" />
+                                Institution Admin Credentials
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="adminEmail">Admin Email *</Label>
+                                    <Input
+                                        id="adminEmail"
+                                        type="email"
+                                        value={adminEmail}
+                                        onChange={(e) => setAdminEmail(e.target.value)}
+                                        placeholder="admin@institution.com"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="adminPassword">Admin Password *</Label>
+                                    <Input
+                                        id="adminPassword"
+                                        type="password"
+                                        value={adminPassword}
+                                        onChange={(e) => setAdminPassword(e.target.value)}
+                                        placeholder="Enter secure password"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-3">
+                                This account will be created as the primary administrator for this institution.
+                            </p>
+                        </Card>
+
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border">
                             <div className="space-y-1">
                                 <h4 className="font-medium text-sm">Quick Setup</h4>
@@ -1117,6 +1242,14 @@ export function AddInstitution() {
                                                             placeholder="Address"
                                                         />
                                                     </div>
+                                                    <div className="md:col-span-1">
+                                                        <Input
+                                                            type="password"
+                                                            value={student.password}
+                                                            onChange={(e) => updateStudent(student.id, 'password', e.target.value)}
+                                                            placeholder="Password (Optional)"
+                                                        />
+                                                    </div>
                                                     <div className="flex items-end">
                                                         <Button
                                                             onClick={() => removeStudent(student.id)}
@@ -1285,16 +1418,16 @@ export function AddInstitution() {
                                                         placeholder="Date of Birth"
                                                     />
                                                     <Input
-                                                        type="email"
-                                                        value={staffMember.email}
-                                                        onChange={(e) => updateStaffMember(staffMember.id, 'email', e.target.value)}
-                                                        placeholder="Email Address"
-                                                    />
-                                                    <Input
                                                         type="tel"
                                                         value={staffMember.phone}
                                                         onChange={(e) => updateStaffMember(staffMember.id, 'phone', e.target.value)}
                                                         placeholder="Phone Number"
+                                                    />
+                                                    <Input
+                                                        type="password"
+                                                        value={staffMember.password}
+                                                        onChange={(e) => updateStaffMember(staffMember.id, 'password', e.target.value)}
+                                                        placeholder="Password (Optional)"
                                                     />
                                                     <div className="flex items-end">
                                                         <Button

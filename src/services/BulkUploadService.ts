@@ -65,24 +65,48 @@ export class BulkUploadService {
         for (let i = 0; i < users.length; i += CHUNK_SIZE) {
             const chunk = users.slice(i, i + CHUNK_SIZE);
             const chunkPromises = chunk.map(async (user) => {
-                const password = this.generatePassword(user.full_name || user.name, user.dob);
+                const password = user.password || this.generatePassword(user.full_name || user.name, user.dob);
                 try {
+                    // 1. Create primary student/staff user
                     const { data, error } = await supabase.functions.invoke('create-user', {
                         body: {
                             email: user.email,
                             password: password,
                             role: user.role,
                             full_name: user.full_name || user.name,
-                            institution_id: institutionId
+                            institution_id: institutionId,
+                            register_number: user.register_number,
+                            staff_id: user.staff_id || user.staffId // Handle both cases
                         }
                     });
 
                     if (error) throw error;
 
+                    const userId = data?.user?.id;
+
+                    // 2. If student and parent details exist, provision parent
+                    if (user.role === 'student' && user.parent_email && user.parent_name) {
+                        try {
+                            await supabase.functions.invoke('create-user', {
+                                body: {
+                                    email: user.parent_email,
+                                    password: institutionId, // Default password for parents
+                                    role: 'parent',
+                                    full_name: user.parent_name,
+                                    institution_id: institutionId,
+                                    phone: user.parent_phone || user.parent_contact,
+                                    student_id: userId // Link to child
+                                }
+                            });
+                        } catch (parentErr) {
+                            console.error(`Error provisioning parent ${user.parent_email} for student ${user.email}:`, parentErr);
+                        }
+                    }
+
                     return {
                         email: user.email,
                         password: password,
-                        userId: data?.user?.id,
+                        userId: userId,
                         status: 'success'
                     } as BulkUploadResult;
                 } catch (error: any) {
@@ -124,31 +148,64 @@ export class BulkUploadService {
         let filename = '';
 
         if (type === 'student') {
-            headers = [{
-                name: 'John Doe',
-                register_number: 'STU001',
-                class_name: '10',
-                section: 'A',
-                dob: '2008-05-15',
-                gender: 'male',
-                parent_name: 'Richard Doe',
-                parent_contact: '1234567890',
-                email: 'john.doe@example.com',
-                address: '123 School St'
-            }];
+            headers = [
+                {
+                    name: 'John Doe',
+                    register_number: 'STU001',
+                    class_name: 'Grade 10',
+                    section: 'A',
+                    dob: '2008-05-15',
+                    gender: 'male',
+                    parent_name: 'Richard Doe',
+                    parent_email: 'richard.doe@example.com',
+                    parent_phone: '1234567890',
+                    email: 'john.doe@example.com',
+                    address: '123 School St',
+                    password: 'password123'
+                },
+                {
+                    name: 'Sarah Smith',
+                    register_number: 'STU002',
+                    class_name: 'Grade 10',
+                    section: 'B',
+                    dob: '2008-06-20',
+                    gender: 'female',
+                    parent_name: 'Robert Smith',
+                    parent_email: 'robert.smith@example.com',
+                    parent_phone: '0987654321',
+                    email: 'sarah.s@example.com',
+                    address: '456 Education Ave',
+                    password: 'password456'
+                }
+            ];
             filename = 'student-template.xlsx';
         } else {
-            headers = [{
-                name: 'Jane Smith',
-                staff_id: 'STAFF001',
-                email: 'jane.smith@example.com',
-                phone: '9876543210',
-                role: 'teacher',
-                subject_assigned: 'Mathematics',
-                class_assigned: '10',
-                section_assigned: 'A',
-                dob: '1985-10-20'
-            }];
+            headers = [
+                {
+                    name: 'Jane Smith',
+                    staff_id: 'STAFF001',
+                    email: 'jane.smith@example.com',
+                    phone: '9876543210',
+                    role: 'teacher',
+                    subject_assigned: 'Mathematics',
+                    class_assigned: '10',
+                    section_assigned: 'A',
+                    dob: '1985-10-20',
+                    password: 'password123'
+                },
+                {
+                    name: 'Mike Wilson',
+                    staff_id: 'STAFF002',
+                    email: 'mike.w@example.com',
+                    phone: '1234567890',
+                    role: 'admin',
+                    subject_assigned: 'All',
+                    class_assigned: 'N/A',
+                    section_assigned: 'N/A',
+                    dob: '1980-01-01',
+                    password: 'password456'
+                }
+            ];
             filename = 'staff-template.xlsx';
         }
 

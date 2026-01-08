@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS public.institutions (
   city TEXT,
   state TEXT,
   email TEXT,
+  admin_email TEXT UNIQUE,
   phone TEXT,
   academic_year TEXT,
   logo_url TEXT,

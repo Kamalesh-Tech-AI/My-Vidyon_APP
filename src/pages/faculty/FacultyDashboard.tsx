@@ -65,20 +65,20 @@ export function FacultyDashboard() {
       return count || 0;
     },
     enabled: !!user?.institutionId,
-    staleTime: Infinity,
+    staleTime: 1000 * 60, // 1 minute
   });
 
   // 2. Mock Queries for Caching Architecture
   const { data: assignedSubjects = mockAssignedSubjects } = useQuery({
     queryKey: ['faculty-courses'],
     queryFn: () => Promise.resolve(mockAssignedSubjects),
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 5, // 5 minutes for mocks
   });
 
   const { data: pendingSubmissions = mockPendingSubmissions } = useQuery({
     queryKey: ['faculty-submissions'],
     queryFn: () => Promise.resolve(mockPendingSubmissions),
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 5,
   });
 
   // 3. Realtime Subscription

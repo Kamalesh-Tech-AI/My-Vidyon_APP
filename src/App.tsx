@@ -86,7 +86,15 @@ import { AdminInstitutions } from "./pages/admin/AdminInstitutions";
 import { AddInstitution } from "./pages/admin/AddInstitution";
 import { InstitutionDetail } from "./pages/admin/InstitutionDetail";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 30, // 30 seconds
+      refetchOnWindowFocus: true,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => {
   return (

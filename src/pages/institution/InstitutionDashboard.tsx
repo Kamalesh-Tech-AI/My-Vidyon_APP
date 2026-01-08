@@ -60,7 +60,7 @@ export function InstitutionDashboard() {
       };
     },
     enabled: !!user?.institutionId,
-    staleTime: Infinity, // Prevent buffering on revisit
+    staleTime: 1000 * 60, // 1 minute
   });
 
   // 2. Fetch Recent Admissions
@@ -76,7 +76,7 @@ export function InstitutionDashboard() {
       return data || [];
     },
     enabled: !!user?.institutionId,
-    staleTime: Infinity,
+    staleTime: 1000 * 60,
   });
 
   // 3. Compute Class Distribution (Simple Grouping from admissions for demo, ideal is aggregate query)

@@ -14,25 +14,118 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const { email, password, role, full_name, institution_id } = await req.json()
+        const { email, password, role, full_name, institution_id, register_number, staff_id, phone, student_id } = await req.json()
+
+        if (!email || !role || !institution_id) {
+            throw new Error("Missing required fields: email, role, and institution_id are required.")
+        }
 
         // Initialize Supabase Admin Client with SERVICE ROLE KEY
-        const supabaseAdmin = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        )
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+        if (!supabaseUrl || !supabaseServiceKey) {
+            throw new Error("Internal Configuration Error: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set in the Edge Function environment.");
+        }
+
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+        // Determine password: use provided password or default to institution_id
+        const finalPassword = password || institution_id;
+        const forcePasswordChange = !password; // Force change if they didn't set one
 
         // 1. Create User in Auth
         const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
             email,
-            password,
-            user_metadata: { role, full_name, institution_id },
+            password: finalPassword,
+            user_metadata: {
+                role,
+                full_name,
+                institution_id,
+                force_password_change: forcePasswordChange
+            },
             email_confirm: true
         })
 
         if (authError) throw authError
 
-        // 2. Profile is automatically created by the DB Trigger 'handle_new_user'
+        const userId = authUser.user.id;
+
+        // 2. Explicitly Insert/Update Profile
+        const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .upsert({
+                id: userId,
+                email: email,
+                full_name: full_name,
+                role: role,
+                institution_id: institution_id,
+                updated_at: new Date().toISOString()
+            });
+
+        if (profileError) {
+            console.error("Error creating/updating profile record:", profileError);
+        }
+
+        // 3. Role-specific table insertions
+        if (role === 'student') {
+            const { error: studentError } = await supabaseAdmin
+                .from('students')
+                .upsert({
+                    id: userId,
+                    name: full_name,
+                    email: email,
+                    institution_id: institution_id,
+                    register_number: register_number || `REG-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+                });
+            if (studentError) console.error("Error creating student record:", studentError);
+        } else if (role === 'parent') {
+            const { data: parentData, error: parentError } = await supabaseAdmin
+                .from('parents')
+                .upsert({
+                    profile_id: userId,
+                    name: full_name,
+                    email: email,
+                    institution_id: institution_id,
+                    phone: phone
+                }, { onConflict: 'email' })
+                .select()
+                .single();
+
+            if (parentError) {
+                console.error("Error creating parent record:", parentError);
+            } else if (student_id && parentData) {
+                // Link to student if provided
+                const { error: linkError } = await supabaseAdmin
+                    .from('student_parents')
+                    .upsert({
+                        student_id: student_id,
+                        parent_id: parentData.id
+                    });
+                if (linkError) console.error("Error linking parent to student:", linkError);
+            }
+        } else if (role === 'faculty' || role === 'institution' || role === 'admin') {
+            const { error: staffError } = await supabaseAdmin
+                .from('staff_details')
+                .upsert({
+                    profile_id: userId,
+                    institution_id: institution_id,
+                    role: role,
+                    staff_id: staff_id || `STF-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+                }, {
+                    onConflict: 'profile_id'
+                });
+            if (staffError) console.error("Error creating staff record:", staffError);
+
+            // SPECIAL CASE: Link Institution Admin Email
+            if (role === 'institution') {
+                const { error: instUpdateError } = await supabaseAdmin
+                    .from('institutions')
+                    .update({ admin_email: email, admin_password: finalPassword })
+                    .eq('institution_id', institution_id);
+                if (instUpdateError) console.error("Error linking institution admin email:", instUpdateError);
+            }
+        }
 
         return new Response(
             JSON.stringify({ user: authUser.user }),
@@ -52,11 +145,3 @@ Deno.serve(async (req) => {
         )
     }
 })
-
-/**
- * DEPLOYMENT INSTRUCTIONS:
- * 1. Install Supabase CLI: npm install supabase --save-dev
- * 2. Login: npx supabase login
- * 3. Link Project: npx supabase link --project-ref your-project-ref
- * 4. Deploy: npx supabase functions deploy create-user
- */

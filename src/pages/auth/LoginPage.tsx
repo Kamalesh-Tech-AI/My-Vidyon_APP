@@ -5,6 +5,7 @@ import { LanguageSelector } from '@/components/common/LanguageSelector';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 
 
 
@@ -52,11 +53,59 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentAd, setCurrentAd] = useState(0);
 
+  // Force Password Change State
+  const [isForceChangeOpen, setIsForceChangeOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
   // Contact Admin State
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [contactSubject, setContactSubject] = useState('');
   const [contactMessage, setContactMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+        data: { force_password_change: false }
+      });
+
+      if (error) throw error;
+
+      toast.success("Password updated successfully!");
+      setIsForceChangeOpen(false);
+
+      // Redirect to dashboard
+      const ROLE_ROUTES: Record<string, string> = {
+        student: '/student',
+        faculty: '/faculty',
+        institution: '/institution',
+        admin: '/admin',
+        parent: '/parent',
+      };
+      navigate(ROLE_ROUTES[user?.role || 'student'] || '/');
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update password");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
 
   const handleContactSubmit = async () => {
     if (!contactSubject || !contactMessage) {
@@ -77,15 +126,19 @@ export function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // If already logged in, redirect to appropriate dashboard
-      const ROLE_ROUTES: Record<string, string> = {
-        student: '/student',
-        faculty: '/faculty',
-        institution: '/institution',
-        admin: '/admin',
-        parent: '/parent',
-      };
-      navigate(ROLE_ROUTES[user.role] || '/');
+      if (user.forcePasswordChange) {
+        setIsForceChangeOpen(true);
+      } else {
+        // If already logged in, redirect to appropriate dashboard
+        const ROLE_ROUTES: Record<string, string> = {
+          student: '/student',
+          faculty: '/faculty',
+          institution: '/institution',
+          admin: '/admin',
+          parent: '/parent',
+        };
+        navigate(ROLE_ROUTES[user.role] || '/');
+      }
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -264,6 +317,49 @@ export function LoginPage() {
                 <Button onClick={handleContactSubmit} disabled={isSending}>
                   {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Send Message
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isForceChangeOpen} onOpenChange={(open) => !isUpdatingPassword && setIsForceChangeOpen(open)}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle>Change Password</DialogTitle>
+                <DialogDescription>
+                  Your administrator requires you to change your password before proceeding.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  onClick={handlePasswordChange}
+                  disabled={isUpdatingPassword}
+                  className="w-full"
+                >
+                  {isUpdatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Update Password
                 </Button>
               </DialogFooter>
             </DialogContent>

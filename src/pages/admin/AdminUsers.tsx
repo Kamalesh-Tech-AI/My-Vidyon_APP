@@ -54,7 +54,8 @@ export function AdminUsers() {
     name: '',
     email: '',
     role: '',
-    institution: ''
+    institution: '',
+    password: ''
   });
 
   const { data: users = [], isLoading: isUsersLoading, refetch } = useQuery({
@@ -112,19 +113,34 @@ export function AdminUsers() {
       return;
     }
 
-    // IMPORTANT: To create a user in Supabase Auth from frontend, 
-    // we need to use an Edge Function or a custom invitation flow.
-    // For now, we'll suggest using a database trigger that allows admins 
-    // to insert into a 'pending_invites' table or similar.
+    try {
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: newUser.email,
+          password: newUser.password || undefined, // Send undefined if empty to trigger default logic
+          role: newUser.role,
+          full_name: newUser.name,
+          institution_id: newUser.institution
+        }
+      });
 
-    toast.info("Implementation Note: User creation requires a Supabase Edge Function to securely call auth.admin.createUser().");
+      if (error) throw error;
 
-    // Simulate some logic for now
-    setTimeout(() => {
-      setIsSubmitting(false);
+      toast.success(`User ${newUser.name} created successfully!`);
       setIsAddUserOpen(false);
-      setNewUser({ name: '', email: '', role: '', institution: '' });
-    }, 1000);
+      setNewUser({ name: '', email: '', role: '', institution: '', password: '' });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    } catch (error: any) {
+      console.error('Detailed error creating user:', error);
+      // Check for common connection errors
+      const errorMessage = error.message?.includes('Failed to send a request')
+        ? "Network Error: Could not reach the Edge Function. Please ensure it is deployed."
+        : error.message || "Failed to create user. Please try again.";
+
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const columns = [
@@ -262,6 +278,21 @@ export function AdminUsers() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="password" className="text-right">Password</Label>
+                    <div className="col-span-3">
+                      <Input
+                        id="password"
+                        type="password"
+                        value={newUser.password}
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        placeholder="Leave blank to use Institution ID"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        If left blank, the user's default password will be their Institution ID.
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -8,6 +8,7 @@ export interface User {
   avatar?: string;
   institutionId?: string;
   departmentId?: string;
+  forcePasswordChange?: boolean;
 }
 
 export interface AuthState {

@@ -1,7 +1,7 @@
 -- Create staff_details table to store faculty assignments
 CREATE TABLE IF NOT EXISTS public.staff_details (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  profile_id UUID UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
   institution_id TEXT NOT NULL,
   staff_id TEXT,
   role TEXT,

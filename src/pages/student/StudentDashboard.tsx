@@ -60,7 +60,7 @@ export function StudentDashboard() {
       return data;
     },
     enabled: !!user?.email,
-    staleTime: Infinity,
+    staleTime: 1000 * 60, // 1 minute
   });
 
   // 2. Fetch Subjects (Real)
@@ -83,20 +83,20 @@ export function StudentDashboard() {
       }));
     },
     enabled: !!studentProfile?.class_name,
-    staleTime: Infinity,
+    staleTime: 1000 * 60,
   });
 
   // 3. Mock Queries (Wrapped in useQuery for caching consistency)
   const { data: assignments = mockAssignments } = useQuery({
     queryKey: ['student-assignments'],
     queryFn: () => Promise.resolve(mockAssignments),
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 5, // 5 minutes for mocks
   });
 
   const { data: notifications = mockNotifications } = useQuery({
     queryKey: ['student-notifications'],
     queryFn: () => Promise.resolve(mockNotifications),
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 5,
   });
 
   // 4. Realtime Subscription
