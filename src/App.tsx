@@ -59,7 +59,7 @@ import { InstitutionDepartments } from "./pages/institution/InstitutionDepartmen
 import { InstitutionCourses } from "./pages/institution/InstitutionCourses";
 import { InstitutionFaculty } from "./pages/institution/InstitutionFaculty";
 import { InstitutionCalendar } from "./pages/institution/InstitutionCalendar";
-import { InstitutionAdmissions } from "./pages/institution/InstitutionAdmissions";
+
 import { InstitutionFees } from "./pages/institution/InstitutionFees";
 import { InstitutionAnalytics } from "./pages/institution/InstitutionAnalytics";
 import { InstitutionReports } from "./pages/institution/InstitutionReports";
@@ -148,7 +148,7 @@ const App = () => {
                 <Route path="/institution/courses" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionCourses /></ProtectedRoute>} />
                 <Route path="/institution/faculty" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFaculty /></ProtectedRoute>} />
                 <Route path="/institution/calendar" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionCalendar /></ProtectedRoute>} />
-                <Route path="/institution/admissions" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAdmissions /></ProtectedRoute>} />
+
                 <Route path="/institution/fees" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFees /></ProtectedRoute>} />
                 <Route path="/institution/analytics" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAnalytics /></ProtectedRoute>} />
                 <Route path="/institution/reports" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionReports /></ProtectedRoute>} />
