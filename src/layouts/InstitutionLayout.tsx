@@ -7,7 +7,7 @@ import {
   BookOpen,
   Users,
   Calendar,
-
+  UserPlus,
   DollarSign,
   BarChart3,
   FileText,
@@ -23,13 +23,8 @@ export function InstitutionLayout({ children }: { children: ReactNode }) {
     { label: t.nav.departments, href: '/institution/departments', icon: Building2 },
     { label: t.nav.courses, href: '/institution/courses', icon: BookOpen },
     { label: t.nav.calendar, href: '/institution/calendar', icon: Calendar },
-<<<<<<< HEAD
-
-=======
-    { label: t.nav.admissions, href: '/institution/admissions', icon: UserPlus },
     { label: 'Add Student', href: '/institution/add-student', icon: Users },
     { label: 'Faculty Assigning', href: '/institution/faculty-assigning', icon: UserCheck },
->>>>>>> 9eb494fb709ed04401d4afcfeb3886a44b6a66b4
     { label: t.nav.feeStructure, href: '/institution/fees', icon: DollarSign },
     { label: t.nav.analytics, href: '/institution/analytics', icon: BarChart3 },
     { label: t.nav.reports, href: '/institution/reports', icon: FileText },
