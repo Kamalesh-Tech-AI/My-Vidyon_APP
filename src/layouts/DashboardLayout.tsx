@@ -16,11 +16,14 @@ import {
   Shield,
   Users,
   User as UserIcon,
+  MoreHorizontal,
 } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
 import { NotificationPanel } from '@/components/notifications/NotificationPanel';
 
@@ -47,10 +50,13 @@ const roleIcons: Record<UserRole, React.ComponentType<{ className?: string }>> =
 export function DashboardLayout({ children, navItems, roleColor = 'text-primary' }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
 
   if (!user) return null;
+
+  const isBottomNavRole = ['student', 'faculty', 'parent'].includes(user.role);
 
   const getSettingsPath = () => {
     switch (user.role) {
@@ -67,24 +73,45 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
 
   const RoleIcon = roleIcons[user.role];
 
+  // Logic for Bottom Nav Items (Max 4 + More)
+  const bottomNavLimit = 4;
+  const showMoreOption = navItems.length > bottomNavLimit;
+  const primaryBottomNavItems = showMoreOption ? navItems.slice(0, bottomNavLimit) : navItems;
+  const moreBottomNavItems = showMoreOption ? navItems.slice(bottomNavLimit) : [];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-50 flex items-center justify-between px-4">
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 rounded-lg hover:bg-muted transition-colors"
-        >
-          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-50 flex items-center justify-between px-4 safe-area-inset-top">
+        {/* Only show Hamburger for Non-BottomNav roles */}
+        {!isBottomNavRole && (
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        )}
+
+        {/* For BottomNav roles, show simple branding or nothing on left */}
+        {isBottomNavRole && (
+          <div className="flex items-center gap-2">
+            <img src="/my-vidyon-logo.png" alt="Vidyon Logo" className="h-10 w-auto" />
+          </div>
+        )}
+
+        {!isBottomNavRole && (
+          <div className="flex items-center gap-2">
+            <img src="/my-vidyon-logo.png" alt="Vidyon Logo" className="h-14 w-auto" />
+            <span className="font-semibold text-sm hidden sm:block">{ROLE_LABELS[user.role]} Portal</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
-          <img src="/my-vidyon-logo.png" alt="Vidyon Logo" className="h-14 w-auto" />
-          <span className="font-semibold text-sm hidden sm:block">{ROLE_LABELS[user.role]} Portal</span>
-        </div>
+          {!isBottomNavRole && <LanguageSelector />}
+          {/* Hide LanguageSelector on mobile header for bottom nav roles to save space? Or keep it? keeping for now */}
+          {isBottomNavRole && <LanguageSelector />}
 
-        <div className="flex items-center gap-2">
-          <LanguageSelector />
           <Sheet>
             <SheetTrigger asChild>
               <button className="p-2 rounded-lg hover:bg-muted transition-colors relative">
@@ -99,11 +126,11 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         </div>
       </header>
 
-      {/* Sidebar */}
+      {/* Sidebar - Desktop Only for BottomNav Roles, Always for Admin/Inst */}
       <aside className={cn(
         'fixed top-0 left-0 h-full bg-sidebar-gradient z-40 transition-all duration-300 flex flex-col',
         sidebarOpen ? 'w-64' : 'w-20',
-        'hidden lg:flex'
+        'hidden lg:flex' // Always hidden on mobile
       )}>
         <div className="h-32 flex items-center gap-3 px-4 border-b border-sidebar-border bg-sidebar-gradient overflow-hidden flex-shrink-0">
           <img src="/my-vidyon-logo.png" alt="Vidyon Logo" className={cn("h-24 w-auto transition-all", !sidebarOpen && "mx-auto")} />
@@ -184,8 +211,8 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         </button>
       </aside>
 
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
+      {/* Mobile Menu (Sidebar Overlay) - ONLY for Non-BottomNav Roles */}
+      {!isBottomNavRole && mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-30 bg-background/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
           <div className="w-64 h-full bg-sidebar-gradient" onClick={e => e.stopPropagation()}>
             <div className="pt-20 p-4 space-y-1">
@@ -231,10 +258,93 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         </div>
       )}
 
+      {/* Bottom Navigation Bar - ONLY for BottomNav Roles on Mobile */}
+      {isBottomNavRole && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe">
+          <nav className="flex items-center justify-around h-16">
+            {primaryBottomNavItems.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    "flex flex-col items-center justify-center w-full h-full space-y-1",
+                    isActive ? "text-primary" : "text-muted-foreground hover:text-primary"
+                  )}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="text-[10px] font-medium leading-none">{item.label}</span>
+                </Link>
+              );
+            })}
+
+            {/* More Button */}
+            {showMoreOption && (
+              <Sheet open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+                <SheetTrigger asChild>
+                  <button
+                    className={cn(
+                      "flex flex-col items-center justify-center w-full h-full space-y-1 text-muted-foreground hover:text-primary"
+                    )}
+                  >
+                    <MoreHorizontal className="w-5 h-5" />
+                    <span className="text-[10px] font-medium leading-none">More</span>
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl">
+                  <SheetHeader className="text-left mb-4">
+                    <SheetTitle>Menu</SheetTitle>
+                  </SheetHeader>
+                  <div className="grid grid-cols-3 gap-4">
+                    {moreBottomNavItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        onClick={() => setMoreMenuOpen(false)}
+                        className={cn(
+                          "flex flex-col items-center justify-center p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors gap-2 text-center",
+                          location.pathname === item.href && "bg-primary/10 text-primary border border-primary/20"
+                        )}
+                      >
+                        <item.icon className="w-8 h-8" />
+                        <span className="text-xs font-medium">{item.label}</span>
+                      </Link>
+                    ))}
+
+                    {/* Add Profile/Logout to More Menu for easy access */}
+                    <Link
+                      to={settingsPath}
+                      onClick={() => setMoreMenuOpen(false)}
+                      className="flex flex-col items-center justify-center p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors gap-2 text-center"
+                    >
+                      <UserIcon className="w-8 h-8" />
+                      <span className="text-xs font-medium">Profile</span>
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        logout();
+                      }}
+                      className="flex flex-col items-center justify-center p-4 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors gap-2 text-center"
+                    >
+                      <LogOut className="w-8 h-8" />
+                      <span className="text-xs font-medium">Logout</span>
+                    </button>
+
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+          </nav>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className={cn(
         'min-h-screen transition-all duration-300 pt-16 lg:pt-0',
-        sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'
+        sidebarOpen ? 'lg:ml-64' : 'lg:ml-20',
+        isBottomNavRole && 'pb-24 sm:pb-28' // Increased padding for mobile bottom nav + safe area
       )}>
         {/* Desktop Header */}
         <header className="hidden lg:flex h-16 bg-card border-b border-border items-center justify-between px-8">

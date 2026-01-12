@@ -126,6 +126,10 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    overflow-wrap: break-word;
+    /* Prevent long text from overflowing */
+    word-break: break-word;
+    /* Ensure aggressive breaking for mobile */
   }
 
   h1,
@@ -370,24 +374,49 @@
   }
 
   .table-mobile-cards tbody {
-    @apply block space-y-3;
+    @apply block space-y-4;
+    /* Increased spacing between cards */
   }
 
   .table-mobile-cards tr {
     @apply block bg-card rounded-lg border border-border p-4 shadow-sm;
+    @apply relative overflow-hidden;
+    /* Contain overflows */
   }
 
   .table-mobile-cards td {
-    @apply block py-1.5 px-0 text-sm border-0;
+    @apply block py-2 px-0 text-sm border-0;
+    @apply flex items-start justify-between gap-3;
+    /* Flex layout for label and value */
   }
 
   .table-mobile-cards td::before {
     content: attr(data-label);
-    @apply font-medium text-muted-foreground mr-2 inline-block min-w-[100px];
+    @apply font-medium text-muted-foreground shrink-0 w-32;
+    /* Fixed width for labels */
+    @apply text-xs uppercase tracking-wide;
+  }
+
+  /* The Content part of the cell */
+  .table-mobile-cards td>* {
+    @apply text-right flex-1 break-words min-w-0;
+    /* Align right, break words */
+  }
+
+  /* Generic fallback if direct text is used in td */
+  .table-mobile-cards td:not(:has(*)) {
+    @apply text-right flex-1 break-words min-w-0;
   }
 
   .table-mobile-cards td:last-child {
-    @apply pt-3 mt-2 border-t border-border;
+    @apply pt-4 mt-2 border-t border-border w-full block;
+    @apply flex-col items-center gap-2;
+    /* Actions usually full width or centered */
+  }
+
+  .table-mobile-cards td:last-child::before {
+    display: none;
+    /* Hide label for actions row usually */
   }
 }
 
