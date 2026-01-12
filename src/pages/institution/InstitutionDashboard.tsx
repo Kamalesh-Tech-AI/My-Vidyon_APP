@@ -184,67 +184,52 @@ export function InstitutionDashboard() {
         </div>
       </div>
 
-      {/* Tables Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6 sm:mb-8">
-        {/* Recent Admissions */}
-        <div className="dashboard-card p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-              <h3 className="font-semibold text-sm sm:text-base">Recent Admissions</h3>
-            </div>
-            <a href="/institution/students" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
+      {/* Notifications Section - Full Width */}
+      <div className="dashboard-card p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-warning" />
+            <h3 className="font-semibold text-sm sm:text-base">Notifications (Leave Requests)</h3>
           </div>
-          <DataTable columns={admissionColumns} data={recentAdmissions || []} mobileCardView />
+          <a href="/institution/notifications" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
         </div>
-
-        {/* Notifications / Leave Requests */}
-        <div className="dashboard-card p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="flex items-center gap-2">
-              <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-warning" />
-              <h3 className="font-semibold text-sm sm:text-base">Notifications (Leave Requests)</h3>
+        <div className="space-y-3">
+          {/* Mock Leave Request Notifications */}
+          <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
+            <div className="w-2 h-2 mt-2 rounded-full bg-warning flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Dr. Robert Brown requesting leave.</p>
+              <p className="text-xs text-muted-foreground mt-1">Today • 10:30 AM</p>
+              <div className="mt-2">
+                <button
+                  onClick={() => navigate('/institution/leave-approval')}
+                  className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded transition-colors font-medium border border-primary/20"
+                >
+                  Show Details
+                </button>
+              </div>
             </div>
-            <a href="/institution/notifications" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
           </div>
-          <div className="space-y-3">
-            {/* Mock Leave Request Notifications */}
-            <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
-              <div className="w-2 h-2 mt-2 rounded-full bg-warning flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Dr. Robert Brown requesting leave.</p>
-                <p className="text-xs text-muted-foreground mt-1">Today • 10:30 AM</p>
-                <div className="mt-2">
-                  <button
-                    onClick={() => navigate('/institution/leave-approval')}
-                    className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded transition-colors font-medium border border-primary/20"
-                  >
-                    Show Details
-                  </button>
-                </div>
+          <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
+            <div className="w-2 h-2 mt-2 rounded-full bg-warning flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Mrs. Jennifer Lee requesting leave.</p>
+              <p className="text-xs text-muted-foreground mt-1">Yesterday • 4:15 PM</p>
+              <div className="mt-2">
+                <button
+                  onClick={() => navigate('/institution/leave-approval')}
+                  className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded transition-colors font-medium border border-primary/20"
+                >
+                  Show Details
+                </button>
               </div>
             </div>
-            <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
-              <div className="w-2 h-2 mt-2 rounded-full bg-warning flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Mrs. Jennifer Lee requesting leave.</p>
-                <p className="text-xs text-muted-foreground mt-1">Yesterday • 4:15 PM</p>
-                <div className="mt-2">
-                  <button
-                    onClick={() => navigate('/institution/leave-approval')}
-                    className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded transition-colors font-medium border border-primary/20"
-                  >
-                    Show Details
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
-              <div className="w-2 h-2 mt-2 rounded-full bg-institution flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium">New fee structure approved by board.</p>
-                <p className="text-xs text-muted-foreground mt-1">2 days ago • General</p>
-              </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
+            <div className="w-2 h-2 mt-2 rounded-full bg-institution flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium">New fee structure approved by board.</p>
+              <p className="text-xs text-muted-foreground mt-1">2 days ago • General</p>
             </div>
           </div>
         </div>
