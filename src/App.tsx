@@ -63,6 +63,8 @@ import { InstitutionCalendar } from "./pages/institution/InstitutionCalendar";
 import { InstitutionLeaveApproval } from "./pages/institution/InstitutionLeaveApproval";
 import { InstitutionNotifications } from "./pages/institution/InstitutionNotifications";
 import { InstitutionUsers } from "./pages/institution/InstitutionUsers";
+import { InstitutionStudentDetails } from "./pages/institution/InstitutionStudentDetails";
+import { InstitutionAddStudent } from "./pages/institution/InstitutionAddStudent";
 
 import { InstitutionFees } from "./pages/institution/InstitutionFees";
 import { InstitutionAnalytics } from "./pages/institution/InstitutionAnalytics";
@@ -161,6 +163,8 @@ const App = () => {
                   <Route path="/institution/leave-approval" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionLeaveApproval /></ProtectedRoute>} />
                   <Route path="/institution/notifications" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionNotifications /></ProtectedRoute>} />
                   <Route path="/institution/users" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionUsers /></ProtectedRoute>} />
+                  <Route path="/institution/student/:studentId" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionStudentDetails /></ProtectedRoute>} />
+                  <Route path="/institution/add-student" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAddStudent /></ProtectedRoute>} />
 
                   <Route path="/institution/fees" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFees /></ProtectedRoute>} />
                   <Route path="/institution/analytics" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAnalytics /></ProtectedRoute>} />

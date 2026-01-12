@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ type DialogType = 'student' | 'staff' | 'parent' | null;
 export function InstitutionUsers() {
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const [dialogType, setDialogType] = useState<DialogType>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -238,6 +240,7 @@ export function InstitutionUsers() {
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Class</th>
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Parent</th>
                                             <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Status</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="[&_tr:last-child]:border-0">
@@ -260,6 +263,11 @@ export function InstitutionUsers() {
                                                         </div>
                                                     </td>
                                                     <td className="p-4"><Badge className="bg-green-100 text-green-700 hover:bg-green-100/80 border-0">Active</Badge></td>
+                                                    <td className="p-4">
+                                                        <Button variant="ghost" size="sm" onClick={() => navigate(`/institution/student/${student.id}`)}>
+                                                            View Details
+                                                        </Button>
+                                                    </td>
                                                 </tr>
                                             ))
                                         )}
@@ -299,7 +307,7 @@ export function InstitutionUsers() {
                                                 <tr key={staff.id} className="border-b transition-colors hover:bg-muted/50">
                                                     <td className="p-4 font-medium">{staff.full_name}</td>
                                                     <td className="p-4">{staff.email}</td>
-                                                    <td className="p-4"><Badge variant="secondary" className="capitalize">{staff.role}</Badge></td>
+                                                    <td className="p-4"><Badge variant="outline" className="capitalize">{staff.role}</Badge></td>
                                                     <td className="p-4"><Badge className="bg-green-100 text-green-700 hover:bg-green-100/80 border-0">Active</Badge></td>
                                                 </tr>
                                             ))
