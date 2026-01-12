@@ -344,7 +344,10 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
       <main className={cn(
         'min-h-screen transition-all duration-300 pt-16 lg:pt-0',
         sidebarOpen ? 'lg:ml-64' : 'lg:ml-20',
-        isBottomNavRole && 'pb-24 sm:pb-28' // Increased padding for mobile bottom nav + safe area
+        // Responsive Padding Logic:
+        // Mobile: Bottom Nav (h-16) + Buffer (h-8) + Safe Area.
+        // Desktop (lg): No bottom padding required (Bottom Nav hidden).
+        isBottomNavRole && 'pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0'
       )}>
         {/* Desktop Header */}
         <header className="hidden lg:flex h-16 bg-card border-b border-border items-center justify-between px-8">
