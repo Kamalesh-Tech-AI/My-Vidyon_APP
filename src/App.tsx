@@ -61,12 +61,13 @@ import { InstitutionCourses } from "./pages/institution/InstitutionCourses";
 import { InstitutionCalendar } from "./pages/institution/InstitutionCalendar";
 import { InstitutionLeaveApproval } from "./pages/institution/InstitutionLeaveApproval";
 import { InstitutionNotifications } from "./pages/institution/InstitutionNotifications";
+import { InstitutionUsers } from "./pages/institution/InstitutionUsers";
 
 import { InstitutionFees } from "./pages/institution/InstitutionFees";
 import { InstitutionAnalytics } from "./pages/institution/InstitutionAnalytics";
 import { InstitutionReports } from "./pages/institution/InstitutionReports";
 import { InstitutionSettings } from "./pages/institution/InstitutionSettings";
-import { InstitutionAddStudent } from "./pages/institution/InstitutionAddStudent";
+
 import { InstitutionFacultyAssigning } from "./pages/institution/InstitutionFacultyAssigning";
 
 // Parent Pages
@@ -79,7 +80,7 @@ import { ParentSettings } from "./pages/parent/ParentSettings";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { AdminUsers } from "./pages/admin/AdminUsers";
+
 import { AdminInstitutionAnalytics } from "./pages/admin/AdminInstitutionAnalytics";
 import { AdminSettings } from "./pages/admin/AdminSettings";
 import { AdminStructure } from "./pages/admin/AdminStructure";
@@ -151,12 +152,12 @@ const App = () => {
                 <Route path="/institution/departments" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionDepartments /></ProtectedRoute>} />
                 <Route path="/institution/courses" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionCourses /></ProtectedRoute>} />
                 {/* <Route path="/institution/faculty" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFaculty /></ProtectedRoute>} /> */}
-                <Route path="/institution/add-student" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAddStudent /></ProtectedRoute>} />
                 <Route path="/institution/faculty-assigning" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFacultyAssigning /></ProtectedRoute>} />
                 <Route path="/institution/calendar" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionCalendar /></ProtectedRoute>} />
                 <Route path="/institution/leave-approval" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionLeaveApproval /></ProtectedRoute>} />
                 <Route path="/institution/notifications" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionNotifications /></ProtectedRoute>} />
 
+                <Route path="/institution/users" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionUsers /></ProtectedRoute>} />
                 <Route path="/institution/fees" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFees /></ProtectedRoute>} />
                 <Route path="/institution/analytics" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAnalytics /></ProtectedRoute>} />
                 <Route path="/institution/reports" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionReports /></ProtectedRoute>} />
@@ -176,7 +177,7 @@ const App = () => {
                 <Route path="/admin/institutions" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstitutions /></ProtectedRoute>} />
                 <Route path="/admin/add-institution" element={<ProtectedRoute allowedRoles={['admin']}><AddInstitution /></ProtectedRoute>} />
                 <Route path="/admin/institutions/:institutionId" element={<ProtectedRoute allowedRoles={['admin']}><InstitutionDetail /></ProtectedRoute>} />
-                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
+
                 <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstitutionAnalytics /></ProtectedRoute>} />
                 <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
 
