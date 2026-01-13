@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus } from 'lucide-react';
+import { Plus, Upload, X, Loader2, ChevronDown, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
@@ -205,8 +205,33 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
 
 function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [data, setData] = useState({ name: '', staffId: '', role: '', email: '', phone: '', dob: '', password: '' });
+    const [isSubjectsOpen, setIsSubjectsOpen] = useState(false);
+    const [data, setData] = useState({ name: '', staffId: '', role: '', email: '', phone: '', dob: '', password: '', department: '', subjects: [] as string[] });
     const queryClient = useQueryClient();
+
+    const { data: subjectsList = [] } = useQuery({
+        queryKey: ['institution-subjects-list', institutionId],
+        queryFn: async () => {
+            if (!institutionId) return [];
+            const { data, error } = await supabase
+                .from('subjects')
+                .select('id, name, department')
+                .eq('institution_id', institutionId);
+
+            if (error) throw error;
+            return data || [];
+        },
+        enabled: !!institutionId && open
+    });
+
+    const uniqueDepartments = useMemo(() => {
+        return Array.from(new Set(subjectsList.map((s: any) => s.department).filter(Boolean))).sort();
+    }, [subjectsList]);
+
+    const availableSubjects = useMemo(() => {
+        if (!data.department) return subjectsList.map((s: any) => s.name);
+        return subjectsList.filter((s: any) => s.department === data.department).map((s: any) => s.name);
+    }, [subjectsList, data.department]);
 
     const handleSubmit = async () => {
         if (!data.name || !data.email || !data.password || !data.staffId) {
@@ -228,7 +253,9 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
                     role: 'faculty',
                     full_name: data.name,
                     institution_id: institutionId,
-                    staff_id: data.staffId
+                    staff_id: data.staffId,
+                    department: data.department,
+                    subjects: data.subjects
                 }
             });
             if (error) throw error;
@@ -236,7 +263,7 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
             queryClient.invalidateQueries({ queryKey: ['institution-staff'] });
             onSuccess();
             onOpenChange(false);
-            setData({ name: '', staffId: '', role: '', email: '', phone: '', dob: '', password: '' });
+            setData({ name: '', staffId: '', role: '', email: '', phone: '', dob: '', password: '', department: '', subjects: [] });
         } catch (error: any) {
             toast.error(error.message);
         } finally {
@@ -246,7 +273,7 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-xl">
+            <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Add Staff</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                     <div className="space-y-2"><Label>Name *</Label><Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} placeholder="e.g. Sarah Smith" /></div>
@@ -262,6 +289,65 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
                             </SelectContent>
                         </Select>
                     </div>
+                    <div className="space-y-2">
+                        <Label>Department</Label>
+                        <Select value={data.department} onValueChange={v => setData({ ...data, department: v, subjects: [] })}>
+                            <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
+                            <SelectContent>
+                                {uniqueDepartments.map((dept: any) => (
+                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                        <Label>Subjects</Label>
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsSubjectsOpen(!isSubjectsOpen)}
+                                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <span className={data.subjects.length === 0 ? "text-muted-foreground" : ""}>
+                                    {data.subjects.length > 0 ? `${data.subjects.length} subjects selected` : "Select subjects..."}
+                                </span>
+                                <ChevronDown className="h-4 w-4 opacity-50" />
+                            </button>
+
+                            {isSubjectsOpen && (
+                                <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95">
+                                    <div className="p-2 max-h-60 overflow-y-auto">
+                                        {availableSubjects.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground p-2">No subjects available {data.department ? `in ${data.department}` : ''}</p>
+                                        ) : (
+                                            <div className="grid gap-1">
+                                                {availableSubjects.map((subName: string) => (
+                                                    <div
+                                                        key={subName}
+                                                        className="flex items-center space-x-2 p-2 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer"
+                                                        onClick={() => {
+                                                            const newSubs = data.subjects.includes(subName)
+                                                                ? data.subjects.filter(s => s !== subName)
+                                                                : [...data.subjects, subName];
+                                                            setData({ ...data, subjects: newSubs });
+                                                        }}
+                                                    >
+                                                        <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${data.subjects.includes(subName) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible"}`}>
+                                                            <Check className="h-4 w-4" />
+                                                        </div>
+                                                        <span className="text-sm">{subName}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {data.department && <p className="text-[10px] text-muted-foreground">Showing subjects for {data.department} (change department to filter differently or clear department to see all)</p>}
+                    </div>
+
                     <div className="space-y-2"><Label>Email *</Label><Input type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} placeholder="staff@institution.com" /></div>
                     <div className="space-y-2"><Label>Phone</Label><Input type="tel" value={data.phone} onChange={e => setData({ ...data, phone: e.target.value })} placeholder="e.g. 9876543210" /></div>
                     <div className="space-y-2"><Label>DOB</Label><Input type="date" value={data.dob} onChange={e => setData({ ...data, dob: e.target.value })} /></div>

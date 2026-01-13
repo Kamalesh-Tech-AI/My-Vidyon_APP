@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const { email, password, role, full_name, institution_id, register_number, staff_id, phone, student_id, parent_email, parent_phone, parent_name, class_name, section } = await req.json()
+        const { email, password, role, full_name, institution_id, register_number, staff_id, phone, student_id, parent_email, parent_phone, parent_name, class_name, section, department, subjects } = await req.json()
 
         if (!email || !role || !institution_id) {
             throw new Error("Missing required fields: email, role, and institution_id are required.")
@@ -146,6 +146,8 @@ Deno.serve(async (req) => {
                     profile_id: userId,
                     institution_id: institution_id,
                     role: finalRole,
+                    department: department || null,
+                    subjects: subjects || [],
                     staff_id: staff_id || `STF-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
                 }, {
                     onConflict: 'profile_id'

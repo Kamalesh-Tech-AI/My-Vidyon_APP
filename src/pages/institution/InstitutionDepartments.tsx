@@ -58,10 +58,14 @@ export function InstitutionDepartments() {
             {/* Toggle View Mode */}
             <div className="mb-6">
                 <Tabs value={viewMode} onValueChange={setViewMode} className="w-[400px]">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="subjects" className="flex items-center gap-2">
                             <BookOpen className="w-4 h-4" />
                             By Subject
+                        </TabsTrigger>
+                        <TabsTrigger value="departments" className="flex items-center gap-2">
+                            <LayoutGrid className="w-4 h-4" />
+                            By Department
                         </TabsTrigger>
                         <TabsTrigger value="classes" className="flex items-center gap-2">
                             <GraduationCap className="w-4 h-4" />
@@ -143,6 +147,95 @@ export function InstitutionDepartments() {
                         </div>
                     )}
                 </>
+            )}
+
+            {/* 3. DEPARTMENT VIEW */}
+            {viewMode === 'departments' && (
+                <div>
+                    {/* Department Selector */}
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium mb-2">Select Department</label>
+                        <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                            <SelectTrigger className="w-full max-w-md">
+                                <SelectValue placeholder="Choose a department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {(() => {
+                                    const depts = Array.from(new Set(allStaffMembers.map(s => s.department).filter(Boolean))).sort();
+                                    return depts.map(d => (
+                                        <SelectItem key={d} value={d!}>{d}</SelectItem>
+                                    ));
+                                })()}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {selectedSubject && (
+                        <div>
+                            <div className="flex items-center gap-2 mb-4">
+                                <LayoutGrid className="w-5 h-5 text-purple-600" />
+                                <h2 className="text-lg font-semibold">{selectedSubject} Department</h2>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {allStaffMembers.filter(s => s.department === selectedSubject).map(staff => {
+                                    // Calculate assignments for this staff
+                                    // We need to aggregate from 'subjects' (context props) or recreate logic.
+                                    // 'subjects' const in this file comes from context, which returns Subject[]
+                                    // Subject has staff[] which has classes[].
+
+                                    const staffAssignments = new Set<string>();
+                                    // Subject Assignments
+                                    subjects.forEach(sub => {
+                                        const subStaff = sub.staff.find(ss => ss.id === staff.id);
+                                        if (subStaff) {
+                                            subStaff.classes.forEach(c => staffAssignments.add(`${sub.name}: ${c}`));
+                                        }
+                                    });
+                                    // Class Teacher Assignments
+                                    Object.entries(classTeachers).forEach(([cId, sections]) => {
+                                        Object.entries(sections).forEach(([sec, tId]) => {
+                                            if (tId === staff.id) {
+                                                const cObj = allClasses.find(c => c.id === cId && c.section === sec);
+                                                staffAssignments.add(`Class Teacher: ${cObj ? cObj.name + ' ' + cObj.section : 'Unknown'}`);
+                                            }
+                                        });
+                                    });
+
+                                    return (
+                                        <Card key={staff.id} className="p-5 hover:shadow-md transition-all border-l-4 border-l-purple-500">
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                                    <Users className="w-5 h-5 text-purple-600" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold">{staff.name}</h3>
+                                                    <p className="text-xs text-muted-foreground">{staff.department}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 space-y-2">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase">Assignments:</p>
+                                                {staffAssignments.size === 0 ? (
+                                                    <p className="text-xs text-muted-foreground italic">No active assignments</p>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {Array.from(staffAssignments).slice(0, 5).map((a, i) => (
+                                                            <span key={i} className="px-2 py-0.5 bg-secondary text-secondary-foreground text-[10px] rounded-full truncate max-w-[200px]" title={a}>
+                                                                {a}
+                                                            </span>
+                                                        ))}
+                                                        {staffAssignments.size > 5 && <span className="text-[10px] text-muted-foreground">+{staffAssignments.size - 5} more</span>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* CLASS TEACHERS VIEW */}

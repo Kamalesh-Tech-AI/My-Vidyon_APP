@@ -3,7 +3,7 @@ import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
-import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Loader2, BookOpen, Users, FileText, Download, Clock, Filter, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, ChevronLeft, ChevronRight, Loader2, BookOpen, Users, FileText, Download, Clock, Filter, Trash2, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -34,6 +34,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { format, parse, isValid } from 'date-fns';
@@ -74,11 +81,11 @@ export function InstitutionCalendar() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newEvent, setNewEvent] = useState({
         title: '',
-        date: '',
         type: '',
         category: '',
         description: ''
     });
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
     // Filter State
     const [filterState, setFilterState] = useState({
@@ -228,43 +235,14 @@ export function InstitutionCalendar() {
         setIsSubmitting(true);
 
         try {
-            // Parse Dates
-            // logic supports: "Jan 15, 2026"  OR "May 01 - Jun 30, 2027"
-            let start: Date, end: Date;
-            const dateInput = newEvent.date;
-
-            // Very basic heuristic parser
-            if (dateInput.includes('-')) {
-                const [s, e] = dateInput.split('-').map(str => str.trim());
-                // Try to parse parts
-                // Assumption: "May 01" (needs year) or "May 01, 2026"
-                const currentYear = new Date().getFullYear();
-
-                // If "May 01" -> append year
-                let sStr = s; if (!s.match(/\d{4}/)) sStr = `${s}, ${currentYear}`;
-                let eStr = e; if (!e.match(/\d{4}/)) eStr = `${e}, ${currentYear}`;
-
-                // If the input was "May 01 - Jun 30, 2027", the second part has year.
-                // We might want to use the year from the second part for the first part if missing.
-                if (e.match(/\d{4}/) && !s.match(/\d{4}/)) {
-                    const y = e.match(/\d{4}/)![0];
-                    sStr = `${s}, ${y}`;
-                }
-
-                start = new Date(sStr);
-                end = new Date(eStr);
-            } else {
-                let dStr = dateInput;
-                if (!dStr.match(/\d{4}/)) dStr = `${dStr}, ${new Date().getFullYear()}`;
-                start = new Date(dStr);
-                end = new Date(dStr);
-            }
-
-            if (!isValid(start) || !isValid(end)) {
-                toast.error("Invalid date format. Try 'Mon DD, YYYY'");
+            if (!dateRange?.from) {
+                toast.error("Please select a date range");
                 setIsSubmitting(false);
                 return;
             }
+
+            const start = dateRange.from;
+            const end = dateRange.to || dateRange.from;
 
             const { error } = await supabase.from('academic_events').insert([{
                 institution_id: user.institutionId,
@@ -280,7 +258,8 @@ export function InstitutionCalendar() {
 
             toast.success("Event added successfully");
             setIsAddDialogOpen(false);
-            setNewEvent({ title: '', date: '', type: '', category: '', description: '' });
+            setNewEvent({ title: '', type: '', category: '', description: '' });
+            setDateRange(undefined);
             setEventBanner(null);
 
         } catch (err: any) {
@@ -405,13 +384,44 @@ export function InstitutionCalendar() {
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
                                         <Label htmlFor="date" className="text-right">Date</Label>
-                                        <Input
-                                            id="date"
-                                            value={newEvent.date}
-                                            onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                                            className="col-span-3"
-                                            placeholder="e.g. Apr 15, 2026"
-                                        />
+                                        <div className="col-span-3">
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        id="date"
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full justify-start text-left font-normal",
+                                                            !dateRange && "text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        <CalendarDays className="mr-2 h-4 w-4" />
+                                                        {dateRange?.from ? (
+                                                            dateRange.to ? (
+                                                                <>
+                                                                    {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                                    {format(dateRange.to, "LLL dd, y")}
+                                                                </>
+                                                            ) : (
+                                                                format(dateRange.from, "LLL dd, y")
+                                                            )
+                                                        ) : (
+                                                            <span>Pick a date</span>
+                                                        )}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start">
+                                                    <Calendar
+                                                        initialFocus
+                                                        mode="range"
+                                                        defaultMonth={dateRange?.from}
+                                                        selected={dateRange}
+                                                        onSelect={setDateRange}
+                                                        numberOfMonths={2}
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
                                         <Label htmlFor="type" className="text-right">Type</Label>
@@ -455,7 +465,7 @@ export function InstitutionCalendar() {
                                     {/* Banner upload temporarily disabled in simple CRUD logic */}
                                 </div>
                                 <DialogFooter>
-                                    <Button type="submit" onClick={handleAddEvent} disabled={!newEvent.title || !newEvent.date || isSubmitting}>
+                                    <Button type="submit" onClick={handleAddEvent} disabled={!newEvent.title || !dateRange?.from || isSubmitting}>
                                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         Save Event
                                     </Button>

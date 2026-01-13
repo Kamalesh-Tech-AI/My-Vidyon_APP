@@ -26,7 +26,7 @@ type ClassTeacherMap = Record<string, Record<string, string>>;
 export interface InstitutionContextType {
     subjects: Subject[];
     allSubjects: { id: string; name: string; code?: string; department?: string }[];
-    allStaffMembers: { id: string; name: string }[];
+    allStaffMembers: { id: string; name: string; department?: string }[];
     allClasses: { id: string; name: string; section: string }[];
 
     getAssignedStaff: (classId: string, section: string, subjectId: string) => { id: string; name: string }[];
@@ -49,7 +49,7 @@ export function InstitutionProvider({ children }: { children: ReactNode }) {
     const [assignments, setAssignments] = useState<AssignmentsMap>({});
     const [classTeachers, setClassTeachers] = useState<ClassTeacherMap>({});
     const [allSubjectsList, setAllSubjectsList] = useState<{ id: string; name: string; code?: string; department?: string }[]>([]);
-    const [allStaffMembers, setAllStaffMembers] = useState<{ id: string; name: string }[]>([]);
+    const [allStaffMembers, setAllStaffMembers] = useState<{ id: string; name: string; department?: string }[]>([]);
     const [allClasses, setAllClasses] = useState<{ id: string; name: string; section: string }[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -67,30 +67,73 @@ export function InstitutionProvider({ children }: { children: ReactNode }) {
                 .order('name');
             setAllSubjectsList(subjectsData || []);
 
-            // 2. Fetch Staff (Profiles with roles)
-            const { data: staffData } = await supabase
+            // 2. Fetch Staff (Profiles with roles) & Staff Details (for department)
+            const { data: staffProfiles } = await supabase
                 .from('profiles')
                 .select('id, full_name, role')
                 .eq('institution_id', institutionId)
-                .in('role', ['faculty', 'teacher', 'admin', 'support']); // Include all potential staff
+                .in('role', ['faculty', 'teacher', 'admin', 'support']);
 
-            setAllStaffMembers(staffData?.map(s => ({ id: s.id, name: s.full_name || 'Unknown' })) || []);
-
-            // 3. Fetch Classes (for Class Teachers and structure)
-            const { data: classesData } = await supabase
-                .from('classes')
-                .select('id, name, section, class_teacher_id')
+            const { data: staffDetails } = await supabase
+                .from('staff_details')
+                .select('profile_id, department')
                 .eq('institution_id', institutionId);
 
-            const fetchedClasses = classesData?.map(c => ({ id: c.id, name: c.name, section: c.section })) || [];
-            setAllClasses(fetchedClasses);
+            const staffMap = new Map();
+            staffDetails?.forEach((d: any) => staffMap.set(d.profile_id, d.department));
+
+            setAllStaffMembers(staffProfiles?.map(s => ({
+                id: s.id,
+                name: s.full_name || 'Unknown',
+                department: staffMap.get(s.id) || null
+            })) || []);
+
+            // 3. Fetch Classes (for Class Teachers and structure)
+            // 3. Fetch Classes (via Groups to ensure correct path)
+            // The classes table doesn't strictly have institution_id populated in all code paths (like AddInstitution)
+            // and uses 'sections' (array) not 'section' (string).
+            let fetchedClasses: { id: string; name: string; section: string; classTeacherId?: string }[] = [];
+
+            try {
+                const { data: groupsData, error: groupsError } = await supabase
+                    .from('groups')
+                    .select('id, classes(id, name, sections, class_teacher_id)')
+                    .eq('institution_id', institutionId);
+
+                if (groupsError) throw groupsError;
+
+                if (groupsData) {
+                    groupsData.forEach(g => {
+                        if (g.classes) {
+                            (g.classes as any[]).forEach(c => {
+                                const sections = Array.isArray(c.sections) ? c.sections : [c.sections]; // Handle array or single
+                                sections.forEach((sec: string) => {
+                                    if (sec) {
+                                        fetchedClasses.push({
+                                            id: c.id,
+                                            name: c.name,
+                                            section: sec,
+                                            classTeacherId: c.class_teacher_id
+                                        });
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("InstitutionContext: Error fetching classes via groups:", err);
+            }
+
+            console.log("InstitutionContext: Processed allClasses:", fetchedClasses);
+            setAllClasses(fetchedClasses.map((c) => ({ id: c.id, name: c.name, section: c.section })));
 
             // Build ClassTeacherMap
             const newClassTeacherMap: ClassTeacherMap = {};
-            classesData?.forEach(c => {
-                if (c.class_teacher_id) {
+            fetchedClasses.forEach(c => {
+                if (c.classTeacherId) {
                     if (!newClassTeacherMap[c.id]) newClassTeacherMap[c.id] = {};
-                    newClassTeacherMap[c.id][c.section] = c.class_teacher_id;
+                    newClassTeacherMap[c.id][c.section] = c.classTeacherId;
                 }
             });
             setClassTeachers(newClassTeacherMap);
@@ -132,6 +175,7 @@ export function InstitutionProvider({ children }: { children: ReactNode }) {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'faculty_subjects' }, fetchData)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, fetchData)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'subjects' }, fetchData)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_details' }, fetchData)
             .subscribe();
 
         return () => {

@@ -24,7 +24,15 @@ interface StaffAssignment {
 
 export function InstitutionFacultyAssigning() {
     // Dynamic data from context
-    const { allClasses, allSubjects, allStaffMembers, getAssignedStaff, assignStaff, getClassTeacher, assignClassTeacher } = useInstitution();
+    // Dynamic data from context
+    const { allClasses, allSubjects, allStaffMembers, getAssignedStaff, assignStaff, getClassTeacher, assignClassTeacher, classTeachers } = useInstitution();
+
+    // State Variables
+    const [selectedClass, setSelectedClass] = useState<string>('');
+    const [selectedSection, setSelectedSection] = useState<string>('');
+    const [selectedClassTeacher, setSelectedClassTeacher] = useState<string>('');
+    const [selectedSubject, setSelectedSubject] = useState<string>('');
+    const [subjectStaff, setSubjectStaff] = useState<StaffAssignment[]>([]);
 
     // Compute unique class names and sections from allClasses
     // allClasses = [{id, name, section}, ...]
@@ -315,12 +323,78 @@ export function InstitutionFacultyAssigning() {
                                             <SelectValue placeholder="Choose Class Teacher" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {allStaffMembers.map((staff) => (
-                                                <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
-                                            ))}
+                                            {(() => {
+                                                // Calculate assigned teachers across all classes
+                                                const assignedTeacherIds = new Set<string>();
+                                                if (classTeachers) { // classTeachers is from context
+                                                    Object.entries(classTeachers).forEach(([cId, sections]) => {
+                                                        Object.entries(sections).forEach(([sec, tId]) => {
+                                                            // Don't count the current class/section's teacher as "unavailable" for itself
+                                                            // We need the ID of the current selected class.
+                                                            // We derive classId from Name+Section logic elsewhere, but simpler:
+                                                            // If tId is the *current value* (selectedClassTeacher), keep it.
+                                                            // Actually, simpler: Collect ALL. Then filter.
+                                                            assignedTeacherIds.add(String(tId));
+                                                        });
+                                                    });
+                                                }
+
+                                                const currentlyAssignedToThisClass = selectedClassTeacher;
+
+                                                const availableStaff = allStaffMembers.filter(staff => {
+                                                    // Allow if not assigned anywhere OR if assigned to THIS class (aka is the current val)
+                                                    // Note: We need to know if the assignment in `assignedTeacherIds` belongs to THIS class or another.
+                                                    // The set doesn't tell us source.
+                                                    // Better approach: Re-calculate set of "Other Class Teachers".
+                                                    return true;
+                                                }).filter(staff => {
+                                                    // Check if staff is assigned to ANY OTHER class
+                                                    // Iterate classTeachers map
+                                                    let isAssignedElsewhere = false;
+                                                    if (classTeachers) {
+                                                        Object.entries(classTeachers).forEach(([cId, sections]) => {
+                                                            Object.entries(sections).forEach(([sec, tId]) => {
+                                                                if (tId === staff.id) {
+                                                                    // Found an assignment. Is it THIS class?
+                                                                    const clsObj = allClasses.find(c => c.id === cId && c.section === sec);
+                                                                    if (clsObj) {
+                                                                        if (clsObj.name === selectedClass && clsObj.section === selectedSection) {
+                                                                            // Assigned to this class (ok)
+                                                                        } else {
+                                                                            isAssignedElsewhere = true;
+                                                                        }
+                                                                    } else {
+                                                                        // Fallback: If we can't match class ID, assume it's elsewhere to be safe? 
+                                                                        // Or if we don't have the class ID in allClasses?
+                                                                        // Let's rely on checking if tId === selectedClassTeacher (from state)
+                                                                        // But state might be unsaved.
+                                                                        // Let's rely on the fact that if they are in the map for *another* ID, they are busy.
+                                                                        // We need the current Class ID.
+                                                                        const currentClassObj = allClasses.find(c => c.name === selectedClass && c.section === selectedSection);
+                                                                        if (currentClassObj && cId !== currentClassObj.id) {
+                                                                            isAssignedElsewhere = true;
+                                                                        }
+                                                                        // If IDs match but section different?
+                                                                        if (currentClassObj && cId === currentClassObj.id && sec !== selectedSection) {
+                                                                            isAssignedElsewhere = true;
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
+                                                        });
+                                                    }
+                                                    return !isAssignedElsewhere;
+                                                });
+
+                                                return availableStaff.map((staff) => (
+                                                    <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
+                                                ));
+                                            })()}
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-xs text-muted-foreground mt-1">This teacher will be responsible for the entire class/section.</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Only staff not assigned as Class Teacher elsewhere are shown.
+                                    </p>
                                 </div>
                             </div>
                         </div>

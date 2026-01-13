@@ -68,13 +68,33 @@ ALTER TABLE public.student_fees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.staff_leaves ENABLE ROW LEVEL SECURITY;
 
 -- Policies
+-- Policies
+DROP POLICY IF EXISTS "Enable all access for authenticated users" ON public.academic_events;
 CREATE POLICY "Enable all access for authenticated users" ON public.academic_events FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Enable all access for authenticated users" ON public.fee_structures;
 CREATE POLICY "Enable all access for authenticated users" ON public.fee_structures FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Enable all access for authenticated users" ON public.student_fees;
 CREATE POLICY "Enable all access for authenticated users" ON public.student_fees FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Enable all access for authenticated users" ON public.staff_leaves;
 CREATE POLICY "Enable all access for authenticated users" ON public.staff_leaves FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.academic_events;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.fee_structures;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.student_fees;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.staff_leaves;
+-- Realtime
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'academic_events') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.academic_events;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'fee_structures') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.fee_structures;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'student_fees') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.student_fees;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'staff_leaves') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.staff_leaves;
+    END IF;
+END $$;

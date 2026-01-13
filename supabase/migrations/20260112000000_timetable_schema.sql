@@ -59,15 +59,30 @@ ALTER TABLE public.timetable_slots ENABLE ROW LEVEL SECURITY;
 
 -- Policies
 -- Configs: Read all auth, Manage auth (Relaxed for now, strictly should be Admin/ClassTeacher)
+-- Policies
+-- Configs: Read all auth, Manage auth (Relaxed for now, strictly should be Admin/ClassTeacher)
+DROP POLICY IF EXISTS "Enable all access for authenticated users" ON public.timetable_configs;
 CREATE POLICY "Enable all access for authenticated users" ON public.timetable_configs FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Faculty Subjects: Read all auth, Manage auth
+DROP POLICY IF EXISTS "Enable all access for authenticated users" ON public.faculty_subjects;
 CREATE POLICY "Enable all access for authenticated users" ON public.faculty_subjects FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Slots: Read all auth, Manage auth
+DROP POLICY IF EXISTS "Enable all access for authenticated users" ON public.timetable_slots;
 CREATE POLICY "Enable all access for authenticated users" ON public.timetable_slots FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Enable Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.timetable_configs;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.faculty_subjects;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.timetable_slots;
+-- Enable Realtime
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'timetable_configs') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.timetable_configs;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'faculty_subjects') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.faculty_subjects;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'timetable_slots') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.timetable_slots;
+    END IF;
+END $$;
