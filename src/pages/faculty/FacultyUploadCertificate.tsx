@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { FacultyLayout } from '@/layouts/FacultyLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, FileText, CheckCircle } from 'lucide-react';
+import { Upload, FileText, CheckCircle, X } from 'lucide-react';
 
 export function FacultyUploadCertificate() {
     const [formData, setFormData] = useState({
@@ -18,6 +18,9 @@ export function FacultyUploadCertificate() {
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -28,8 +31,71 @@ export function FacultyUploadCertificate() {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
+    const validateFile = (file: File): boolean => {
+        const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+
+        if (!validTypes.includes(file.type)) {
+            toast.error('Invalid file type. Please upload PDF, JPG, or PNG files only.');
+            return false;
+        }
+
+        if (file.size > maxSize) {
+            toast.error('File size exceeds 10MB. Please upload a smaller file.');
+            return false;
+        }
+
+        return true;
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && validateFile(file)) {
+            setUploadedFile(file);
+            toast.success(`File "${file.name}" selected`);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const file = e.dataTransfer.files?.[0];
+        if (file && validateFile(file)) {
+            setUploadedFile(file);
+            toast.success(`File "${file.name}" uploaded`);
+        }
+    };
+
+    const handleRemoveFile = () => {
+        setUploadedFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+        toast.info('File removed');
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!uploadedFile) {
+            toast.error('Please upload a certificate file');
+            return;
+        }
+
         setIsSubmitting(true);
 
         // Simulate API call and persistent storage
@@ -41,7 +107,8 @@ export function FacultyUploadCertificate() {
                 issueDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                 status: 'available',
                 grade: formData.studentGrade,
-                studentEmail: formData.studentEmail
+                studentEmail: formData.studentEmail,
+                fileName: uploadedFile.name
             };
 
             // Get existing certificates or initialize empty array
@@ -58,6 +125,10 @@ export function FacultyUploadCertificate() {
                 studentGrade: '',
                 category: '',
             });
+            setUploadedFile(null);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
             toast.success(`Certificate uploaded for ${formData.studentName}`);
         }, 1500);
     };
@@ -148,14 +219,57 @@ export function FacultyUploadCertificate() {
                             </Select>
                         </div>
 
-                        {/* File Upload Placeholder */}
+                        {/* File Upload with Drag and Drop */}
                         <div className="space-y-2">
                             <Label>Upload Certificate File</Label>
-                            <div className="border-2 border-dashed border-border rounded-lg p-8 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer">
-                                <Upload className="w-8 h-8 text-muted-foreground mb-4" />
-                                <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
-                                <p className="text-xs text-muted-foreground">PDF, JPG or PNG (max. 10MB)</p>
-                            </div>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={handleFileChange}
+                                className="hidden"
+                                id="file-upload"
+                            />
+
+                            {!uploadedFile ? (
+                                <div
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center transition-all cursor-pointer ${isDragging
+                                            ? 'border-primary bg-primary/5 scale-[1.02]'
+                                            : 'border-border hover:bg-muted/50 hover:border-primary/50'
+                                        }`}
+                                >
+                                    <Upload className={`w-8 h-8 mb-4 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    <p className="text-sm font-medium mb-1">
+                                        {isDragging ? 'Drop file here' : 'Click to upload or drag and drop'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">PDF, JPG or PNG (max. 10MB)</p>
+                                </div>
+                            ) : (
+                                <div className="border-2 border-success bg-success/5 rounded-lg p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <FileText className="w-8 h-8 text-success" />
+                                        <div>
+                                            <p className="text-sm font-medium">{uploadedFile.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {(uploadedFile.size / 1024).toFixed(2)} KB
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleRemoveFile}
+                                        className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
 

@@ -54,6 +54,7 @@ import { FacultySettings } from "./pages/faculty/FacultySettings";
 import { FacultyCourseDetails } from "./pages/faculty/FacultyCourseDetails";
 import { TimetableManagement } from "./pages/faculty/TimetableManagement";
 import { ReviewSubmission } from "./pages/faculty/ReviewSubmission";
+import { UpdateAssignment } from "./pages/faculty/UpdateAssignment";
 
 // Institution Pages
 import { InstitutionDashboard } from "./pages/institution/InstitutionDashboard";
@@ -142,6 +143,7 @@ const App = () => {
                   <Route path="/faculty/attendance" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAttendance /></ProtectedRoute>} />
                   <Route path="/faculty/assignments" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAssignments /></ProtectedRoute>} />
                   <Route path="/faculty/assignments/create" element={<ProtectedRoute allowedRoles={['faculty']}><CreateAssignment /></ProtectedRoute>} />
+                  <Route path="/faculty/assignments/edit/:id" element={<ProtectedRoute allowedRoles={['faculty']}><UpdateAssignment /></ProtectedRoute>} />
                   <Route path="/faculty/marks" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyMarks /></ProtectedRoute>} />
                   <Route path="/faculty/exams" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyExams /></ProtectedRoute>} />
 
