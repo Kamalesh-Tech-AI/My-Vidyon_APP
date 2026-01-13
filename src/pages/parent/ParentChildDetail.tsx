@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ParentLayout } from '@/layouts/ParentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -17,71 +17,79 @@ import {
     Calendar,
     ClipboardCheck,
     FileText,
-    Clock,
-    CheckCircle,
-    XCircle,
-    Send
+    Send,
+    Loader2
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/TranslationContext';
-
-// Mock Data
-const STUDENT_DATA = {
-    'STU001': {
-        name: 'Alex Johnson',
-        grade: 'Class 10-A',
-        attendance: [
-            { name: 'Mon', value: 100 },
-            { name: 'Tue', value: 100 },
-            { name: 'Wed', value: 0 },
-            { name: 'Thu', value: 100 },
-            { name: 'Fri', value: 100 },
-        ],
-        marks: [
-            { subject: 'Mathematics', unitTest: '18/20', midTerm: '45/50', final: '92/100', grade: 'A1' },
-            { subject: 'Science', unitTest: '16/20', midTerm: '42/50', final: '88/100', grade: 'A2' },
-            { subject: 'English', unitTest: '19/20', midTerm: '48/50', final: '95/100', grade: 'A1' },
-            { subject: 'Social Studies', unitTest: '15/20', midTerm: '40/50', final: '85/100', grade: 'A2' },
-            { subject: 'Hindi', unitTest: '17/20', midTerm: '44/50', final: '90/100', grade: 'A1' },
-        ],
-        assignments: [
-            { title: 'Algebra Worksheet', subject: 'Mathematics', dueDate: 'Dec 25, 2025', status: 'pending' },
-            { title: 'Physics Lab Report', subject: 'Science', dueDate: 'Dec 22, 2025', status: 'submitted' },
-            { title: 'History Essay', subject: 'Social Studies', dueDate: 'Dec 20, 2025', status: 'graded' },
-        ]
-    },
-    'STU002': {
-        name: 'Emily Johnson',
-        grade: 'Class 6-B',
-        attendance: [
-            { name: 'Mon', value: 100 },
-            { name: 'Tue', value: 100 },
-            { name: 'Wed', value: 100 },
-            { name: 'Thu', value: 100 },
-            { name: 'Fri', value: 50 },
-        ],
-        marks: [
-            { subject: 'Mathematics', score: 78, grade: 'B1', max: 100 },
-            { subject: 'Science', score: 82, grade: 'A2', max: 100 },
-            { subject: 'English', score: 88, grade: 'A2', max: 100 },
-        ],
-        assignments: [
-            { title: 'Fractions', subject: 'Mathematics', dueDate: 'Dec 26, 2025', status: 'pending' },
-            { title: 'Plant Life', subject: 'Science', dueDate: 'Dec 24, 2025', status: 'submitted' },
-        ]
-    }
-};
+import { supabase } from '@/lib/supabase';
+import { useQuery } from '@tanstack/react-query';
 
 export function ParentChildDetail() {
     const { t } = useTranslation();
     const { studentId } = useParams();
     const navigate = useNavigate();
-    const student = STUDENT_DATA[studentId as keyof typeof STUDENT_DATA];
 
     const [leaveRequest, setLeaveRequest] = useState({
         startDate: '',
         endDate: '',
         reason: ''
     });
+
+    // Fetch Student Details from Supabase
+    const { data: student, isLoading } = useQuery({
+        queryKey: ['student-detail', studentId],
+        queryFn: async () => {
+            if (!studentId) throw new Error('Student ID required');
+
+            // Fetch basic profile
+            const { data, error } = await supabase
+                .from('students')
+                .select('*')
+                .eq('id', studentId)
+                .single();
+
+            if (error) throw error;
+
+            // Return with mixed mock data for performance/attendance
+            return {
+                ...data,
+                // Mocking complex nested data until tables exist
+                attendanceHistory: [
+                    { name: 'Mon', value: 100 },
+                    { name: 'Tue', value: 100 },
+                    { name: 'Wed', value: 0 },
+                    { name: 'Thu', value: 100 },
+                    { name: 'Fri', value: 100 },
+                ],
+                marks: [
+                    { subject: 'Mathematics', unitTest: '18/20', midTerm: '45/50', final: '92/100', grade: 'A1' },
+                    { subject: 'Science', unitTest: '16/20', midTerm: '42/50', final: '88/100', grade: 'A2' },
+                    { subject: 'English', unitTest: '19/20', midTerm: '48/50', final: '95/100', grade: 'A1' },
+                ],
+                assignments: [
+                    { title: 'Algebra Worksheet', subject: 'Mathematics', dueDate: 'Dec 25, 2025', status: 'pending' },
+                    { title: 'Physics Lab Report', subject: 'Science', dueDate: 'Dec 22, 2025', status: 'submitted' },
+                ]
+            };
+        },
+        enabled: !!studentId
+    });
+
+    const handleLeaveSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        toast.success(`${t.parent.leave.submittedSuccess} ${student?.name}`);
+        setLeaveRequest({ startDate: '', endDate: '', reason: '' });
+    };
+
+    if (isLoading) {
+        return (
+            <ParentLayout>
+                <div className="flex items-center justify-center h-[50vh]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            </ParentLayout>
+        );
+    }
 
     if (!student) {
         return (
@@ -93,12 +101,6 @@ export function ParentChildDetail() {
             </ParentLayout>
         );
     }
-
-    const handleLeaveSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        toast.success(`${t.parent.leave.submittedSuccess} ${student.name}`);
-        setLeaveRequest({ startDate: '', endDate: '', reason: '' });
-    };
 
     const marksColumns = [
         { key: 'subject', header: t.parent.childDetail.subject },
@@ -136,12 +138,11 @@ export function ParentChildDetail() {
         <ParentLayout>
             <PageHeader
                 title={student.name}
-                subtitle={`${student.grade} • ${t.parent.childDetail.performanceOverview}`}
+                subtitle={`${student.class_name || 'Not Assigned'} • ${t.parent.childDetail.performanceOverview}`}
                 actions={<Button variant="outline" className="w-full sm:w-auto min-h-[44px]" onClick={() => navigate('/parent')}>{t.parent.childDetail.backToDashboard}</Button>}
             />
 
             <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
-                {/* Scrollable tabs on mobile */}
                 <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
                     <TabsList className="w-max sm:w-auto">
                         <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.overview}</TabsTrigger>
@@ -170,7 +171,7 @@ export function ParentChildDetail() {
                         />
                         <StatCard
                             title={t.parent.childDetail.academic}
-                            value={`${student.assignments.filter(a => a.status === 'pending').length} Pending`}
+                            value={`${student.assignments.length} Pending`}
                             icon={FileText}
                             iconColor="text-warning"
                         />
@@ -186,7 +187,7 @@ export function ParentChildDetail() {
                     <div className="dashboard-card p-4 sm:p-6">
                         <h3 className="font-semibold mb-4 sm:mb-6 text-sm sm:text-base">{t.parent.childDetail.attendanceTrend}</h3>
                         <div className="chart-container-responsive">
-                            <BarChart data={student.attendance} color="hsl(var(--primary))" height={250} />
+                            <BarChart data={student.attendanceHistory} color="hsl(var(--primary))" height={250} />
                         </div>
                     </div>
                 </TabsContent>
@@ -311,3 +312,5 @@ export function ParentChildDetail() {
         </ParentLayout>
     );
 }
+
+export default ParentChildDetail;
