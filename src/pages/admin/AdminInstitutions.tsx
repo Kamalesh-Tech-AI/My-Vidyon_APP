@@ -4,11 +4,13 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { InstitutionCard } from '@/components/cards/InstitutionCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Filter, Loader2 } from 'lucide-react';
+import { Plus, Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import Loader from '@/components/common/Loader';
+import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 
 export function AdminInstitutions() {
   const navigate = useNavigate();
@@ -24,14 +26,67 @@ export function AdminInstitutions() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
-    }
+
+      // Fetch counts for each institution
+      const institutionsWithCounts = await Promise.all(
+        (data || []).map(async (inst) => {
+          // Get students count
+          const { count: studentsCount } = await supabase
+            .from('students')
+            .select('id', { count: 'exact', head: true })
+            .eq('institution_id', inst.institution_id);
+
+          // Get staff count - check both profiles and staff_details tables
+          const [profilesStaffResult, staffDetailsResult] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('id', { count: 'exact', head: true })
+              .eq('institution_id', inst.institution_id)
+              .eq('role', 'faculty'),
+            supabase
+              .from('staff_details')
+              .select('id', { count: 'exact', head: true })
+              .eq('institution_id', inst.institution_id)
+          ]);
+
+          // Use whichever table has more records
+          const staffCount = Math.max(
+            profilesStaffResult.count || 0,
+            staffDetailsResult.count || 0
+          );
+
+          return {
+            ...inst,
+            studentsCount: studentsCount || 0,
+            staffCount: staffCount || 0,
+          };
+        })
+      );
+
+      return institutionsWithCounts;
+    },
+    staleTime: 3 * 60 * 1000, // Data stays fresh for 3 minutes
+    gcTime: 10 * 60 * 1000, // Cache persists for 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false, // Use cached data on mount
   });
+
+  // Ensure loader displays for minimum 2 seconds for institutions
+  const showLoader = useMinimumLoadingTime(isLoading, 2000);
 
   useEffect(() => {
     const channel = supabase
-      .channel('public:institutions')
+      .channel('admin-institutions-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'institutions' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-institutions'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-institutions'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-institutions'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_details' }, () => {
         queryClient.invalidateQueries({ queryKey: ['admin-institutions'] });
       })
       .subscribe();
@@ -104,11 +159,8 @@ export function AdminInstitutions() {
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground font-medium">Loading institutions data...</p>
-        </div>
+      {showLoader ? (
+        <Loader fullScreen={false} />
       ) : (
         <Tabs defaultValue="active" className="w-full">
           <TabsList className="mb-6">
@@ -131,8 +183,8 @@ export function AdminInstitutions() {
                     name={inst.name}
                     code={inst.institution_id}
                     location={`${inst.city || ''}${inst.state ? `, ${inst.state}` : ''}`}
-                    students={0}
-                    faculty={0}
+                    students={inst.studentsCount || 0}
+                    faculty={inst.staffCount || 0}
                     status={inst.status as any}
                     type={inst.type}
                     logoUrl={inst.logo_url}
@@ -166,8 +218,8 @@ export function AdminInstitutions() {
                     name={inst.name}
                     code={inst.institution_id}
                     location={`${inst.city}, ${inst.state}`}
-                    students={0}
-                    faculty={0}
+                    students={inst.studentsCount || 0}
+                    faculty={inst.staffCount || 0}
                     status={inst.status as any}
                     type={inst.type}
                     logoUrl={inst.logo_url}

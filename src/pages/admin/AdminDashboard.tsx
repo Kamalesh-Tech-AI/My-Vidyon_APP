@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Loader from '@/components/common/Loader';
+import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import {
   Building2,
   Users,
@@ -15,56 +17,78 @@ import {
   Activity,
   Shield,
   BarChart3,
-  Loader2
 } from 'lucide-react';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Queries
+  // Queries with optimized caching for instant navigation
   const { data: stats = { institutions: 0, users: '0', revenue: '0', health: '99.9%' }, isLoading: isStatsLoading } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      const { count: instCount } = await supabase.from('institutions').select('*', { count: 'exact', head: true });
-      const { count: userCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
-      const { data: subData } = await supabase.from('subscriptions').select('amount').eq('status', 'active');
-      const totalRevenue = subData?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
+      // Optimized: Use head: true for count-only queries (faster)
+      const [instResult, userResult, subResult] = await Promise.all([
+        supabase.from('institutions').select('id', { count: 'exact', head: true }),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('subscriptions').select('amount').eq('status', 'active')
+      ]);
+
+      const instCount = instResult.count || 0;
+      const userCount = userResult.count || 0;
+      const totalRevenue = subResult.data?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
 
       return {
-        institutions: instCount || 0,
-        users: userCount ? (userCount > 1000 ? `${(userCount / 1000).toFixed(1)}k` : userCount.toString()) : '0',
+        institutions: instCount,
+        users: userCount > 1000 ? `${(userCount / 1000).toFixed(1)}k` : userCount.toString(),
         revenue: `₹${(totalRevenue / 100000).toFixed(1)}L`,
         health: '99.9%'
       };
-    }
+    },
+    staleTime: 5 * 60 * 1000, // Data stays fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Garbage collection time - cache persists for 10 minutes
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnMount: false, // Use cached data on mount if available
   });
 
   const { data: activities = [], isLoading: isActivitiesLoading } = useQuery({
     queryKey: ['admin-activities'],
     queryFn: async () => {
+      // Optimized: Select only needed fields
       const { data } = await supabase
         .from('platform_activities')
-        .select('*')
+        .select('id, action, target, type, created_at')
         .order('created_at', { ascending: false })
         .limit(5);
       return data || [];
-    }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const { data: pendingRequests = [], isLoading: isPendingLoading } = useQuery({
     queryKey: ['admin-pending'],
     queryFn: async () => {
+      // Optimized: Select only needed fields
       const { data } = await supabase
         .from('institutions')
-        .select('institution_id, name, status')
+        .select('id, institution_id, name, status')
         .eq('status', 'pending')
         .limit(3);
       return data || [];
-    }
+    },
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const isLoading = isStatsLoading || isActivitiesLoading || isPendingLoading;
+
+  // Ensure loader displays for minimum 1.5 seconds for smooth UX
+  const showLoader = useMinimumLoadingTime(isLoading, 1500);
 
   useEffect(() => {
     // Subscribe to platform activities for real-time feed
@@ -145,11 +169,8 @@ export function AdminDashboard() {
         }
       />
 
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 space-y-4">
-          <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="text-muted-foreground animate-pulse">Syncing real-time dashboard...</p>
-        </div>
+      {showLoader ? (
+        <Loader fullScreen={false} />
       ) : (
         <>
           {/* Stats Grid */}
