@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, FileText, Download, MoreVertical, Eye } from 'lucide-react';
+import { Plus, Search, FileText, Download, MoreVertical, Eye, Edit, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
     Dialog,
@@ -14,6 +14,12 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
 const initialAssignments = [
@@ -90,6 +96,18 @@ export function FacultyAssignments() {
         }
     };
 
+    const handleCloseAssignment = (id: number) => {
+        setAssignments(prev => prev.map(assignment =>
+            assignment.id === id ? { ...assignment, status: 'closed' } : assignment
+        ));
+        toast.success('Assignment closed successfully');
+    };
+
+    const handleUpdateAssignment = (id: number) => {
+        // Navigate to edit page
+        navigate(`/faculty/assignments/edit/${id}`);
+    };
+
     const columns = [
         { key: 'title', header: 'Assignment Title' },
         { key: 'subject', header: 'Subject' },
@@ -113,9 +131,30 @@ export function FacultyAssignments() {
                     <Button variant="ghost" size="sm" onClick={() => handleViewSubmissions(item)} title="View Submissions">
                         <Eye className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm">
-                        <MoreVertical className="w-4 h-4" />
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                                <MoreVertical className="w-4 h-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onClick={() => handleUpdateAssignment(item.id)}
+                                className="flex items-center gap-2"
+                            >
+                                <Edit className="w-4 h-4" />
+                                Update
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => handleCloseAssignment(item.id)}
+                                disabled={item.status === 'closed'}
+                                className="flex items-center gap-2"
+                            >
+                                <XCircle className="w-4 h-4" />
+                                Close
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             ),
         },
