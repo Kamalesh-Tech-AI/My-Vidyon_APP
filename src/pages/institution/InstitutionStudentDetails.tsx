@@ -31,37 +31,31 @@ export function InstitutionStudentDetails() {
     const { data: student, isLoading } = useQuery({
         queryKey: ['institution-student', studentId],
         queryFn: async () => {
-            // In a real app, fetch from Supabase
-            // const { data } = await supabase.from('students').select('*, parents(*)').eq('id', studentId).single();
-            // return data;
+            const { data, error } = await supabase
+                .from('students')
+                .select('*')
+                .eq('id', studentId)
+                .single();
 
-            // Simulating delay for mock
-            await new Promise(r => setTimeout(r, 500));
+            if (error) throw error;
+            if (!data) return null;
+
+            // Transform flat DB structure to nested structure used by UI
             return {
-                id: studentId,
-                name: 'Kamalesh', // Matching screenshot
-                register_number: 'REG-2024-001',
-                class_name: '10th',
-                section: 'A',
-                roll_no: '001',
-                email: 'kamalesh@example.com',
-                phone: '+91 98765 43210',
-                dob: '2008-05-15',
-                gender: 'Male',
-                address: '123, Gandhi Nagar, Mumbai',
-                blood_group: 'B+',
-                admission_date: '2024-06-01',
-                status: 'Active',
-                attendance_percentage: 91,
+                ...data,
+                // Ensure field naming consistency if DB differs
+                register_number: data.register_number || data.roll_no,
+                // data.dob, data.address, data.blood_group, data.status should match DB columns
+                // Map parent details
                 parent: {
-                    name: 'Rajesh Kumar',
-                    relation: 'Father',
-                    phone: '+91 98765 43211',
-                    email: 'rajesh@example.com'
+                    name: data.parent_name || 'N/A',
+                    relation: 'Guardian', // DB might not have relation column, default for now
+                    phone: data.parent_phone || data.parent_contact || 'N/A',
+                    email: data.parent_email || 'N/A'
                 },
+                // Mock academic history for now as we don't have a clear table for it yet
                 academic_history: [
-                    { year: '2023-24', class: '9th', percentage: '88%' },
-                    { year: '2022-23', class: '8th', percentage: '85%' }
+                    { year: '2023-24', class: '9th', percentage: '88%' }, // Placeholder
                 ]
             };
         },

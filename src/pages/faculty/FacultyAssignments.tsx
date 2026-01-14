@@ -6,13 +6,26 @@ import { DataTable } from '@/components/common/DataTable';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { Plus, Search, FileText, Download, MoreVertical, Edit, XCircle, Eye } from 'lucide-react';
+=======
+import { Plus, Search, FileText, Download, MoreVertical, Eye, Edit, XCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+>>>>>>> 264d5024de1390828530f8e3571602c72cff8aee
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+<<<<<<< HEAD
 =======
 import { Plus, Search, FileText, Download, MoreVertical, Eye, Edit, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -36,6 +49,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 >>>>>>> 264d502 (changed)
+=======
+import { toast } from "sonner";
+>>>>>>> 264d5024de1390828530f8e3571602c72cff8aee
 
 const initialAssignments = [
     { id: 1, title: 'Algebra Homework', subject: 'Mathematics', class: 'Grade 10-A', dueDate: 'Dec 22, 2025', submissions: '42/45', status: 'active' },
@@ -64,6 +80,52 @@ export function FacultyAssignments() {
             }
         }
     }, []);
+
+    const handleViewSubmissions = async (assignment: any) => {
+        setSelectedAssignment(assignment);
+        setViewSubmissionsOpen(true);
+        setIsLoadingSubmissions(true);
+        setSubmissions([]);
+
+        try {
+            // Fetch submissions for this assignment (using title as ID for demo consistency)
+            const { data, error } = await supabase
+                .from('submissions')
+                .select('*')
+                .eq('assignment_id', assignment.title);
+
+            if (error) throw error;
+            setSubmissions(data || []);
+        } catch (error) {
+            console.error('Error fetching submissions:', error);
+            toast.error('Failed to load submissions');
+            // Mock data for demo if DB is empty/fails
+            setSubmissions([
+                { id: '1', student_name: 'John Doe', submitted_at: new Date().toISOString(), file_name: 'homework.pdf' },
+                { id: '2', student_name: 'Jane Smith', submitted_at: new Date(Date.now() - 86400000).toISOString(), file_name: 'assignment.jpg' }
+            ]);
+        } finally {
+            setIsLoadingSubmissions(false);
+        }
+    };
+
+    const handleDownload = async (submission: any) => {
+        try {
+            if (!submission.file_path) {
+                toast.error("File not found");
+                return;
+            }
+            const { data } = supabase.storage.from('assignments').getPublicUrl(submission.file_path);
+            if (data?.publicUrl) {
+                window.open(data.publicUrl, '_blank');
+            } else {
+                toast.error("Could not generate download URL");
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error("Download failed");
+        }
+    };
 
     const handleCloseAssignment = (id: number) => {
         setAssignments(prev => prev.map(assignment =>
