@@ -3,7 +3,7 @@ import { FacultyLayout } from '@/layouts/FacultyLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, Clock, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, Clock, RefreshCw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
@@ -13,6 +13,14 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -46,6 +54,13 @@ export function FacultyCalendar() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [direction, setDirection] = useState<'next' | 'prev'>('next');
     const [isAnimating, setIsAnimating] = useState(false);
+    const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState<AcademicEvent | null>(null);
+
+    const handleEventClick = (event: AcademicEvent) => {
+        setSelectedEvent(event);
+        setIsDetailsDialogOpen(true);
+    };
 
     // Fetch Events with Realtime
     useEffect(() => {
@@ -303,7 +318,7 @@ export function FacultyCalendar() {
                                     {event.banner_url && (
                                         <img src={event.banner_url} alt={event.title} className="w-full h-32 object-cover" />
                                     )}
-                                    <div className="p-4">
+                                    <div className="p-4 cursor-pointer" onClick={() => handleEventClick(event)}>
                                         <div className="flex items-start justify-between mb-2">
                                             <h4 className="font-semibold text-sm line-clamp-1">{event.title}</h4>
                                             <Badge variant="info" className="text-[10px] uppercase">{event.type}</Badge>
@@ -325,6 +340,54 @@ export function FacultyCalendar() {
                     )}
                 </div>
             </div>
+
+            {/* Event Details Dialog */}
+            <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                    {selectedEvent && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-xl">{selectedEvent.title}</DialogTitle>
+                                <DialogDescription>
+                                    {selectedEvent.date}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                {selectedEvent.banner_url && (
+                                    <div className="rounded-lg overflow-hidden">
+                                        <img
+                                            src={selectedEvent.banner_url}
+                                            alt={selectedEvent.title}
+                                            className="w-full h-64 object-cover"
+                                        />
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Type</p>
+                                        <Badge variant="info" className="mt-1 uppercase">{selectedEvent.type}</Badge>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Category</p>
+                                        <p className="text-sm mt-1">{selectedEvent.category}</p>
+                                    </div>
+                                </div>
+                                {selectedEvent.description && (
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground mb-2">Description</p>
+                                        <p className="text-sm">{selectedEvent.description}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
+                                    Close
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </FacultyLayout>
     );
 }

@@ -79,6 +79,8 @@ export function InstitutionCalendar() {
 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState<AcademicEvent | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingEvent, setEditingEvent] = useState<AcademicEvent | null>(null);
     const [newEvent, setNewEvent] = useState({
@@ -226,9 +228,23 @@ export function InstitutionCalendar() {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
+    const handleEventClick = (event: AcademicEvent) => {
+        setSelectedEvent(event);
+        setIsDetailsDialogOpen(true);
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setEventBanner(e.target.files[0]);
+            const file = e.target.files[0];
+            const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+
+            if (file.size > maxSize) {
+                toast.error(`File size exceeds 10MB limit. Please choose a smaller image. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+                e.target.value = ''; // Clear the input
+                return;
+            }
+
+            setEventBanner(file);
         }
     };
 
@@ -248,10 +264,14 @@ export function InstitutionCalendar() {
 
             let bannerUrl: string | null = null;
 
+            console.log("Saving event with state:", { newEvent, dates: { start, end }, hasBanner: !!eventBanner });
+
             // Upload banner if selected
             if (eventBanner) {
                 const fileExt = eventBanner.name.split('.').pop();
                 const fileName = `${user.institutionId}/${Date.now()}.${fileExt}`;
+
+                console.log("Starting banner upload:", fileName);
 
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('event-banners')
@@ -262,15 +282,22 @@ export function InstitutionCalendar() {
 
                 if (uploadError) {
                     console.error('Banner upload error:', uploadError);
-                    toast.error('Failed to upload banner');
+                    toast.error('Failed to upload banner: ' + uploadError.message);
                 } else {
+                    console.log("Banner upload successful, getting public URL");
                     // Get public URL
                     const { data: { publicUrl } } = supabase.storage
                         .from('event-banners')
                         .getPublicUrl(fileName);
+
+                    console.log("Generated Banner URL:", publicUrl);
                     bannerUrl = publicUrl;
                 }
+            } else {
+                console.log("No banner file selected");
             }
+
+            console.log("Inserting event into DB with banner_url:", bannerUrl);
 
             const { error } = await supabase.from('academic_events').insert([{
                 institution_id: user.institutionId,
@@ -305,23 +332,23 @@ export function InstitutionCalendar() {
     };
 
     const confirmDelete = async () => {
-        if (eventToDelete && user?.institutionId) {
-            try {
-                const { error } = await supabase
-                    .from('academic_events')
-                    .delete()
-                    .eq('id', eventToDelete)
-                    .eq('institution_id', user.institutionId);
+        if (!eventToDelete || !user?.institutionId) return;
 
-                if (error) throw error;
+        try {
+            const { error } = await supabase
+                .from('academic_events')
+                .delete()
+                .eq('id', eventToDelete)
+                .eq('institution_id', user.institutionId);
 
-                toast.success("Event deleted successfully");
-                setIsDeleteOpen(false);
-                setEventToDelete(null);
-            } catch (err: any) {
-                console.error("Error deleting event:", err);
-                toast.error("Failed to delete event");
-            }
+            if (error) throw error;
+
+            toast.success("Event deleted successfully");
+            setIsDeleteOpen(false);
+            setEventToDelete(null);
+        } catch (err: any) {
+            console.error("Error deleting event:", err);
+            toast.error("Failed to delete event");
         }
     };
 
@@ -366,6 +393,8 @@ export function InstitutionCalendar() {
                 const fileExt = eventBanner.name.split('.').pop();
                 const fileName = `${user.institutionId}/${Date.now()}.${fileExt}`;
 
+                console.log("Starting banner update upload:", fileName);
+
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('event-banners')
                     .upload(fileName, eventBanner, {
@@ -375,13 +404,17 @@ export function InstitutionCalendar() {
 
                 if (uploadError) {
                     console.error('Banner upload error:', uploadError);
-                    toast.error('Failed to upload banner');
+                    toast.error('Failed to upload banner: ' + uploadError.message);
                 } else {
                     const { data: { publicUrl } } = supabase.storage
                         .from('event-banners')
                         .getPublicUrl(fileName);
+
+                    console.log("Generated New Banner URL:", publicUrl);
                     bannerUrl = publicUrl;
                 }
+            } else {
+                console.log("No new banner selected, keeping:", bannerUrl);
             }
 
             const { error } = await supabase
@@ -886,7 +919,10 @@ export function InstitutionCalendar() {
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
-                                <div className="p-4 bg-card">
+                                <div
+                                    className="p-4 bg-card cursor-pointer"
+                                    onClick={() => handleEventClick(event)}
+                                >
                                     <h4 className="font-semibold text-base mb-1 line-clamp-1" title={event.title}>{event.title}</h4>
                                     <div className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
                                         <Clock className="w-3 h-3" />
@@ -909,6 +945,54 @@ export function InstitutionCalendar() {
                 )}
             </div>
 
+            {/* Event Details Dialog */}
+            <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+                <DialogContent className="sm:max-w-[600px]">
+                    {selectedEvent && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="text-xl">{selectedEvent.title}</DialogTitle>
+                                <DialogDescription>
+                                    {selectedEvent.date}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                {selectedEvent.banner_url && (
+                                    <div className="rounded-lg overflow-hidden">
+                                        <img
+                                            src={selectedEvent.banner_url}
+                                            alt={selectedEvent.title}
+                                            className="w-full h-64 object-cover"
+                                        />
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Type</p>
+                                        <Badge variant="info" className="mt-1 uppercase">{selectedEvent.type}</Badge>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Category</p>
+                                        <p className="text-sm mt-1">{selectedEvent.category}</p>
+                                    </div>
+                                </div>
+                                {selectedEvent.description && (
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground mb-2">Description</p>
+                                        <p className="text-sm">{selectedEvent.description}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
+                                    Close
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+
             {/* Delete Confirmation Dialog */}
             <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
                 <DialogContent className="sm:max-w-[400px]">
@@ -918,7 +1002,7 @@ export function InstitutionCalendar() {
                             Delete Event
                         </DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete this event? This action cannot be undone.
+                            Are you sure you want to delete this event? This action cannot be undone and will be removed from all portals immediately.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:justify-end">
