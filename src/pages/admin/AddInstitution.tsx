@@ -21,6 +21,8 @@ import {
     Check,
     ChevronRight,
     ChevronLeft,
+    ChevronDown,
+    ChevronUp,
     Upload,
     Download,
     Plus,
@@ -178,6 +180,14 @@ export function AddInstitution() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
 
 
+    const [selectedClassId, setSelectedClassId] = useState('');
+    const [selectedSection, setSelectedSection] = useState('');
+    const [pendingSubjects, setPendingSubjects] = useState<string[]>([]);
+    const [currentSubjectInput, setCurrentSubjectInput] = useState('');
+    const [selectedGroup, setSelectedGroup] = useState('');
+    const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(true);
+
+
     const addGroup = () => {
         setGroups([...groups, { id: Date.now().toString(), name: '', classes: [] }]);
     };
@@ -311,12 +321,117 @@ export function AddInstitution() {
         }]);
     };
 
-    const removeSubject = (subjectId: string) => {
+    const removeSubject = async (subjectId: string) => {
+        if (isEditMode && editId && subjectId.length > 20) {
+            try {
+                const { error } = await supabase.from('subjects').delete().eq('id', subjectId);
+                if (error) throw error;
+                toast.success('Subject deleted from database');
+            } catch (err) {
+                console.error(err);
+                toast.error('Failed to delete subject');
+                return;
+            }
+        }
         setSubjects(subjects.filter(s => s.id !== subjectId));
     };
 
     const updateSubject = (subjectId: string, field: keyof Subject, value: string) => {
         setSubjects(subjects.map(s => s.id === subjectId ? { ...s, [field]: value } : s));
+    };
+
+    const addPendingSubject = () => {
+        if (!currentSubjectInput.trim()) return;
+        // Case insensitive check
+        if (pendingSubjects.some(s => s.toLowerCase() === currentSubjectInput.trim().toLowerCase())) {
+            toast.error('Subject already in list');
+            return;
+        }
+        setPendingSubjects([...pendingSubjects, currentSubjectInput.trim()]);
+        setCurrentSubjectInput('');
+    };
+
+    const removePendingSubject = (index: number) => {
+        setPendingSubjects(pendingSubjects.filter((_, i) => i !== index));
+    };
+
+    const savePendingSubjects = async () => {
+        if (!selectedClassId) {
+            toast.error('Please select a class first');
+            return;
+        }
+
+        const selectedClassObj = allAvailableClasses.find(c => c.id === selectedClassId);
+        if (!selectedClassObj) {
+            toast.error('Selected class not found');
+            return;
+        }
+
+        // Determine Group
+        let finalGroup = selectedClassObj.groupName;
+        const isHigherSecondary = ['11', '12', 'xi', 'xii'].some(s => selectedClassObj.name.toLowerCase().includes(s));
+
+        if (isHigherSecondary) {
+            if (!selectedGroup) {
+                toast.error('Please select a Group/Stream (e.g. Science, Bio-Maths)');
+                return;
+            }
+            finalGroup = selectedGroup;
+        }
+
+        // Prepare payload objects
+        const subjectsToProcess = pendingSubjects.map((name) => ({
+            name: name,
+            class_name: selectedClassObj.name,
+            group_name: finalGroup
+        }));
+
+        let addedSubjects: Subject[] = [];
+
+        if (isEditMode && editId) {
+            try {
+                const { data, error } = await supabase
+                    .from('subjects')
+                    .insert(subjectsToProcess.map(s => ({
+                        ...s,
+                        code: '',
+                        institution_id: editId
+                    })))
+                    .select();
+
+                if (error) throw error;
+
+                addedSubjects = data.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    code: s.code || '',
+                    className: s.class_name,
+                    group: s.group_name
+                }));
+                toast.success('Subjects saved to database');
+            } catch (err) {
+                console.error(err);
+                toast.error('Failed to save subjects to DB');
+                return;
+            }
+        } else {
+            addedSubjects = subjectsToProcess.map((s, idx) => ({
+                id: Date.now().toString() + idx,
+                name: s.name,
+                code: '',
+                className: s.class_name,
+                group: s.group_name
+            }));
+            toast.success(`Added ${addedSubjects.length} subjects`);
+        }
+
+        setSubjects([...subjects, ...addedSubjects]);
+        setPendingSubjects([]);
+        // Reset Form
+        setSelectedClassId('');
+        setSelectedSection('');
+        setSelectedGroup('');
+        setIsAddSubjectOpen(false); // Collapse the add form
     };
 
 
@@ -961,78 +1076,204 @@ export function AddInstitution() {
                 );
 
             case 3:
+                // Helper to group subjects for display
+                const subjectsByClass = subjects.reduce((acc, subject) => {
+                    const key = subject.group && subject.group !== 'Primary School (LKG - 5th)' && subject.group !== 'Middle School (6th - 8th)' && subject.group !== 'High School (9th - 10th)'
+                        ? `${subject.className} (${subject.group})`
+                        : subject.className;
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(subject);
+                    return acc;
+                }, {} as Record<string, Subject[]>);
+
+                const selectedClassObj = allAvailableClasses.find(c => c.id === selectedClassId);
+                const isHigherSecondary = selectedClassObj && ['11', '12', 'xi', 'xii'].some(s => selectedClassObj.name.toLowerCase().includes(s));
+
                 return (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">Add Subjects</h3>
-                            <Button onClick={addSubject} variant="outline" size="sm">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Subject
-                            </Button>
+                    <div className="space-y-8">
+                        {/* Accordion for Add Subjects */}
+                        <div className={`border border-border rounded-lg overflow-hidden transition-all duration-300 ${isAddSubjectOpen ? 'bg-muted/30' : 'bg-card hover:border-primary/50'}`}>
+                            <div
+                                className="flex items-center justify-between p-4 cursor-pointer bg-muted/50"
+                                onClick={() => setIsAddSubjectOpen(!isAddSubjectOpen)}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <BookOpen className="w-5 h-5 text-primary" />
+                                    <h3 className="text-lg font-semibold">Add Subjects</h3>
+                                </div>
+                                {isAddSubjectOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                            </div>
+
+                            {isAddSubjectOpen && (
+                                <div className="p-6 space-y-6 border-t border-border animate-in slide-in-from-top-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Select Class</Label>
+                                            <Select
+                                                value={selectedClassId}
+                                                onValueChange={(val) => {
+                                                    setSelectedClassId(val);
+                                                    setSelectedSection('');
+                                                    setSelectedGroup('');
+                                                }}
+                                            >
+                                                <SelectTrigger className="bg-background">
+                                                    <SelectValue placeholder="Select Class" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {allAvailableClasses.map(c => (
+                                                        <SelectItem key={c.id} value={c.id}>
+                                                            {c.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Select Section</Label>
+                                            <Select
+                                                value={selectedSection}
+                                                onValueChange={setSelectedSection}
+                                                disabled={!selectedClassId}
+                                            >
+                                                <SelectTrigger className="bg-background">
+                                                    <SelectValue placeholder="Select Section" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {selectedClassId && allAvailableClasses.find(c => c.id === selectedClassId)?.sections.map(s => (
+                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Conditional Group Selection for 11th/12th */}
+                                        {isHigherSecondary && (
+                                            <div className="space-y-2 md:col-span-2 animate-in fade-in">
+                                                <Label>Select Group / Stream <span className="text-destructive">*</span></Label>
+                                                <Select
+                                                    value={selectedGroup}
+                                                    onValueChange={setSelectedGroup}
+                                                >
+                                                    <SelectTrigger className="bg-background">
+                                                        <SelectValue placeholder="Select Stream (e.g. Science, Commerce)" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Science (Bio-Maths)">Science (Bio-Maths)</SelectItem>
+                                                        <SelectItem value="Science (Computer)">Science (Computer)</SelectItem>
+                                                        <SelectItem value="Science (Pure)">Science (Pure)</SelectItem>
+                                                        <SelectItem value="Commerce">Commerce</SelectItem>
+                                                        <SelectItem value="Commerce (Computer)">Commerce (Computer)</SelectItem>
+                                                        <SelectItem value="Arts">Arts</SelectItem>
+                                                        <SelectItem value="Vocational">Vocational</SelectItem>
+                                                        <SelectItem value="Other">Other</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {selectedClassId && (selectedSection || (allAvailableClasses.find(c => c.id === selectedClassId)?.sections.length === 0)) && (
+                                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                            <div className="space-y-2">
+                                                <Label>Enter Subject Name</Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        value={currentSubjectInput}
+                                                        onChange={(e) => setCurrentSubjectInput(e.target.value)}
+                                                        placeholder="e.g. Mathematics"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                addPendingSubject();
+                                                            }
+                                                        }}
+                                                        className="bg-background"
+                                                    />
+                                                    <Button onClick={addPendingSubject} variant="secondary">
+                                                        <Plus className="w-4 h-4 mr-2" />
+                                                        Add
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {pendingSubjects.length > 0 && (
+                                                <div className="bg-background p-4 rounded-md border border-border space-y-3">
+                                                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Subjects to be added:</h4>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {pendingSubjects.map((subject, idx) => (
+                                                            <div key={idx} className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm">
+                                                                <span>{subject}</span>
+                                                                <button
+                                                                    onClick={() => removePendingSubject(idx)}
+                                                                    className="hover:text-destructive transition-colors"
+                                                                >
+                                                                    <X className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="pt-2 flex justify-end">
+                                                        <Button onClick={savePendingSubjects} className="btn-primary w-full md:w-auto">
+                                                            <Check className="w-4 h-4 mr-2" />
+                                                            Save & Close
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        {subjects.length === 0 ? (
-                            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                                <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                                <p className="text-muted-foreground">No subjects added yet. Click "Add Subject" to start.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {subjects.map((subject) => (
-                                    <Card key={subject.id} className="p-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                            <div className="space-y-2">
-                                                <Label>Subject Name</Label>
-                                                <Input
-                                                    value={subject.name}
-                                                    onChange={(e) => updateSubject(subject.id, 'name', e.target.value)}
-                                                    placeholder="Mathematics"
-                                                />
+                        {/* Existing Saved Subjects List - Redesigned */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold">Saved Subjects</h3>
+                            {subjects.length === 0 ? (
+                                <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                                    <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                                    <p className="text-muted-foreground">No subjects saved yet.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-6">
+                                    {Object.entries(subjectsByClass).map(([classGroupKey, classSubjects]) => (
+                                        <Card key={classGroupKey} className="overflow-hidden">
+                                            <div className="bg-muted/50 p-3 px-4 border-b border-border flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-8 bg-primary rounded-full"></div>
+                                                    <span className="font-semibold text-lg">{classGroupKey}</span>
+                                                </div>
+                                                <span className="text-xs text-muted-foreground bg-background px-2 py-1 rounded-md border">
+                                                    {classSubjects.length} Subjects
+                                                </span>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label>Class</Label>
-                                                <Select
-                                                    value={subject.className}
-                                                    onValueChange={(value) => updateSubject(subject.id, 'className', value)}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select Class" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {allAvailableClasses.map(c => (
-                                                            <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                            <div className="p-4">
+                                                <div className="flex flex-wrap gap-3">
+                                                    {classSubjects.map((subject) => (
+                                                        <div
+                                                            key={subject.id}
+                                                            className="flex items-center gap-2 pl-3 pr-1 py-1.5 bg-secondary/50 rounded-full text-sm border border-secondary group hover:border-destructive/30 hover:bg-destructive/5 transition-all"
+                                                        >
+                                                            <span className="font-medium">{subject.name}</span>
+                                                            <Button
+                                                                onClick={() => removeSubject(subject.id)}
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-6 w-6 rounded-full text-muted-foreground group-hover:text-destructive group-hover:bg-destructive/10"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label>Group</Label>
-                                                <Select
-                                                    value={subject.group}
-                                                    onValueChange={(value) => updateSubject(subject.id, 'group', value)}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select Group" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {groups.map(g => (
-                                                            <SelectItem key={g.id} value={g.name}>{g.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <Button
-                                                onClick={() => removeSubject(subject.id)}
-                                                variant="destructive"
-                                                size="sm"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </div>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 );
 

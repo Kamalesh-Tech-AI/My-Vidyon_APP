@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FacultyLayout } from '@/layouts/FacultyLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -25,43 +25,121 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { format } from 'date-fns';
 
-const initialLeaveRequests = [
-    { id: 1, type: 'Sick Leave', startDate: 'Dec 10, 2025', endDate: 'Dec 11, 2025', reason: 'Fever and flu', status: 'approved' },
-    { id: 2, type: 'Casual Leave', startDate: 'Dec 24, 2025', endDate: 'Dec 24, 2025', reason: 'Personal work', status: 'pending' },
-    { id: 3, type: 'Medical Leave', startDate: 'Oct 05, 2025', endDate: 'Oct 07, 2025', reason: 'Annual checkup', status: 'approved' },
-];
+interface LeaveRequest extends Record<string, unknown> {
+    id: string;
+    type: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    status: string;
+}
 
 export function FacultyLeave() {
-    const [leaveRequests, setLeaveRequests] = useState(initialLeaveRequests);
+    const { user } = useAuth();
+    const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
-        name: '',
         type: '',
         startDate: '',
         endDate: '',
         reason: ''
     });
 
-    const handleApplyLeave = () => {
-        setIsSubmitting(true);
-        setTimeout(() => {
-            const newRequest = {
-                id: leaveRequests.length + 1,
-                type: formData.type,
-                startDate: new Date(formData.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                endDate: new Date(formData.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                reason: formData.reason,
-                status: 'pending'
-            };
+    // Fetch leave requests from Supabase
+    useEffect(() => {
+        if (!user?.id || !user?.institutionId) return;
 
-            setLeaveRequests([newRequest, ...leaveRequests]);
-            setIsSubmitting(false);
-            setIsDialogOpen(false);
-            setFormData({ name: '', type: '', startDate: '', endDate: '', reason: '' });
+        const fetchLeaveRequests = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('staff_leaves')
+                    .select('*')
+                    .eq('staff_id', user.id)
+                    .eq('institution_id', user.institutionId)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (data) {
+                    const formattedLeaves: LeaveRequest[] = data.map((item: any) => ({
+                        id: item.id,
+                        type: item.leave_type,
+                        startDate: format(new Date(item.start_date), 'MMM dd, yyyy'),
+                        endDate: format(new Date(item.end_date), 'MMM dd, yyyy'),
+                        reason: item.reason || 'No reason provided',
+                        status: item.status
+                    }));
+                    setLeaveRequests(formattedLeaves);
+                }
+            } catch (err: any) {
+                console.error("Error fetching leave requests:", err);
+                toast.error("Failed to load leave requests");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLeaveRequests();
+
+        // Subscribe to real-time updates
+        const channel = supabase
+            .channel('staff_leaves_changes')
+            .on('postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'staff_leaves',
+                    filter: `staff_id=eq.${user.id}`
+                },
+                () => {
+                    fetchLeaveRequests();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id, user?.institutionId]);
+
+    const handleApplyLeave = async () => {
+        if (!user?.id || !user?.institutionId) {
+            toast.error("User information not available");
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const { error } = await supabase
+                .from('staff_leaves')
+                .insert({
+                    institution_id: user.institutionId,
+                    staff_id: user.id,
+                    leave_type: formData.type,
+                    start_date: formData.startDate,
+                    end_date: formData.endDate,
+                    reason: formData.reason,
+                    status: 'pending'
+                });
+
+            if (error) throw error;
+
             toast.success("Leave application submitted successfully");
-        }, 1500);
+            setIsDialogOpen(false);
+            setFormData({ type: '', startDate: '', endDate: '', reason: '' });
+        } catch (err: any) {
+            console.error("Error submitting leave request:", err);
+            toast.error("Failed to submit leave request");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const columns = [
@@ -104,15 +182,6 @@ export function FacultyLeave() {
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">Full Name</Label>
-                                    <Input
-                                        id="name"
-                                        placeholder="e.g. Dr. John Doe"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    />
-                                </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="type">Leave Type</Label>
                                     <Select
@@ -164,7 +233,7 @@ export function FacultyLeave() {
                                 <Button
                                     type="submit"
                                     onClick={handleApplyLeave}
-                                    disabled={!formData.name || !formData.type || !formData.startDate || !formData.endDate || !formData.reason || isSubmitting}
+                                    disabled={!formData.type || !formData.startDate || !formData.endDate || !formData.reason || isSubmitting}
                                 >
                                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Submit Request
@@ -205,7 +274,17 @@ export function FacultyLeave() {
 
             <div className="dashboard-card">
                 <h3 className="font-semibold mb-6">Leave History</h3>
-                <DataTable columns={columns} data={leaveRequests} />
+                {loading ? (
+                    <div className="flex justify-center items-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <DataTable
+                        columns={columns}
+                        data={leaveRequests}
+                        emptyMessage="No leave requests found. Click 'Apply for Leave' to submit your first request."
+                    />
+                )}
             </div>
         </FacultyLayout>
     );
