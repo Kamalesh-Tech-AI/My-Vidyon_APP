@@ -292,6 +292,43 @@ export function RealtimeNotificationBell() {
         return unsubscribe;
     }, [subscribeToTable, user]);
 
+    // Subscribe to General Notifications (Targeted at specific user)
+    useEffect(() => {
+        if (!user) return;
+
+        // Listen for ANY insert into notifications table where user_id matches current user
+        // Note: Filters must be cleaner in real service, but RLS + subscribe usually works if policy allows select.
+        // However, Supabase Realtime doesn't filter by RLS automatically for the stream generally unless 'pg_changes' is used with filter.
+        // We will use filter: `user_id=eq.${user.id}`
+
+        const unsubscribe = subscribeToTable('notifications', (payload) => {
+            console.log('📬 Personal Notification update:', payload);
+
+            if (payload.eventType === 'INSERT' && payload.new.user_id === user.id) {
+                const notification: Notification = {
+                    id: payload.new.id || Date.now().toString(),
+                    title: payload.new.title,
+                    message: payload.new.message,
+                    type: (payload.new.type === 'error' || payload.new.type === 'warning' || payload.new.type === 'success') ? payload.new.type : 'info',
+                    timestamp: Date.now(),
+                    read: false,
+                    table: 'notifications',
+                    eventType: 'INSERT',
+                };
+
+                setNotifications(prev => [notification, ...prev].slice(0, 20));
+                setUnreadCount(prev => prev + 1);
+
+                toast(notification.title, {
+                    description: notification.message,
+                });
+            }
+        });
+
+        return unsubscribe;
+    }, [subscribeToTable, user]);
+
+
     const navigate = useNavigate();
 
     const handleNotificationClick = (notification: Notification) => {

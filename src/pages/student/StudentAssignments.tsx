@@ -68,42 +68,64 @@ export function StudentAssignments() {
     setIsUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        // Fallback if no user is logged in (for demo purposes)
-        // In a real app, we'd force login. 
-        // For now, we proceed to try upload if possible or mock success 
-        // to avoid breaking the flow if auth isn't fully set up in this dev env.
-        console.warn("No user found. Proceeding with demo submission.");
-      }
 
+      // 1. Get Student Details (for Name and Class)
+      const { data: student } = await supabase
+        .from('students')
+        .select('id, name, class_name, section')
+        .eq('id', user?.id || 'demo-id') // Use real ID in prod
+        .maybeSingle(); // Use maybeSingle to avoid error if demo user not found
+
+      const studentName = student?.name || user?.email || 'Student';
+      const studentClass = student?.class_name || 'Grade 10-A'; // Fallback for demo
       const userId = user?.id || 'demo-student-id';
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${userId}/${selectedAssignment.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
 
-      // Upload to Supabase Storage
+      // 2. Upload File
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}-${selectedAssignment.title.replace(/\s+/g, '-')}.${fileExt}`;
+      const filePath = fileName;
+
       const { error: uploadError } = await supabase.storage
         .from('assignments')
         .upload(filePath, selectedFile);
 
       if (uploadError) throw uploadError;
 
-      // Insert into submissions table
+      // 3. Insert Submission Record
       const { error: dbError } = await supabase
         .from('submissions')
         .insert({
-          assignment_id: selectedAssignment.title, // Using title as ID for this demo/mock data structure
+          assignment_id: selectedAssignment.title,
           student_id: userId,
+          student_name: studentName,
           file_path: filePath,
           file_name: selectedFile.name,
           submitted_at: new Date().toISOString(),
-          status: 'submitted',
-          student_name: user?.email || 'Student' // captured for easy display
+          status: 'submitted'
         });
 
       if (dbError) throw dbError;
 
-      toast.success("Assignment submitted successfully!");
+      // 4. Notify Class Teacher / Faculty
+      // Find faculty for this class
+      const { data: faculty } = await supabase
+        .from('staff_details')
+        .select('profile_id')
+        .eq('class_assigned', studentClass)
+        .maybeSingle();
+
+      if (faculty?.profile_id) {
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: faculty.profile_id,
+            title: 'New Assignment Submission',
+            message: `${studentName} has submitted: ${selectedAssignment.title}`,
+            type: 'assignment'
+          });
+      }
+
+      toast.success("Assignment submitted and staff notified!");
       setIsSubmitOpen(false);
     } catch (error: any) {
       console.error('Submission error:', error);
