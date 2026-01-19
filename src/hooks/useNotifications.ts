@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useWebSocketContext } from '@/context/WebSocketContext';
 
 export type NotificationType =
     | 'assignment'
@@ -11,6 +13,7 @@ export type NotificationType =
     | 'exam'
     | 'fees'
     | 'event'
+    | 'timetable'
     | 'info'
     | 'warning'
     | 'success'
@@ -31,87 +34,107 @@ export interface NotificationItem {
 
 export function useNotifications() {
     const { user } = useAuth();
-    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const { subscribeToTable } = useWebSocketContext();
 
+    const { data: notifications = [], isLoading: loading } = useQuery({
+        queryKey: ['aggregated-notifications', user?.id],
+        queryFn: async () => {
+            if (!user?.institutionId) return [];
+
+            // 1. Fetch Personal Notifications
+            const { data: userNotifs, error: notifError } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (notifError) throw notifError;
+
+            // 2. Fetch Academic Events (Broadcast)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const { data: events, error: eventError } = await supabase
+                .from('academic_events')
+                .select('*')
+                .eq('institution_id', user.institutionId)
+                .gte('created_at', thirtyDaysAgo.toISOString())
+                .order('created_at', { ascending: false });
+
+            if (eventError) throw eventError;
+
+            // Transform Personal Notifications
+            const formattedUserNotifs: NotificationItem[] = (userNotifs || []).map(n => ({
+                id: n.id,
+                title: n.title,
+                message: n.message,
+                type: (n.type as NotificationType) || 'info',
+                date: formatDistanceToNow(new Date(n.created_at), { addSuffix: true }),
+                rawDate: n.created_at,
+                read: n.read,
+                priority: 'normal',
+                source: 'notification'
+            }));
+
+            // Transform Academic Events
+            const formattedEvents: NotificationItem[] = (events || []).map(e => ({
+                id: `event-${e.id}`, // distinct ID prefix
+                title: `New Event: ${e.title}`,
+                message: `${e.description || e.title} on ${new Date(e.start_date).toLocaleDateString()}`,
+                type: 'event',
+                date: formatDistanceToNow(new Date(e.created_at || e.start_date), { addSuffix: true }),
+                rawDate: e.created_at || e.start_date,
+                read: false,
+                priority: 'normal',
+                source: 'calendar',
+                actionUrl: `/${user.role}/calendar`
+            }));
+
+            // Merge and Sort
+            return [...formattedUserNotifs, ...formattedEvents].sort((a, b) =>
+                new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime()
+            );
+        },
+        enabled: !!user?.institutionId && !!user?.id
+    });
+
+    // Real-time subscriptions
     useEffect(() => {
-        if (!user?.institutionId) return;
+        if (!user?.institutionId || !user?.id) return;
 
-        const fetchNotifications = async () => {
-            try {
-                setLoading(true);
+        // Subscribe to Notifications table
+        // We only care about INSERT/UPDATE for the current user
+        // But RLS should handle the filtering if we subscribe to `notifications` but usually we need a filter in the channel if RLS isn't enhancing realtime stream automatically
+        // supabase realtime respects RLS if configured with "broadcast" but typically we use filter.
+        // User ID filter: `user_id=eq.${user.id}`
+        const unsubNotifications = subscribeToTable(
+            'notifications',
+            (payload) => {
+                // Invalidate query to refetch/re-merge
+                console.log('Realtime notification update:', payload);
+                queryClient.invalidateQueries({ queryKey: ['aggregated-notifications'] });
+            },
+            { filter: `user_id=eq.${user.id}` }
+        );
 
-                // 1. Fetch Personal Notifications
-                const { data: userNotifs, error: notifError } = await supabase
-                    .from('notifications')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(50);
+        // Subscribe to Academic Events
+        // Filter by institution_id
+        const unsubEvents = subscribeToTable(
+            'academic_events',
+            (payload) => {
+                console.log('Realtime event update:', payload);
+                queryClient.invalidateQueries({ queryKey: ['aggregated-notifications'] });
+            },
+            { filter: `institution_id=eq.${user.institutionId}` }
+        );
 
-                if (notifError) throw notifError;
-
-                // 2. Fetch Academic Events (Broadcast)
-                // Filter events created recently (e.g., last 30 days) to keep list relevant
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-                const { data: events, error: eventError } = await supabase
-                    .from('academic_events')
-                    .select('*')
-                    .eq('institution_id', user.institutionId)
-                    .gte('created_at', thirtyDaysAgo.toISOString())
-                    .order('created_at', { ascending: false });
-
-                if (eventError) throw eventError;
-
-                // Transform Personal Notifications
-                const formattedUserNotifs: NotificationItem[] = (userNotifs || []).map(n => ({
-                    id: n.id,
-                    title: n.title,
-                    message: n.message,
-                    type: (n.type as NotificationType) || 'info',
-                    date: formatDistanceToNow(new Date(n.created_at), { addSuffix: true }),
-                    rawDate: n.created_at,
-                    read: n.read,
-                    priority: 'normal',
-                    source: 'notification'
-                }));
-
-                // Transform Academic Events
-                const formattedEvents: NotificationItem[] = (events || []).map(e => ({
-                    id: `event-${e.id}`,
-                    title: `New Event: ${e.title}`,
-                    message: `${e.description || e.title} on ${new Date(e.start_date).toLocaleDateString()}`,
-                    type: 'event',
-                    date: formatDistanceToNow(new Date(e.created_at || e.start_date), { addSuffix: true }), // Use created_at if available
-                    rawDate: e.created_at || e.start_date,
-                    read: false, // Events don't have read state per user unless tracked separately
-                    priority: 'normal',
-                    source: 'calendar',
-                    actionUrl: `/${user.role}/calendar`
-                }));
-
-                // Merge and Sort
-                const merged = [...formattedUserNotifs, ...formattedEvents].sort((a, b) =>
-                    new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime()
-                );
-
-                setNotifications(merged);
-
-            } catch (err) {
-                console.error("Error fetching notifications:", err);
-            } finally {
-                setLoading(false);
-            }
+        return () => {
+            unsubNotifications();
+            unsubEvents();
         };
-
-        fetchNotifications();
-
-        // Real-time subscriptions could be added here similar to RealtimeNotificationBell
-        // For simplicity, we fetch on mount.
-
-    }, [user?.institutionId, user?.id, user?.role]);
+    }, [user?.institutionId, user?.id, subscribeToTable, queryClient]);
 
     return { notifications, loading };
 }

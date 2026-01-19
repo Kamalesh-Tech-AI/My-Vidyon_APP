@@ -35,9 +35,9 @@ class RealtimeService {
     subscribeToTable(
         tableName: string,
         callback: EventHandler,
-        filter?: { event?: 'INSERT' | 'UPDATE' | 'DELETE' | '*'; schema?: string }
+        filter?: { event?: 'INSERT' | 'UPDATE' | 'DELETE' | '*'; schema?: string; filter?: string }
     ) {
-        const channelName = `realtime:${tableName}`;
+        const channelName = `realtime:${tableName}:${filter?.filter || 'all'}`;
 
         // Create channel if it doesn't exist
         if (!this.channels.has(channelName)) {
@@ -49,6 +49,7 @@ class RealtimeService {
                         event: filter?.event || '*',
                         schema: filter?.schema || 'public',
                         table: tableName,
+                        filter: filter?.filter,
                     },
                     (payload) => {
                         console.log(`📡 Real-time update from ${tableName}:`, payload);
