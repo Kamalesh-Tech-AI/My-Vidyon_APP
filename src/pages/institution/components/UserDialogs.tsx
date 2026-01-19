@@ -27,7 +27,7 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [data, setData] = useState({
         name: '', registerNumber: '', className: '', section: '', dob: '', gender: '',
-        parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: ''
+        parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '', phone: ''
     });
     const [image, setImage] = useState<string | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -159,7 +159,11 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                     register_number: data.registerNumber,
                     class_name: data.className,
                     section: data.section,
-                    image_url: imageUrl // Hope Edge function supports this
+                    image_url: imageUrl, // Hope Edge function supports this
+                    gender: data.gender,
+                    address: data.address,
+                    date_of_birth: data.dob,
+                    phone: (data as any).phone || ""
                 }
             });
 
@@ -170,7 +174,7 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
             queryClient.invalidateQueries({ queryKey: ['institution-students'] });
             onSuccess();
             onOpenChange(false);
-            setData({ name: '', registerNumber: '', className: '', section: '', dob: '', gender: '', parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '' });
+            setData({ name: '', registerNumber: '', className: '', section: '', dob: '', gender: '', parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '', phone: '' });
             setImage(null);
         } catch (error: any) {
             const errorMsg = error.message || 'Failed to add student';
@@ -259,6 +263,10 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                     <div className="space-y-2 md:col-span-2">
                         <Label>Address</Label>
                         <Input value={data.address} onChange={(e) => setData({ ...data, address: e.target.value })} placeholder="Full residential address" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Student Phone</Label>
+                        <Input type="tel" value={(data as any).phone || ''} onChange={(e) => setData({ ...data, phone: e.target.value } as any)} placeholder="e.g. 9876543210" />
                     </div>
                     <div className="space-y-2">
                         <Label>Password *</Label>
@@ -423,121 +431,69 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
         }
         setIsSubmitting(true);
         try {
-            console.log('=== Starting Staff Creation ===');
-            console.log('Institution ID:', institutionId);
-            console.log('Staff Data:', {
-                name: data.name,
-                email: data.email,
-                staffId: data.staffId,
-                department: data.department,
-                phone: data.phone
-            });
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('No active session found. Please log in again.');
 
-            // Check for existing user
-            const { data: existingProfile, error: checkError } = await supabase
-                .from('profiles')
-                .select('id, email')
-                .eq('email', data.email)
-                .maybeSingle();
-
-            if (checkError) {
-                console.error('Error checking existing profile:', checkError);
-                throw new Error(`Database error: ${checkError.message}`);
-            }
-
-            if (existingProfile) {
-                console.warn('Profile already exists:', existingProfile);
-                throw new Error('A user with this email already exists');
-            }
-
-            // Generate UUID for the profile
-            const profileId = generateUUID();
-            console.log('Generated Profile ID:', profileId);
-
-            // Prepare staff profile data
+            // Upload photo if exists
             let imageUrl = null;
             if (image) {
-                console.log('Uploading staff photo...');
                 const blob = await fetch(image).then(res => res.blob());
-                const fileName = `${profileId}_${Date.now()}.jpg`;
+                const fileName = `staff_${Date.now()}.jpg`;
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('student-photos')
                     .upload(fileName, blob);
 
-                if (uploadError) {
-                    console.error('Storage upload error:', uploadError);
-                    throw uploadError;
-                }
+                if (uploadError) throw uploadError;
 
                 const { data: { publicUrl } } = supabase.storage
                     .from('student-photos')
                     .getPublicUrl(fileName);
                 imageUrl = publicUrl;
-                console.log('Photo uploaded. URL:', imageUrl);
             }
 
-            const profileData = {
-                id: profileId,
-                email: data.email,
-                full_name: data.name,
-                role: 'faculty',
-                institution_id: institutionId,
-                staff_id: data.staffId,
-                department: data.department || null,
-                phone: data.phone || null,
-                date_of_birth: data.dob || null,
-                image_url: imageUrl
-            };
+            // Use create-user Edge Function for consistency
+            const { data: responseData, error } = await supabase.functions.invoke('create-user', {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                },
+                body: {
+                    email: data.email,
+                    password: data.password,
+                    role: 'faculty',
+                    full_name: data.name,
+                    institution_id: institutionId,
+                    staff_id: data.staffId,
+                    department: data.department || null,
+                    subjects: data.subjects,
+                    phone: data.phone || null,
+                    date_of_birth: data.dob || null,
+                    image_url: imageUrl
+                }
+            });
 
-            console.log('Inserting profile with data:', profileData);
+            if (error) throw error;
 
-            // Create profile directly
-            const { data: newProfile, error: insertError } = await supabase
-                .from('profiles')
-                .insert(profileData)
-                .select()
-                .single();
-
-            if (insertError) {
-                console.error('Profile insertion error:', insertError);
-                throw new Error(`Failed to create profile: ${insertError.message}`);
-            }
-
-            // Generate and save face embedding if image exists
-            if (imageUrl) {
+            // Generate face embedding if image exists
+            if (imageUrl && responseData?.user?.id) {
                 try {
-                    console.log('Triggering embedding generation...');
-                    const { data: embeddingResponse, error: embeddingError } = await supabase.functions.invoke('generate-face-embedding', {
-                        body: { imageUrl, userId: profileId, label: data.name }
+                    await supabase.functions.invoke('generate-face-embedding', {
+                        body: { imageUrl, userId: responseData.user.id, label: data.name }
                     });
-                    if (embeddingError) console.warn('Embedding generation background error:', embeddingError);
                 } catch (e) {
-                    console.warn('Embedding background trigger failed (non-critical):', e);
+                    console.warn('Embedding generation failed (non-critical):', e);
                 }
             }
 
-            console.log('Profile created successfully:', newProfile);
-
-            // NOTE: Password is ignored in this workaround
-            // In production, create user via Supabase Auth Admin API or Edge Function
-
             toast.success('Staff member added successfully!');
-
-            // Force refetch of staff list
             await queryClient.invalidateQueries({ queryKey: ['institution-staff', institutionId] });
-
             onSuccess();
             onOpenChange(false);
             setData({ name: '', staffId: '', role: '', email: '', phone: '', dob: '', password: '', department: '', subjects: [] });
+            setImage(null);
         } catch (error: any) {
-            console.error('=== Staff Creation Failed ===');
-            console.error('Error:', error);
+            console.error('Staff creation error:', error);
             const errorMsg = error.message || 'Failed to create staff';
             toast.error(errorMsg);
-
-            if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
-                toast.error('Session expired or unauthorized. Please Log Out and Log In again.');
-            }
         } finally {
             setIsSubmitting(false);
         }
