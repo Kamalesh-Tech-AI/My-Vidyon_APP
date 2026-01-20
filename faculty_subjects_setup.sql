@@ -41,9 +41,11 @@ USING (
     faculty_profile_id = auth.uid()
 );
 
--- Policy: Faculty can VIEW assignments for classes they manage (e.g. as Class Teacher) - Optional but useful
--- If I am a class teacher of Class X, I might need to see who teaches Subject Y in Class X.
+-- Policy: Faculty can VIEW assignments for classes they manage (e.g. as Class Teacher) - RECURSIVE / CAUSING ERRORS
+-- Removed to fix "infinite recursion detected in policy" error.
 DROP POLICY IF EXISTS "Class Teachers can view staff in their class" ON public.faculty_subjects;
+/* 
+-- This caused recursion. Disabled for now.
 CREATE POLICY "Class Teachers can view staff in their class"
 ON public.faculty_subjects
 FOR SELECT
@@ -56,7 +58,8 @@ USING (
         AND assignment_type = 'class_teacher' 
         AND section = public.faculty_subjects.section
     )
-);
+); 
+*/
 
 -- Index for performance
 CREATE INDEX IF NOT EXISTS idx_faculty_subjects_faculty_id ON public.faculty_subjects(faculty_profile_id);

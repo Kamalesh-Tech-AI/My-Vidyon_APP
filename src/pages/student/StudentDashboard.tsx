@@ -12,16 +12,17 @@ import { DonutChart } from '@/components/charts/DonutChart';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { supabase } from '@/lib/supabase';
-import { useWebSocketContext } from '@/context/WebSocketContext';
+import { useStudentDashboard } from '@/hooks/useStudentDashboard';
 import {
   BookOpen,
   Clock,
   TrendingUp,
   Calendar,
   CheckCircle,
+  DollarSign,
 } from 'lucide-react';
 
-// Mock Data preserved for non-implemented tables
+// Mock Data for charts (until we have historical data)
 const attendanceData = [
   { name: 'Mon', value: 95 },
   { name: 'Tue', value: 88 },
@@ -43,24 +44,15 @@ const mockNotifications = [
   { title: 'Exam Reminder', message: 'Your Unit Test - II for Mathematics is scheduled for next Monday.', type: 'warning' as const, time: '1 day ago' },
 ];
 
-const mockAssignments = [
-  { title: 'Algebra Homework', course: 'Mathematics', dueDate: 'Dec 22, 2025', status: 'pending' as const },
-  { title: 'Periodic Table Project', course: 'Chemistry', dueDate: 'Dec 20, 2025', status: 'submitted' as const },
-  { title: 'Poetry Analysis', course: 'English', dueDate: 'Dec 18, 2025', status: 'graded' as const, grade: '95', maxGrade: '100' },
-];
-
 export function StudentDashboard() {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const { subscribeToTable } = useWebSocketContext();
 
-  // 1. Fetch Student Details (Class Info) -> Then Fetch Subjects
+  // Fetch Student Profile
   const { data: studentProfile } = useQuery({
     queryKey: ['student-profile', user?.id],
     queryFn: async () => {
       if (!user?.email) return null;
-      console.log('🔍 [DASHBOARD] Fetching profile for email:', user.email);
 
       const query = supabase
         .from('students')
@@ -74,17 +66,22 @@ export function StudentDashboard() {
       const { data, error } = await query.maybeSingle();
 
       if (error) {
-        console.error('❌ [DASHBOARD] Profile Fetch Error:', error);
+        console.error('Profile Fetch Error:', error);
         return null;
       }
-      console.log('✅ [DASHBOARD] Profile Found:', data ? { id: data.id, name: data.name, email: data.email } : 'NONE');
       return data;
     },
     enabled: !!user?.email,
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 1000 * 60,
   });
 
-  // 2. Fetch Subjects (Real)
+  // Use comprehensive student dashboard hook
+  const { stats, assignments, attendanceRecords, grades, feeStatus } = useStudentDashboard(
+    studentProfile?.id,
+    user?.institutionId
+  );
+
+  // Fetch Subjects
   const { data: subjects = [] } = useQuery({
     queryKey: ['student-subjects', studentProfile?.class_name],
     queryFn: async () => {
@@ -93,118 +90,20 @@ export function StudentDashboard() {
         .select('*')
         .eq('class_name', studentProfile?.class_name);
 
-      // Transform to CourseCard props - only showing subject and instructor
       return (data || []).map((sub: any) => ({
         title: sub.name,
         code: sub.code || sub.class_name,
         instructor: sub.instructor_name || 'Not Assigned',
-        // Removed progress, students count - these are faculty data
       }));
     },
     enabled: !!studentProfile?.class_name,
     staleTime: 1000 * 60,
   });
 
-  // 3. Fetch Today's Attendance Status (Real)
+  // Get today's attendance status
   const today = format(new Date(), 'yyyy-MM-dd');
+  const todayRecord = attendanceRecords.find(r => r.date === today);
   const isAfterAbsentThreshold = new Date().getHours() >= 10;
-
-  const { data: todayAttendance, refetch: refetchTodayAttendance } = useQuery({
-    queryKey: ['student-today-attendance', studentProfile?.id, today],
-    queryFn: async () => {
-      if (!studentProfile?.id) return null;
-      console.log('🔍 [DASHBOARD] Fetching today attendance for student_id:', studentProfile.id);
-
-      const { data, error } = await supabase
-        .from('student_attendance')
-        .select('*')
-        .eq('student_id', studentProfile.id)
-        .eq('attendance_date', today)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('❌ [DASHBOARD] Attendance Fetch Error:', error);
-        throw error;
-      }
-      console.log('✅ [DASHBOARD] Today Attendance Record:', data);
-      return data;
-    },
-    enabled: !!studentProfile?.id,
-  });
-
-  // 4. Fetch Overall Attendance Rate (Real)
-  const { data: attendanceRate = 0 } = useQuery({
-    queryKey: ['student-attendance-rate', studentProfile?.id, today],
-    queryFn: async () => {
-      if (!studentProfile?.id) return 0;
-      console.log('🔍 [DASHBOARD] Calculating attendance rate for:', studentProfile.id);
-
-      const { count: totalDays } = await supabase
-        .from('student_attendance')
-        .select('*', { count: 'exact', head: true })
-        .eq('student_id', studentProfile.id);
-
-      const { count: presentDays } = await supabase
-        .from('student_attendance')
-        .select('*', { count: 'exact', head: true })
-        .eq('student_id', studentProfile.id)
-        .in('status', ['present', 'late']);
-
-      console.log('📊 [DASHBOARD] Stats:', { presentDays, totalDays });
-      return totalDays ? Math.round((presentDays || 0) / totalDays * 100) : 0;
-    },
-    enabled: !!studentProfile?.id,
-  });
-
-  // 5. Mock Queries (Wrapped in useQuery for caching consistency)
-  const { data: assignments = mockAssignments } = useQuery({
-    queryKey: ['student-assignments'],
-    queryFn: () => Promise.resolve(mockAssignments),
-    staleTime: 1000 * 60 * 5, // 5 minutes for mocks
-  });
-
-  const { data: notifications = mockNotifications } = useQuery({
-    queryKey: ['student-notifications'],
-    queryFn: () => Promise.resolve(mockNotifications),
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // 6. Realtime Subscription using WebSocketContext
-  useEffect(() => {
-    if (!user?.email) return;
-
-    console.log('🔌 [DASHBOARD] Setting up WebSocket subscriptions...');
-
-    // Subscribe to student profile changes
-    const unsubProfile = subscribeToTable('students', (payload) => {
-      console.log('📡 [DASHBOARD] Student profile update detected:', payload);
-      queryClient.invalidateQueries({ queryKey: ['student-profile', user.id] });
-    }, { filter: `email=eq.${user.email.toLowerCase()}` }); // Note: real-time filters are tricky with casing, hoping for lowercase in DB
-
-    let unsubAttendance = () => { };
-    if (studentProfile?.id) {
-      unsubAttendance = subscribeToTable('student_attendance', (payload) => {
-        console.log('📡 [DASHBOARD] Attendance update detected:', payload);
-        queryClient.invalidateQueries({ queryKey: ['student-today-attendance'] });
-        queryClient.invalidateQueries({ queryKey: ['student-attendance-rate'] });
-        refetchTodayAttendance();
-      }, { filter: `student_id=eq.${studentProfile.id}` });
-    }
-
-    // Subscribe to subjects
-    const unsubSubjects = subscribeToTable('subjects', () => {
-      console.log('📡 [DASHBOARD] Subjects update detected');
-      queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
-    });
-
-    return () => {
-      console.log('🔌 [DASHBOARD] Cleaning up subscriptions');
-      unsubProfile();
-      unsubAttendance();
-      unsubSubjects();
-    };
-  }, [user?.email, user?.id, studentProfile?.id, queryClient, subscribeToTable, refetchTodayAttendance]);
-
 
   return (
     <StudentLayout>
@@ -225,31 +124,31 @@ export function StudentDashboard() {
         <StatCard
           title="Attendance Status"
           value={
-            todayAttendance?.status === 'present' ? 'PRESENT' :
-              todayAttendance?.status === 'late' ? 'LATE' :
-                todayAttendance?.status === 'absent' ? 'ABSENT' :
+            todayRecord?.status === 'present' ? 'PRESENT' :
+              todayRecord?.status === 'late' ? 'LATE' :
+                todayRecord?.status === 'absent' ? 'ABSENT' :
                   (isAfterAbsentThreshold ? 'ABSENT' : 'NOT MARKED')
           }
           icon={CheckCircle}
           iconColor={
-            todayAttendance?.status === 'present' ? 'text-success' :
-              todayAttendance?.status === 'late' ? 'text-warning' :
-                (todayAttendance?.status === 'absent' || (!todayAttendance && isAfterAbsentThreshold)) ? 'text-destructive' : 'text-muted-foreground'
+            todayRecord?.status === 'present' ? 'text-success' :
+              todayRecord?.status === 'late' ? 'text-warning' :
+                (todayRecord?.status === 'absent' || (!todayRecord && isAfterAbsentThreshold)) ? 'text-destructive' : 'text-muted-foreground'
           }
-          change={`Overall Rate: ${attendanceRate}%`}
-          changeType={attendanceRate >= 75 ? 'positive' : 'negative'}
+          change={stats.attendancePercentage}
+          changeType={parseInt(stats.attendancePercentage) >= 75 ? 'positive' : 'negative'}
         />
         <StatCard
-          title="Overall Percentage"
-          value={`${attendanceRate}%`}
+          title="Average Grade"
+          value={stats.averageGrade}
           icon={TrendingUp}
           iconColor="text-primary"
-          change="+2% from last term"
+          change={`${grades.length} subjects graded`}
           changeType="positive"
         />
         <StatCard
           title="Pending Tasks"
-          value={assignments.filter(a => a.status === 'pending').length}
+          value={stats.pendingAssignments}
           icon={Clock}
           iconColor="text-warning"
           change="Due soon"
@@ -343,7 +242,7 @@ export function StudentDashboard() {
           <a href="/student/notifications" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {notifications.map((notification: any, index: number) => (
+          {mockNotifications.map((notification: any, index: number) => (
             <NotificationCard key={index} {...notification} />
           ))}
         </div>
