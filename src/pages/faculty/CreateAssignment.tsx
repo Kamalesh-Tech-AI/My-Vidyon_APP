@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FacultyLayout } from '@/layouts/FacultyLayout';
@@ -56,6 +56,14 @@ export function CreateAssignment() {
         },
         enabled: !!user?.institutionId,
     });
+
+    // Auto-select first class when classes load
+    useEffect(() => {
+        if (classes.length > 0 && !formData.class) {
+            setFormData(prev => ({ ...prev, class: classes[0].displayName }));
+        }
+    }, [classes]);
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
