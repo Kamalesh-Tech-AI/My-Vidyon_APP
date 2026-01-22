@@ -25,6 +25,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [progress, setProgress] = useState('');
     const [data, setData] = useState({
         name: '', registerNumber: '', className: '', section: '', dob: '', gender: '',
         parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '', phone: ''
@@ -115,17 +116,18 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
         }
 
         setIsSubmitting(true);
+        const toastId = toast.loading('Creating student account...');
+
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('No active session found. Please log in again.');
 
-            // DEBUG: Log the token explicitly to verify it exists and is attached
-            console.log('Using Access Token:', session.access_token ? (session.access_token.substring(0, 10) + '...') : 'NULL');
-
-            // 1. Photo Upload
+            // 1. Photo Upload (if exists)
             let imageUrl = null;
-
             if (image) {
+                setProgress('Uploading photo...');
+                toast.loading('Uploading photo...', { id: toastId });
+
                 const fileName = `student_${Date.now()}.jpg`;
                 const byteString = atob(image.split(',')[1]);
                 const mimeString = image.split(',')[0].split(':')[1].split(';')[0];
@@ -134,14 +136,33 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                 for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
                 const blob = new Blob([ab], { type: mimeString });
 
-                const { data: uploadData, error: uploadError } = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from('student-photos')
                     .upload(fileName, blob);
 
-                if (uploadError) throw new Error(`Could not upload photo: ${uploadError.message}. Did you create the 'student-photos' bucket and make it public?`);
-                const { data: { publicUrl } } = supabase.storage.from('student-photos').getPublicUrl(fileName);
-                imageUrl = publicUrl;
+                if (uploadError) {
+                    console.warn('Photo upload failed:', uploadError);
+                    toast.loading('Photo upload failed, continuing...', { id: toastId });
+                } else {
+                    const { data: { publicUrl } } = supabase.storage.from('student-photos').getPublicUrl(fileName);
+                    imageUrl = publicUrl;
+                }
             }
+
+            // 2. Create user account
+            setProgress('Creating account...');
+            toast.loading('Creating account...', { id: toastId });
+
+            console.log('[STUDENT] Creating student with data:', {
+                email: data.email,
+                role: 'student',
+                full_name: data.name,
+                institution_id: institutionId,
+                register_number: data.registerNumber,
+                class_name: data.className,
+                section: data.section,
+                has_image: !!imageUrl
+            });
 
             const { data: responseData, error } = await supabase.functions.invoke('create-user', {
                 headers: {
@@ -159,7 +180,7 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                     register_number: data.registerNumber,
                     class_name: data.className,
                     section: data.section,
-                    image_url: imageUrl, // Hope Edge function supports this
+                    image_url: imageUrl,
                     gender: data.gender,
                     address: data.address,
                     date_of_birth: data.dob,
@@ -167,26 +188,92 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                 }
             });
 
-            if (error) throw error;
+            console.log('[STUDENT] Edge Function response:', { responseData, error });
 
-            toast.success('Student added successfully');
-            // Optimistic update or immediate fetch
-            queryClient.invalidateQueries({ queryKey: ['institution-students'] });
-            onSuccess();
+            if (error) {
+                console.error('[STUDENT] Edge Function error details:', error);
+                throw error;
+            }
+
+            // Check if responseData contains an error
+            if (responseData?.error) {
+                console.error('[STUDENT] Response contains error:', responseData.error);
+                throw new Error(responseData.error);
+            }
+
+            // 3. Success - Update UI immediately
+            toast.success('Student added successfully!', { id: toastId });
+
+            // Close dialog immediately for better UX
             onOpenChange(false);
             setData({ name: '', registerNumber: '', className: '', section: '', dob: '', gender: '', parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '', phone: '' });
             setImage(null);
+            setProgress('');
+
+            // Invalidate queries in background
+            queryClient.invalidateQueries({ queryKey: ['institution-students'] });
+            onSuccess();
+
         } catch (error: any) {
-            const errorMsg = error.message || 'Failed to add student';
-            const errorDetails = error.details || error.hint ? ` (${error.details || error.hint})` : '';
-            toast.error(errorMsg + errorDetails);
+            console.error('[STUDENT] Full error object:', error);
+
+            let errorMsg = 'Failed to add student';
+            let errorDetails = '';
+
+            // The error.context is a Response object, we need to read its body
+            if (error.context && error.context instanceof Response) {
+                try {
+                    console.log('[STUDENT] Reading error response body...');
+                    const errorBody = await error.context.json();
+                    console.log('[STUDENT] Parsed error body:', errorBody);
+
+                    if (errorBody.error) {
+                        errorMsg = errorBody.error;
+                    }
+                    if (errorBody.details) {
+                        errorDetails = errorBody.details;
+                    }
+                    if (errorBody.hint) {
+                        errorDetails += (errorDetails ? ' | Hint: ' : 'Hint: ') + errorBody.hint;
+                    }
+                } catch (parseError) {
+                    console.error('[STUDENT] Could not parse error response:', parseError);
+                    // Try reading as text
+                    try {
+                        const errorText = await error.context.text();
+                        console.log('[STUDENT] Error response as text:', errorText);
+                        if (errorText) {
+                            errorMsg = errorText;
+                        }
+                    } catch (textError) {
+                        console.error('[STUDENT] Could not read error as text:', textError);
+                    }
+                }
+            } else if (error.message) {
+                errorMsg = error.message;
+            }
+
+            // Add helpful context
+            if (errorMsg.includes('email') || (errorMsg.includes('duplicate key') && errorMsg.includes('email'))) {
+                errorMsg += ' (Email might already be in use)';
+            }
+            if (errorMsg.includes('register_number') || (errorMsg.includes('duplicate key') && errorMsg.includes('register_number'))) {
+                errorMsg += ' (Register number might already exist)';
+            }
+            if (errorMsg.includes('relation') && errorMsg.includes('does not exist')) {
+                errorMsg += ' (Database table missing - contact admin)';
+            }
+
+            const fullErrorMsg = errorDetails ? `${errorMsg}\n\nDetails: ${errorDetails}` : errorMsg;
+            toast.error(fullErrorMsg, { id: toastId, duration: 8000 });
             console.error('Student creation error:', error);
 
             if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
-                toast.error('Session expired or unauthorized. Please Log Out and Log In again.');
+                toast.error('Session expired. Please log out and log in again.');
             }
         } finally {
             setIsSubmitting(false);
+            setProgress('');
         }
     };
 
@@ -429,7 +516,10 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
             toast.error('Please fill all mandatory fields');
             return;
         }
+
         setIsSubmitting(true);
+        const toastId = toast.loading('Creating staff account...');
+
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('No active session found. Please log in again.');
@@ -437,21 +527,41 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
             // Upload photo if exists
             let imageUrl = null;
             if (image) {
+                toast.loading('Uploading photo...', { id: toastId });
+
                 const blob = await fetch(image).then(res => res.blob());
                 const fileName = `staff_${Date.now()}.jpg`;
-                const { data: uploadData, error: uploadError } = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from('student-photos')
                     .upload(fileName, blob);
 
-                if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('student-photos')
-                    .getPublicUrl(fileName);
-                imageUrl = publicUrl;
+                if (uploadError) {
+                    console.warn('Photo upload failed:', uploadError);
+                    toast.loading('Photo upload failed, continuing...', { id: toastId });
+                } else {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('student-photos')
+                        .getPublicUrl(fileName);
+                    imageUrl = publicUrl;
+                }
             }
 
-            // Use create-user Edge Function for consistency
+            // Create user account
+            toast.loading('Creating account...', { id: toastId });
+
+            console.log('[STAFF] Creating faculty with data:', {
+                email: data.email,
+                role: 'faculty',
+                full_name: data.name,
+                institution_id: institutionId,
+                staff_id: data.staffId,
+                department: data.department || null,
+                subjects: data.subjects,
+                phone: data.phone || null,
+                date_of_birth: data.dob || null,
+                has_image: !!imageUrl
+            });
+
             const { data: responseData, error } = await supabase.functions.invoke('create-user', {
                 headers: {
                     Authorization: `Bearer ${session.access_token}`
@@ -471,29 +581,99 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
                 }
             });
 
-            if (error) throw error;
+            console.log('[STAFF] Edge Function response:', { responseData, error });
 
-            // Generate face embedding if image exists
-            if (imageUrl && responseData?.user?.id) {
-                try {
-                    await supabase.functions.invoke('generate-face-embedding', {
-                        body: { imageUrl, userId: responseData.user.id, label: data.name }
-                    });
-                } catch (e) {
-                    console.warn('Embedding generation failed (non-critical):', e);
-                }
+            if (error) {
+                console.error('[STAFF] Edge Function error details:', error);
+                throw error;
             }
 
-            toast.success('Staff member added successfully!');
-            await queryClient.invalidateQueries({ queryKey: ['institution-staff', institutionId] });
-            onSuccess();
+            // Check if responseData contains an error
+            if (responseData?.error) {
+                console.error('[STAFF] Response contains error:', responseData.error);
+                throw new Error(responseData.error);
+            }
+
+            // Success - Update UI immediately
+            toast.success('Staff member added successfully!', { id: toastId });
+
+            // Close dialog immediately for better UX
             onOpenChange(false);
             setData({ name: '', staffId: '', role: '', email: '', phone: '', dob: '', password: '', department: '', subjects: [] });
             setImage(null);
+
+            // Invalidate queries in background
+            queryClient.invalidateQueries({ queryKey: ['institution-staff', institutionId] });
+            onSuccess();
+
+            // Generate face embedding in background (non-blocking)
+            if (imageUrl && responseData?.user?.id) {
+                supabase.functions.invoke('generate-face-embedding', {
+                    body: { imageUrl, userId: responseData.user.id, label: data.name }
+                }).catch(e => {
+                    console.warn('Embedding generation failed (non-critical):', e);
+                });
+            }
+
         } catch (error: any) {
-            console.error('Staff creation error:', error);
-            const errorMsg = error.message || 'Failed to create staff';
-            toast.error(errorMsg);
+            console.error('[STAFF] Full error object:', error);
+            console.error('[STAFF] Error properties:', {
+                message: error.message,
+                context: error.context,
+                status: error.status,
+                statusText: error.statusText,
+                name: error.name
+            });
+
+            let errorMsg = 'Failed to create staff member';
+            let errorDetails = '';
+
+            // The error.context is a Response object, we need to read its body
+            if (error.context && error.context instanceof Response) {
+                try {
+                    console.log('[STAFF] Reading error response body...');
+                    const errorBody = await error.context.json();
+                    console.log('[STAFF] Parsed error body:', errorBody);
+
+                    if (errorBody.error) {
+                        errorMsg = errorBody.error;
+                    }
+                    if (errorBody.details) {
+                        errorDetails = errorBody.details;
+                    }
+                    if (errorBody.hint) {
+                        errorDetails += (errorDetails ? ' | Hint: ' : 'Hint: ') + errorBody.hint;
+                    }
+                } catch (parseError) {
+                    console.error('[STAFF] Could not parse error response:', parseError);
+                    // Try reading as text
+                    try {
+                        const errorText = await error.context.text();
+                        console.log('[STAFF] Error response as text:', errorText);
+                        if (errorText) {
+                            errorMsg = errorText;
+                        }
+                    } catch (textError) {
+                        console.error('[STAFF] Could not read error as text:', textError);
+                    }
+                }
+            } else if (error.message) {
+                errorMsg = error.message;
+            }
+
+            // Add helpful context
+            if (errorMsg.includes('email') || errorMsg.includes('duplicate key') && errorMsg.includes('email')) {
+                errorMsg += ' (Email might already be in use)';
+            }
+            if (errorMsg.includes('staff_id') || (errorMsg.includes('duplicate key') && errorMsg.includes('staff_id'))) {
+                errorMsg += ' (Staff ID might already exist)';
+            }
+            if (errorMsg.includes('relation') && errorMsg.includes('does not exist')) {
+                errorMsg += ' (Database table missing - contact admin)';
+            }
+
+            const fullErrorMsg = errorDetails ? `${errorMsg}\n\nDetails: ${errorDetails}` : errorMsg;
+            toast.error(fullErrorMsg, { id: toastId, duration: 8000 });
         } finally {
             setIsSubmitting(false);
         }

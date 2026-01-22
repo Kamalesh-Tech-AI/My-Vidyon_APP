@@ -49,9 +49,9 @@ export function useFacultyTimetable(facultyId?: string) {
                 .from('staff_details')
                 .select('*')
                 .eq('profile_id', facultyId)
-                .single();
+                .maybeSingle();
 
-            if (error && error.code !== 'PGRST116') throw error;
+            if (error) throw error;
             return data;
         },
         enabled: !!facultyId,
@@ -69,9 +69,9 @@ export function useFacultyTimetable(facultyId?: string) {
                 .from('classes')
                 .select('id, name, institution_id')
                 .eq('name', staffDetails.class_assigned)
-                .single();
+                .maybeSingle();
 
-            if (error && error.code !== 'PGRST116') throw error;
+            if (error) throw error;
             return data;
         },
         enabled: !!staffDetails?.class_assigned,

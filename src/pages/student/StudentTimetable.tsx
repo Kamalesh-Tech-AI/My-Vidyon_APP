@@ -9,7 +9,6 @@ import { Badge } from '@/components/common/Badge';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StudentExamScheduleView } from '@/components/exam-schedule/StudentExamScheduleView';
-import { useWebSocketContext } from '@/context/WebSocketContext';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -34,7 +33,6 @@ interface TimetableSlot {
 
 export function StudentTimetable() {
     const { user } = useAuth();
-    const { subscribeToTable } = useWebSocketContext();
     const queryClient = useQueryClient();
     const [studentInfo, setStudentInfo] = useState<{ class_name: string; section: string; class_id: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -96,18 +94,21 @@ export function StudentTimetable() {
 
 
                 // Get class ID - filtering by name and institution_id through groups table
-                const { data: classData, error: classError } = await supabase
+                // Using limit(1) to handle multiple classes with same name in different groups
+                const { data: classDataArray, error: classError } = await supabase
                     .from('classes')
                     .select('id, groups!inner(institution_id)')
                     .eq('name', studentData.class_name)
                     .eq('groups.institution_id', user.institutionId)
-                    .maybeSingle();
+                    .limit(1);
 
                 if (classError) {
                     console.error('[STUDENT] Error fetching class data:', classError);
                     setError(`Error looking up class: ${classError.message}`);
                     return;
                 }
+
+                const classData = classDataArray?.[0];
 
                 if (!classData) {
                     console.log('[STUDENT] No class found for name:', studentData.class_name, 'in institution:', user.institutionId);
@@ -131,6 +132,9 @@ export function StudentTimetable() {
         fetchStudentInfo();
     }, [user?.email, user?.institutionId]);
 
+    // Store config ID for real-time subscriptions
+    const [configId, setConfigId] = useState<string | null>(null);
+
     // Fetch timetable slots for student's class and section
     const { data: timetableSlots = [], isLoading, refetch } = useQuery({
         queryKey: ['student-timetable', studentInfo?.class_id, studentInfo?.section],
@@ -140,92 +144,95 @@ export function StudentTimetable() {
                 return [];
             }
 
-            console.log('[STUDENT] Fetching timetable config for class:', studentInfo.class_name, 'Section:', studentInfo.section);
+            console.log('[STUDENT] Fetching timetable for class:', studentInfo.class_name, 'Section:', studentInfo.section);
 
-            // Step 1: Get the configuration ID
-            const { data: configData, error: configError } = await supabase
-                .from('timetable_configs')
-                .select('id')
-                .eq('class_id', studentInfo.class_id)
-                .eq('section', studentInfo.section)
-                .maybeSingle();
-
-            if (configError) {
-                console.error('[STUDENT] Error fetching timetable config:', configError);
-                throw configError;
-            }
-
-            if (!configData) {
-                console.log('[STUDENT] No timetable configuration found');
-                return [];
-            }
-
-            console.log('[STUDENT] Found config ID:', configData.id);
-
-            // Step 2: Fetch slots using the config ID
-            const { data, error } = await supabase
+            // Optimized single query with join through timetable_configs
+            const { data: slotsData, error: slotsError } = await supabase
                 .from('timetable_slots')
                 .select(`
                     *,
                     subjects:subject_id (name),
-                    profiles:faculty_id (full_name)
+                    profiles:faculty_id (full_name),
+                    timetable_configs!inner (
+                        id,
+                        class_id,
+                        section
+                    )
                 `)
-                .eq('config_id', configData.id)
+                .eq('timetable_configs.class_id', studentInfo.class_id)
+                .eq('timetable_configs.section', studentInfo.section)
                 .order('day_of_week')
                 .order('period_index');
 
-            if (error) {
-                console.error('[STUDENT] Error fetching timetable slots:', error);
-                throw error;
+            if (slotsError) {
+                console.error('[STUDENT] Error fetching timetable slots:', slotsError);
+                throw slotsError;
             }
 
-            console.log('[STUDENT] Fetched timetable slots:', data);
-            console.log('[STUDENT] Number of slots:', data?.length || 0);
+            // Store config_id for real-time subscriptions
+            if (slotsData && slotsData.length > 0) {
+                const firstSlot = slotsData[0] as any;
+                if (firstSlot.timetable_configs?.id) {
+                    setConfigId(firstSlot.timetable_configs.id);
+                    console.log('[STUDENT] Config ID for subscriptions:', firstSlot.timetable_configs.id);
+                }
+            }
 
-            return data || [];
+            console.log('[STUDENT] Fetched timetable slots:', slotsData?.length || 0, 'slots');
+
+            return slotsData || [];
         },
         enabled: !!studentInfo?.class_id && !!studentInfo?.section,
-        refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+        staleTime: 30 * 1000, // Consider data stale after 30 seconds
+        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     });
 
-    // Real-time subscriptions using WebSocketContext
+    // Real-time subscriptions using Supabase Realtime
     useEffect(() => {
-        if (!studentInfo?.class_id) return;
+        if (!configId) {
+            console.log('[STUDENT] No config ID yet, skipping real-time setup');
+            return;
+        }
 
-        console.log('[STUDENT] Setting up WebSocket subscriptions for class:', studentInfo.class_id);
+        console.log('[STUDENT] Setting up real-time subscriptions for config:', configId);
 
-        // Subscribe to timetable_slots changes
-        const unsubSlots = subscribeToTable(
-            'timetable_slots',
-            (payload) => {
-                console.log('[STUDENT] WS: Timetable slots update received:', payload);
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ['student-timetable'] });
-            },
-            {
-                filter: `class_id=eq.${studentInfo.class_id}`
-            }
-        );
-
-        // Subscribe to timetable_configs changes
-        const unsubConfigs = subscribeToTable(
-            'timetable_configs',
-            (payload) => {
-                console.log('[STUDENT] WS: Timetable config update received:', payload);
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ['student-timetable'] });
-            },
-            {
-                filter: `class_id=eq.${studentInfo.class_id}`
-            }
-        );
+        const channel = supabase
+            .channel(`student-timetable-${configId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'timetable_slots',
+                    filter: `config_id=eq.${configId}`,
+                },
+                (payload) => {
+                    console.log('[STUDENT] Real-time: Timetable slot changed:', payload);
+                    queryClient.invalidateQueries({ queryKey: ['student-timetable'] });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'timetable_configs',
+                    filter: `id=eq.${configId}`,
+                },
+                (payload) => {
+                    console.log('[STUDENT] Real-time: Timetable config changed:', payload);
+                    queryClient.invalidateQueries({ queryKey: ['student-timetable'] });
+                }
+            )
+            .subscribe((status) => {
+                console.log('[STUDENT] Subscription status:', status);
+            });
 
         return () => {
-            console.log('[STUDENT] Cleaning up WebSocket subscriptions');
-            unsubSlots();
-            unsubConfigs();
+            console.log('[STUDENT] Cleaning up real-time subscriptions');
+            supabase.removeChannel(channel);
         };
-    }, [studentInfo?.class_id, subscribeToTable, queryClient, refetch]);
+    }, [configId, queryClient]);
 
     // Convert array to object for easier lookup
     const timetableData: { [key: string]: TimetableSlot } = {};
