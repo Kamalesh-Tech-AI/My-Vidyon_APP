@@ -741,68 +741,72 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
                             <SelectContent>
                                 <SelectItem value="teacher">Teacher</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="support">Support</SelectItem>
+                                <SelectItem value="accountant">Accountant</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-2">
-                        <Label>Department</Label>
-                        <Select value={data.department} onValueChange={v => setData({ ...data, department: v, subjects: [] })}>
-                            <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
-                            <SelectContent>
-                                {uniqueDepartments.map((dept: any) => (
-                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                        <Label>Subjects</Label>
-                        <div className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setIsSubjectsOpen(!isSubjectsOpen)}
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <span className={data.subjects.length === 0 ? "text-muted-foreground" : ""}>
-                                    {data.subjects.length > 0 ? `${data.subjects.length} subjects selected` : "Select subjects..."}
-                                </span>
-                                <ChevronDown className="h-4 w-4 opacity-50" />
-                            </button>
-
-                            {isSubjectsOpen && (
-                                <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95">
-                                    <div className="p-2 max-h-60 overflow-y-auto">
-                                        {availableSubjects.length === 0 ? (
-                                            <p className="text-sm text-muted-foreground p-2">No subjects available {data.department ? `in ${data.department}` : ''}</p>
-                                        ) : (
-                                            <div className="grid gap-1">
-                                                {availableSubjects.map((subName: string) => (
-                                                    <div
-                                                        key={subName}
-                                                        className="flex items-center space-x-2 p-2 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer"
-                                                        onClick={() => {
-                                                            const newSubs = data.subjects.includes(subName)
-                                                                ? data.subjects.filter(s => s !== subName)
-                                                                : [...data.subjects, subName];
-                                                            setData({ ...data, subjects: newSubs });
-                                                        }}
-                                                    >
-                                                        <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${data.subjects.includes(subName) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible"}`}>
-                                                            <Check className="h-4 w-4" />
-                                                        </div>
-                                                        <span className="text-sm">{subName}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                    {data.role !== 'accountant' && (
+                        <div className="space-y-2">
+                            <Label>Department</Label>
+                            <Select value={data.department} onValueChange={v => setData({ ...data, department: v, subjects: [] })}>
+                                <SelectTrigger><SelectValue placeholder="Select Department" /></SelectTrigger>
+                                <SelectContent>
+                                    {uniqueDepartments.map((dept: any) => (
+                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        {data.department && <p className="text-[10px] text-muted-foreground">Showing subjects for {data.department} (change department to filter differently or clear department to see all)</p>}
-                    </div>
+                    )}
+
+                    {data.role !== 'accountant' && (
+                        <div className="space-y-2 md:col-span-2">
+                            <Label>Subjects</Label>
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSubjectsOpen(!isSubjectsOpen)}
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <span className={data.subjects.length === 0 ? "text-muted-foreground" : ""}>
+                                        {data.subjects.length > 0 ? `${data.subjects.length} subjects selected` : "Select subjects..."}
+                                    </span>
+                                    <ChevronDown className="h-4 w-4 opacity-50" />
+                                </button>
+
+                                {isSubjectsOpen && (
+                                    <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95">
+                                        <div className="p-2 max-h-60 overflow-y-auto">
+                                            {availableSubjects.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground p-2">No subjects available {data.department ? `in ${data.department}` : ''}</p>
+                                            ) : (
+                                                <div className="grid gap-1">
+                                                    {availableSubjects.map((subName: string) => (
+                                                        <div
+                                                            key={subName}
+                                                            className="flex items-center space-x-2 p-2 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer"
+                                                            onClick={() => {
+                                                                const newSubs = data.subjects.includes(subName)
+                                                                    ? data.subjects.filter(s => s !== subName)
+                                                                    : [...data.subjects, subName];
+                                                                setData({ ...data, subjects: newSubs });
+                                                            }}
+                                                        >
+                                                            <div className={`flex h-4 w-4 items-center justify-center rounded-sm border border-primary ${data.subjects.includes(subName) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible"}`}>
+                                                                <Check className="h-4 w-4" />
+                                                            </div>
+                                                            <span className="text-sm">{subName}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            {data.department && <p className="text-[10px] text-muted-foreground">Showing subjects for {data.department} (change department to filter differently or clear department to see all)</p>}
+                        </div>
+                    )}
 
                     <div className="space-y-2"><Label>Email *</Label><Input type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} placeholder="staff@institution.com" /></div>
                     <div className="space-y-2"><Label>Phone</Label><Input type="tel" value={data.phone} onChange={e => setData({ ...data, phone: e.target.value })} placeholder="e.g. 9876543210" /></div>

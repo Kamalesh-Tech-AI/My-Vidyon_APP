@@ -152,6 +152,18 @@ Deno.serve(async (req) => {
                     });
                 if (linkError) console.error("Error linking parent to student:", linkError);
             }
+        } else if (finalRole === 'accountant') {
+            const { error: accountantError } = await supabaseAdmin
+                .from('accountants')
+                .upsert({
+                    profile_id: userId,
+                    institution_id: institution_id
+                });
+
+            if (accountantError) {
+                console.error("Error creating accountant record:", accountantError);
+                throw new Error(`Failed to create accountant: ${accountantError.message}`);
+            }
         } else if (finalRole === 'faculty' || finalRole === 'institution' || finalRole === 'admin') {
             const { error: staffError } = await supabaseAdmin
                 .from('staff_details')

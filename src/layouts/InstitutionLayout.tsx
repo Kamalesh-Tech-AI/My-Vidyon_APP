@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { DashboardLayout } from './DashboardLayout';
+import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/i18n/TranslationContext';
 import {
   LayoutDashboard,
@@ -37,8 +38,16 @@ export function InstitutionLayout({ children }: { children: ReactNode }) {
     { label: t.nav.settings, href: '/institution/settings', icon: Settings },
   ];
 
+  const { user } = useAuth(); // Import useAuth at the top
+
+  const role = (user as any)?.user_metadata?.role || user?.role;
+
+  const filteredNavItems = role === 'accountant'
+    ? institutionNavItems.filter(item => item.href === '/institution/fees' || item.href === '/institution/settings')
+    : institutionNavItems;
+
   return (
-    <DashboardLayout navItems={institutionNavItems} roleColor="text-institution">
+    <DashboardLayout navItems={filteredNavItems} roleColor="text-institution">
       {children}
     </DashboardLayout>
   );

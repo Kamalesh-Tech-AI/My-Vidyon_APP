@@ -155,13 +155,20 @@ export function InstitutionAddStudent() {
                 .insert({
                     name: `${formData.firstName} ${formData.lastName}`,
                     email: formData.email,
+                    phone: formData.phone,
                     register_number: formData.admissionNumber,
                     class_name: formData.class,
                     section: formData.section,
                     parent_name: formData.parentName,
-                    parent_phone: formData.parentPhone,
+                    parent_contact: formData.parentPhone,
+                    parent_email: formData.parentEmail,
+                    parent_relation: formData.parentRelation,
                     dob: formData.dob,
                     gender: formData.gender,
+                    blood_group: formData.bloodGroup,
+                    address: formData.address,
+                    city: formData.city,
+                    zip_code: formData.zipCode,
                     image_url: imageUrl,
                     institution_id: (await supabase.auth.getUser()).data.user?.user_metadata?.institution_id
                 })

@@ -72,7 +72,7 @@ export function InstitutionUsers() {
 
             if (error) throw error;
             // Client-side filtering to avoid 400 errors if enum values don't match
-            const targetRoles = ['faculty', 'admin', 'teacher', 'support'];
+            const targetRoles = ['faculty', 'admin', 'teacher', 'accountant'];
             return (data || []).filter((p: any) => targetRoles.includes(p.role));
         },
         enabled: !!user?.institutionId,
