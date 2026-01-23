@@ -10,7 +10,7 @@ END$$;
 CREATE TABLE IF NOT EXISTS public.accountants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    institution_id UUID REFERENCES public.institutions(institution_id) ON DELETE CASCADE,
+    institution_id TEXT REFERENCES public.institutions(institution_id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE(profile_id)

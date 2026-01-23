@@ -43,7 +43,7 @@ export function InstitutionLayout({ children }: { children: ReactNode }) {
   const role = (user as any)?.user_metadata?.role || user?.role;
 
   const filteredNavItems = role === 'accountant'
-    ? institutionNavItems.filter(item => item.href === '/institution/fees' || item.href === '/institution/settings')
+    ? institutionNavItems.filter(item => item.href === '/institution/fees')
     : institutionNavItems;
 
   return (

@@ -46,6 +46,13 @@ export function InstitutionDashboard() {
   const navigate = useNavigate();
 
   const today = format(new Date(), 'yyyy-MM-dd');
+  const role = (user as any)?.user_metadata?.role || user?.role;
+
+  useEffect(() => {
+    if (role === 'accountant') {
+      navigate('/institution/fees', { replace: true });
+    }
+  }, [role, navigate]);
 
   // 1. Fetch Stats (Parallel)
   const { data: stats } = useQuery({
