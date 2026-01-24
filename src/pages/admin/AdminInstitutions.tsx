@@ -4,31 +4,18 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { InstitutionCard } from '@/components/cards/InstitutionCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Filter, ChevronDown, X } from 'lucide-react';
+import { Plus, Search, ChevronDown, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import Loader from '@/components/common/Loader';
 import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-} from '@/components/ui/dropdown-menu';
 
 export function AdminInstitutions() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [schoolTypeFilter, setSchoolTypeFilter] = useState<string>('all');
 
   const { data: institutions = [], isLoading } = useQuery({
     queryKey: ['admin-institutions'],
@@ -132,32 +119,14 @@ export function AdminInstitutions() {
 
   const filteredInstitutions = institutions.filter(inst => {
     // Search filter
-    const matchesSearch = inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inst.institution_id.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // Status filter
-    const matchesStatus = statusFilter === 'all' ||
-      (statusFilter === 'active' && inst.status === 'active') ||
-      (statusFilter === 'pending' && inst.status === 'pending') ||
-      (statusFilter === 'suspended' && (inst.status === 'inactive' || inst.status === 'suspended'));
-
-    // School type filter
-    const matchesSchoolType = schoolTypeFilter === 'all' ||
-      inst.type?.toLowerCase() === schoolTypeFilter.toLowerCase();
-
-    return matchesSearch && matchesStatus && matchesSchoolType;
   });
 
   const activeInstitutions = filteredInstitutions.filter(i => i.status === 'active');
   const pendingInstitutions = filteredInstitutions.filter(i => i.status === 'pending');
   const suspendedInstitutions = filteredInstitutions.filter(i => i.status === 'inactive' || i.status === 'suspended');
 
-  const hasActiveFilters = statusFilter !== 'all' || schoolTypeFilter !== 'all';
-
-  const clearFilters = () => {
-    setStatusFilter('all');
-    setSchoolTypeFilter('all');
-  };
 
   return (
     <AdminLayout>
@@ -187,89 +156,6 @@ export function AdminInstitutions() {
           />
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Filter
-              {hasActiveFilters && (
-                <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {(statusFilter !== 'all' ? 1 : 0) + (schoolTypeFilter !== 'all' ? 1 : 0)}
-                </span>
-              )}
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-
-            {/* Status Filter */}
-            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Status</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setStatusFilter('all')} className={statusFilter === 'all' ? 'bg-accent' : ''}>
-              <span className="flex-1">All</span>
-              {statusFilter === 'all' && <span className="text-primary">✓</span>}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter('active')} className={statusFilter === 'active' ? 'bg-accent' : ''}>
-              <span className="flex-1">Active</span>
-              {statusFilter === 'active' && <span className="text-primary">✓</span>}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter('pending')} className={statusFilter === 'pending' ? 'bg-accent' : ''}>
-              <span className="flex-1">Pending</span>
-              {statusFilter === 'pending' && <span className="text-primary">✓</span>}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter('suspended')} className={statusFilter === 'suspended' ? 'bg-accent' : ''}>
-              <span className="flex-1">Suspended</span>
-              {statusFilter === 'suspended' && <span className="text-primary">✓</span>}
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            {/* School Type Filter */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <span className="flex-1">School Type</span>
-                {schoolTypeFilter !== 'all' && <span className="text-primary text-xs">({schoolTypeFilter})</span>}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem onClick={() => setSchoolTypeFilter('all')} className={schoolTypeFilter === 'all' ? 'bg-accent' : ''}>
-                  <span className="flex-1">All</span>
-                  {schoolTypeFilter === 'all' && <span className="text-primary">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSchoolTypeFilter('matriculation')} className={schoolTypeFilter === 'matriculation' ? 'bg-accent' : ''}>
-                  <span className="flex-1">Matriculation</span>
-                  {schoolTypeFilter === 'matriculation' && <span className="text-primary">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSchoolTypeFilter('higher-secondary')} className={schoolTypeFilter === 'higher-secondary' ? 'bg-accent' : ''}>
-                  <span className="flex-1">Higher Secondary</span>
-                  {schoolTypeFilter === 'higher-secondary' && <span className="text-primary">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSchoolTypeFilter('cbse')} className={schoolTypeFilter === 'cbse' ? 'bg-accent' : ''}>
-                  <span className="flex-1">CBSE</span>
-                  {schoolTypeFilter === 'cbse' && <span className="text-primary">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSchoolTypeFilter('state-board')} className={schoolTypeFilter === 'state-board' ? 'bg-accent' : ''}>
-                  <span className="flex-1">State Board</span>
-                  {schoolTypeFilter === 'state-board' && <span className="text-primary">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSchoolTypeFilter('international')} className={schoolTypeFilter === 'international' ? 'bg-accent' : ''}>
-                  <span className="flex-1">International</span>
-                  {schoolTypeFilter === 'international' && <span className="text-primary">✓</span>}
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
-            {hasActiveFilters && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={clearFilters} className="text-destructive focus:text-destructive">
-                  <X className="w-4 h-4 mr-2" />
-                  Clear All Filters
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       {showLoader ? (

@@ -5,7 +5,7 @@ import { AreaChart } from '@/components/charts/AreaChart';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { Button } from '@/components/ui/button';
-import { Download, Calendar, Filter, RefreshCw, Check } from 'lucide-react';
+import { Download, Calendar, RefreshCw, Check } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import Loader from '@/components/common/Loader';
@@ -31,8 +31,6 @@ export function AdminInstitutionAnalytics() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [dateRange, setDateRange] = useState<string>('This Year');
     const [isExporting, setIsExporting] = useState(false);
-    const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-    const [statusFilter, setStatusFilter] = useState<string>('all');
 
     // Ensure loader displays for minimum 2.5 seconds for analytics
     const showLoader = useMinimumLoadingTime(loading, 500);
@@ -249,28 +247,6 @@ export function AdminInstitutionAnalytics() {
         fetchAnalyticsData();
     };
 
-    const handleDepartmentFilter = (dept: string) => {
-        setDepartmentFilter(dept);
-        toast.success(`Filter applied: ${dept === 'all' ? 'All Departments' : dept}`);
-        // In a real app, this would filter the data
-        fetchAnalyticsData();
-    };
-
-    const handleStatusFilter = (status: string) => {
-        setStatusFilter(status);
-        toast.success(`Status filter: ${status === 'all' ? 'All' : status}`);
-        fetchAnalyticsData();
-    };
-
-    const clearAllFilters = () => {
-        setDepartmentFilter('all');
-        setStatusFilter('all');
-        setDateRange('This Year');
-        toast.success('All filters cleared');
-        fetchAnalyticsData();
-    };
-
-    const hasActiveFilters = departmentFilter !== 'all' || statusFilter !== 'all';
 
 
     if (showLoader) {
@@ -330,72 +306,6 @@ export function AdminInstitutionAnalytics() {
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="flex items-center gap-2">
-                                    <Filter className="w-4 h-4" />
-                                    Filter
-                                    {hasActiveFilters && (
-                                        <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                                            {(departmentFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
-                                        </span>
-                                    )}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>Filter Analytics</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-
-                                {/* Department Filter */}
-                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Department</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleDepartmentFilter('all')} className={departmentFilter === 'all' ? 'bg-accent' : ''}>
-                                    <span className="flex-1">All Departments</span>
-                                    {departmentFilter === 'all' && <Check className="w-4 h-4 text-primary" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDepartmentFilter('Engineering')} className={departmentFilter === 'Engineering' ? 'bg-accent' : ''}>
-                                    <span className="flex-1">Engineering</span>
-                                    {departmentFilter === 'Engineering' && <Check className="w-4 h-4 text-primary" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDepartmentFilter('Management')} className={departmentFilter === 'Management' ? 'bg-accent' : ''}>
-                                    <span className="flex-1">Management</span>
-                                    {departmentFilter === 'Management' && <Check className="w-4 h-4 text-primary" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDepartmentFilter('Science')} className={departmentFilter === 'Science' ? 'bg-accent' : ''}>
-                                    <span className="flex-1">Science</span>
-                                    {departmentFilter === 'Science' && <Check className="w-4 h-4 text-primary" />}
-                                </DropdownMenuItem>
-
-                                <DropdownMenuSeparator />
-
-                                {/* Status Filter */}
-                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Status</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleStatusFilter('all')} className={statusFilter === 'all' ? 'bg-accent' : ''}>
-                                    <span className="flex-1">All Status</span>
-                                    {statusFilter === 'all' && <Check className="w-4 h-4 text-primary" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusFilter('Active')} className={statusFilter === 'Active' ? 'bg-accent' : ''}>
-                                    <span className="flex-1">Active</span>
-                                    {statusFilter === 'Active' && <Check className="w-4 h-4 text-primary" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusFilter('Enrolled')} className={statusFilter === 'Enrolled' ? 'bg-accent' : ''}>
-                                    <span className="flex-1">Enrolled</span>
-                                    {statusFilter === 'Enrolled' && <Check className="w-4 h-4 text-primary" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusFilter('Graduated')} className={statusFilter === 'Graduated' ? 'bg-accent' : ''}>
-                                    <span className="flex-1">Graduated</span>
-                                    {statusFilter === 'Graduated' && <Check className="w-4 h-4 text-primary" />}
-                                </DropdownMenuItem>
-
-                                {hasActiveFilters && (
-                                    <>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={clearAllFilters} className="text-destructive focus:text-destructive">
-                                            <span className="flex-1">Clear All Filters</span>
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
 
                         <Button
                             className="flex items-center gap-2"
