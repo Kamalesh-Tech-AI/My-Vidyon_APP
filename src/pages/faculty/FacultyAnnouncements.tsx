@@ -26,11 +26,6 @@ import {
 } from "@/components/ui/select";
 import { toast } from 'sonner';
 
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
-
-// ... (inside component)
-
 export function FacultyAnnouncements() {
     const { user } = useAuth();
     const [announcements, setAnnouncements] = useState<any[]>([]);

@@ -28,6 +28,7 @@ import {
 import { NotificationPanel } from '@/components/notifications/NotificationPanel';
 import { RealtimeNotificationBell } from '@/components/RealtimeNotificationBell';
 import { RealtimeStatusIndicator } from '@/components/RealtimeStatusIndicator';
+import { useSearch } from '@/context/SearchContext';
 
 interface NavItem {
   label: string;
@@ -47,6 +48,7 @@ const roleIcons: Record<UserRole, React.ComponentType<{ className?: string }>> =
   institution: Building2,
   admin: Shield,
   parent: Users,
+  accountant: Users,
 };
 
 export function DashboardLayout({ children, navItems, roleColor = 'text-primary' }: DashboardLayoutProps) {
@@ -55,6 +57,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { searchQuery, setSearchQuery } = useSearch();
 
   if (!user) return null;
 
@@ -358,12 +361,6 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         {/* Desktop Header */}
         <header className="hidden lg:flex h-16 bg-card border-b border-border items-center justify-between px-8">
           <div className="flex items-center gap-4">
-            import {useSearch} from '@/context/SearchContext';
-
-            // ... (inside component)
-            const {searchQuery, setSearchQuery} = useSearch();
-
-            // ... (in JSX)
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
