@@ -63,10 +63,7 @@ export function InstitutionDepartments() {
                             <BookOpen className="w-4 h-4" />
                             By Subject
                         </TabsTrigger>
-                        <TabsTrigger value="departments" className="flex items-center gap-2">
-                            <LayoutGrid className="w-4 h-4" />
-                            By Department
-                        </TabsTrigger>
+
                         <TabsTrigger value="classes" className="flex items-center gap-2">
                             <GraduationCap className="w-4 h-4" />
                             Class Teachers

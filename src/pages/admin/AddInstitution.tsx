@@ -260,30 +260,30 @@ export function AddInstitution() {
                 id: 'primary',
                 name: 'Primary School (LKG - 5th)',
                 classes: [
-                    { id: 'lkg', name: 'LKG', sections: ['A'] },
-                    { id: 'ukg', name: 'UKG', sections: ['A'] },
-                    { id: 'c1', name: '1st', sections: ['A'] },
-                    { id: 'c2', name: '2nd', sections: ['A'] },
-                    { id: 'c3', name: '3rd', sections: ['A'] },
-                    { id: 'c4', name: '4th', sections: ['A'] },
-                    { id: 'c5', name: '5th', sections: ['A'] },
+                    { id: 'lkg', name: 'LKG', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'ukg', name: 'UKG', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c1', name: '1st', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c2', name: '2nd', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c3', name: '3rd', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c4', name: '4th', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c5', name: '5th', sections: ['A', 'B', 'C', 'D'] },
                 ]
             },
             {
                 id: 'middle',
                 name: 'Middle School (6th - 8th)',
                 classes: [
-                    { id: 'c6', name: '6th', sections: ['A'] },
-                    { id: 'c7', name: '7th', sections: ['A'] },
-                    { id: 'c8', name: '8th', sections: ['A'] },
+                    { id: 'c6', name: '6th', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c7', name: '7th', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c8', name: '8th', sections: ['A', 'B', 'C', 'D'] },
                 ]
             },
             {
                 id: 'high',
                 name: 'High School (9th - 10th)',
                 classes: [
-                    { id: 'c9', name: '9th', sections: ['A'] },
-                    { id: 'c10', name: '10th', sections: ['A'] },
+                    { id: 'c9', name: '9th', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c10', name: '10th', sections: ['A', 'B', 'C', 'D'] },
                 ]
             }
         ];
@@ -293,8 +293,8 @@ export function AddInstitution() {
                 id: 'higher-secondary',
                 name: 'Higher Secondary (11th - 12th)',
                 classes: [
-                    { id: 'c11', name: '11th', sections: ['A'] },
-                    { id: 'c12', name: '12th', sections: ['A'] }
+                    { id: 'c11', name: '11th', sections: ['A', 'B', 'C', 'D'] },
+                    { id: 'c12', name: '12th', sections: ['A', 'B', 'C', 'D'] }
                 ]
             });
             setHasHigherSecondary(true);
@@ -786,6 +786,8 @@ export function AddInstitution() {
                                         <SelectItem value="matriculation">Matriculation</SelectItem>
                                         <SelectItem value="cbse">CBSE</SelectItem>
                                         <SelectItem value="higher-secondary">Higher Secondary</SelectItem>
+                                        <SelectItem value="state-board">State Board</SelectItem>
+                                        <SelectItem value="international">International</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

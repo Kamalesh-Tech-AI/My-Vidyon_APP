@@ -209,22 +209,7 @@ export function AdminDashboard() {
             />
           </div>
 
-          {/* Quick Actions Grid */}
-          <h3 className="font-semibold text-lg mb-4 text-foreground">Quick Actions</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-            <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all text-foreground" onClick={() => navigate('/admin/add-institution')}>
-              <Building2 className="w-8 h-8 text-primary" />
-              <span>Add Institution</span>
-            </Button>
-            <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all text-foreground" onClick={() => navigate('/admin/reports')}>
-              <BarChart3 className="w-8 h-8 text-info" />
-              <span>View Analytics</span>
-            </Button>
-            <Button variant="outline" className="h-24 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all text-foreground" onClick={() => navigate('/admin/settings')}>
-              <Shield className="w-8 h-8 text-warning" />
-              <span>Platform Settings</span>
-            </Button>
-          </div>
+
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent Activity */}

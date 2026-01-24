@@ -142,19 +142,25 @@ function ManageStaffDialog({ subject, open, onOpenChange }: { subject: any, open
     );
 }
 
+import { useSearch } from '@/context/SearchContext';
+
+// ...
+
 export function InstitutionCourses() {
-    const { subjects, allClasses } = useInstitution(); // Contains assignments info & classes
+    const { subjects, allClasses } = useInstitution();
     const { user } = useAuth();
+    const { searchQuery } = useSearch(); // Use global search
+
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [managingSubject, setManagingSubject] = useState<any>(null);
     const [newCourse, setNewCourse] = useState({
         name: '',
-        className: '', // Replaces code
+        className: '',
         department: '',
         instructor: ''
     });
-    const [searchQuery, setSearchQuery] = useState('');
+    // const [searchQuery, setSearchQuery] = useState(''); // Removed local state
 
     // ... (handleAddCourse remains same) ...
     // Copying handleAddCourse for completeness if Replace needs it, but using diff context effectively requires start/end lines.
@@ -231,20 +237,8 @@ export function InstitutionCourses() {
                 subtitle="Manage subjects and their class associations"
                 actions={
                     <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <input
-                                type="text"
-                                placeholder="Search subjects..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="input-field pl-10 w-64"
-                            />
-                        </div>
-                        <Button variant="outline" className="flex items-center gap-2">
-                            <Filter className="w-4 h-4" />
-                            Filter
-                        </Button>
+                        {/* Global Search Used */}
+
                         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                             <DialogTrigger asChild>
                                 <Button className="flex items-center gap-2">

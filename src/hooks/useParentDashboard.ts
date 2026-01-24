@@ -83,7 +83,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
 
             const attendancePromises = children.map(async (child) => {
                 const { data, error } = await supabase
-                    .from('student_attendance')
+                    .from('student_attendance') // Correct table
                     .select('*')
                     .eq('student_id', child.id)
                     .order('attendance_date', { ascending: false })
@@ -116,10 +116,10 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
             if (childIds.length === 0) return [];
 
             const { data, error } = await supabase
-                .from('leave_requests')
+                .from('student_leave_requests') // Correct table
                 .select(`
                     *,
-                    students:student_id (full_name)
+                    students:student_id (name)
                 `)
                 .in('student_id', childIds)
                 .order('created_at', { ascending: false });
@@ -128,7 +128,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
 
             return (data || []).map((request: any) => ({
                 id: request.id,
-                childName: request.students?.full_name || 'Unknown',
+                childName: request.students?.name || 'Unknown',
                 startDate: request.start_date,
                 endDate: request.end_date,
                 reason: request.reason,
@@ -146,19 +146,23 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
             if (childIds.length === 0) return { total: 0, paid: 0, pending: 0 };
 
             const { data, error } = await supabase
-                .from('fee_payments')
+                .from('student_fees') // Correct table
                 .select('*')
                 .in('student_id', childIds);
 
             if (error) throw error;
 
             const total = data?.reduce((sum, fee) => sum + (fee.amount || 0), 0) || 0;
-            const paid = data?.filter(f => f.status === 'paid').reduce((sum, fee) => sum + (fee.amount || 0), 0) || 0;
+            const paid = data?.filter(f => f.status === 'paid').reduce((sum, fee) => sum + (fee.amount || 0), 0) || 0; // Or define logic for 'paid' amount column usage. 
+            // The schema has paid_amount column. Better to use that if partial payments supported.
+            // But for now, let's assume status 'paid' implies full amount or sum up paid_amount.
+            // Let's use paid_amount if available.
+            const paidReal = data?.reduce((sum, fee) => sum + (fee.paid_amount || 0), 0) || 0;
 
             return {
                 total,
-                paid,
-                pending: total - paid,
+                paid: paidReal,
+                pending: total - paidReal,
             };
         },
         enabled: childIds.length > 0,
@@ -250,7 +254,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
                 {
                     event: 'UPDATE',
                     schema: 'public',
-                    table: 'leave_requests',
+                    table: 'student_leave_requests',
                 },
                 (payload: any) => {
                     if (childIds.includes(payload.new?.student_id)) {
@@ -267,7 +271,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'fee_payments',
+                    table: 'student_fees',
                 },
                 (payload: any) => {
                     if (childIds.includes(payload.new?.student_id)) {

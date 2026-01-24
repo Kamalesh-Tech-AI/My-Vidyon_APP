@@ -72,7 +72,7 @@ export function StudentAssignments() {
 
       // Get student's submissions
       const { data: submissions, error: submissionsError } = await supabase
-        .from('submissions')
+        .from('assignment_submissions')
         .select('*')
         .eq('student_id', studentProfile.id);
 
@@ -146,7 +146,7 @@ export function StudentAssignments() {
 
       // 2. Insert Submission Record
       const { error: dbError } = await supabase
-        .from('submissions')
+        .from('assignment_submissions')
         .insert({
           assignment_id: selectedAssignment.id,
           student_id: studentProfile.id,

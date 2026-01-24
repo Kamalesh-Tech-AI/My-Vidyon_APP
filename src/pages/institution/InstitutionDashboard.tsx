@@ -352,50 +352,7 @@ export function InstitutionDashboard() {
           </div>
         </div>
 
-        <div className="dashboard-card p-4 sm:p-6 h-fit">
-          <h3 className="font-semibold mb-4 text-sm sm:text-base flex items-center gap-2">
-            <Building className="w-4 h-4 text-faculty" />
-            Quick Shortcuts
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => navigate('/institution/face-registration')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-institution/5 hover:border-institution/20 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-full bg-institution/10 flex items-center justify-center text-institution mb-2 group-hover:scale-110 transition-transform">
-                <Scan className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-center">Register Face</span>
-            </button>
-            <button
-              onClick={() => navigate('/institution/faculty')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-faculty/5 hover:border-faculty/20 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-full bg-faculty/10 flex items-center justify-center text-faculty mb-2 group-hover:scale-110 transition-transform">
-                <Users className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-center">Manage Staff</span>
-            </button>
-            <button
-              onClick={() => navigate('/institution/student-details')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-success/5 hover:border-success/20 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center text-success mb-2 group-hover:scale-110 transition-transform">
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-center">Students</span>
-            </button>
-            <button
-              onClick={() => navigate('/institution/analytics')}
-              className="flex flex-col items-center justify-center p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-warning/5 hover:border-warning/20 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center text-warning mb-2 group-hover:scale-110 transition-transform">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-center">Analytics</span>
-            </button>
-          </div>
-        </div>
+
       </div>
 
       {/* Notifications Section - Full Width */}

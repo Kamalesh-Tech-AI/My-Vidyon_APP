@@ -4,7 +4,7 @@ import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Upload, Loader2, Plus, Search, FileSpreadsheet } from 'lucide-react';
+import { Upload, Loader2, Plus, Search, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -27,12 +27,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type DialogType = 'student' | 'staff' | 'parent' | null;
 
+import { useSearch } from '@/context/SearchContext';
+
+// ...
+
 export function InstitutionUsers() {
     const { user } = useAuth();
+    const { searchQuery } = useSearch(); // detailed search context
+    // Alias searchQuery to searchTerm to match existing filtering logic variable name
+    const searchTerm = searchQuery;
+
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [dialogType, setDialogType] = useState<DialogType>(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    // const [searchTerm, setSearchTerm] = useState(''); // REPLACED BY GLOBAL SEARCH
 
     // Bulk Upload State
     const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -128,6 +136,28 @@ export function InstitutionUsers() {
 
     // --- HANDLERS ---
 
+    const handleDeleteUser = async (id: string, type: 'student' | 'staff' | 'parent') => {
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+
+        const table = type === 'student' ? 'students' : type === 'staff' ? 'profiles' : 'parents';
+
+        try {
+            const { error } = await supabase.from(table).delete().eq('id', id);
+            if (error) throw error;
+
+            toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully`);
+
+            // Invalidate queries
+            if (type === 'student') queryClient.invalidateQueries({ queryKey: ['institution-students'] });
+            if (type === 'staff') queryClient.invalidateQueries({ queryKey: ['institution-staff'] });
+            if (type === 'parent') queryClient.invalidateQueries({ queryKey: ['institution-parents'] });
+
+        } catch (err: any) {
+            console.error("Delete error:", err);
+            toast.error("Failed to delete user: " + err.message);
+        }
+    };
+
     const handleBulkUpload = async () => {
         if (!user?.institutionId || !bulkFile) {
             toast.error("Please select a file.");
@@ -208,17 +238,9 @@ export function InstitutionUsers() {
 
             <div className="flex flex-col space-y-6">
 
-                {/* Search & Actions Bar */}
-                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 rounded-lg border">
-                    <div className="relative w-full sm:w-72">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search users..."
-                            className="pl-8"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                {/* Search & Actions Bar - Search moved to Global Header */}
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-end bg-card p-4 rounded-lg border">
+                    {/* Local search removed in favor of global search */}
                 </div>
 
                 <Tabs defaultValue="students" className="w-full">
@@ -271,9 +293,14 @@ export function InstitutionUsers() {
                                                     </td>
                                                     <td className="p-4"><Badge className="bg-green-100 text-green-700 hover:bg-green-100/80 border-0">Active</Badge></td>
                                                     <td className="p-4">
-                                                        <Button variant="ghost" size="sm" onClick={() => navigate(`/institution/student/${student.id}`)}>
-                                                            View Details
-                                                        </Button>
+                                                        <div className="flex items-center gap-2">
+                                                            <Button variant="ghost" size="sm" onClick={() => navigate(`/institution/student/${student.id}`)}>
+                                                                View Details
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90 hover:bg-destructive/10" onClick={() => handleDeleteUser(student.id, 'student')}>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))

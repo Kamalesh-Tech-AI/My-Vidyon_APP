@@ -11,6 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserPlus, ArrowLeft, Save, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import * as faceapi from 'face-api.js';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 export function InstitutionAddStudent() {
     const navigate = useNavigate();
@@ -356,11 +363,35 @@ export function InstitutionAddStudent() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="class">Class/Grade *</Label>
-                                    <Input required id="class" name="class" value={formData.class} onChange={handleChange} placeholder="10" />
+                                    <Select
+                                        value={formData.class}
+                                        onValueChange={(value) => setFormData(prev => ({ ...prev, class: value }))}
+                                    >
+                                        <SelectTrigger id="class">
+                                            <SelectValue placeholder="Select Class" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map((cls) => (
+                                                <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="section">Section</Label>
-                                    <Input id="section" name="section" value={formData.section} onChange={handleChange} placeholder="A" />
+                                    <Select
+                                        value={formData.section}
+                                        onValueChange={(value) => setFormData(prev => ({ ...prev, section: value }))}
+                                    >
+                                        <SelectTrigger id="section">
+                                            <SelectValue placeholder="Select Section" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {['A', 'B', 'C', 'D'].map((sec) => (
+                                                <SelectItem key={sec} value={sec}>{sec}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="rollNumber">Roll Number</Label>

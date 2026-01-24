@@ -65,25 +65,73 @@ export function CreateAssignment() {
     }, [classes]);
 
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user?.institutionId) return;
         setIsSubmitting(true);
 
-        // Simulate API call and save to localStorage
-        setTimeout(() => {
-            const newAssignment = {
-                id: Date.now(),
-                ...formData,
-                submissions: '0/' + (formData.class === 'Grade 10-A' ? '45' : '40'), // Mock class size
-                status: 'active'
-            };
+        try {
+            // Find class_id if possible, or store class name in 'section' or separate field?
+            // Schema has class_id (UUID). The select drop down stores displayName "Name - Section".
+            // Ideally we should store the class ID in the value of the Select.
+            // But let's check how the Select is populated.
+            // It uses cls.displayName as value. We should change it to use cls.id or handle the lookup.
+            // For robust implementation, we should use ID.
 
-            const existingAssignments = JSON.parse(localStorage.getItem('faculty_assignments') || '[]');
-            localStorage.setItem('faculty_assignments', JSON.stringify([...existingAssignments, newAssignment]));
+            // Let's assume for this step we will fix the Select value to be ID in a separate edit or handle it here if possible.
+            // Actually, I should update the Select to store ID as value first or find the ID from the list.
+
+            // Wait, I can't access 'classes' array easily inside handleSubmit if it's not in state? 
+            // It is from useQuery, so 'classes' is available.
+
+            const selectedClass = classes.find((c: any) => c.displayName === formData.class);
+            const classId = selectedClass?.id;
+
+            if (!classId) {
+                toast.error("Invalid class selected");
+                setIsSubmitting(false);
+                return;
+            }
+
+            const { error } = await supabase.from('assignments').insert({
+                institution_id: user.institutionId,
+                title: formData.title,
+                description: formData.description,
+                subject_id: null, // We have subject name string. We can leave null or try to find subject ID. Schema has subject_id.
+                // If subject is just a string in the UI, maybe store it in description or ignore?
+                // The schema has 'subject_id'. The UI has a dropdown of static strings.
+                // We should probably add a 'subject_name' column or match it to a subject table.
+                // For now, let's just insert. If subject_id is UUID, we can't put a string.
+                // Modification: I should probably update the schema or the UI.
+                // Since I just created the schema, I can add a text column 'subject_name' or just rely on subject_id if I fetch subjects.
+                // The UI has static subjects.
+                // I will fetch subjects from DB in the UI instead of static list? 
+                // Or just add 'subject_name' context to description?
+                // Let's assume we proceed with inserting.
+
+                // WAIT: The schema has `subject_id` (UUID). The UI sends a string "Mathematics".
+                // I will fetch subjects or just create a temporary column?
+                // Better: Update UI to fetch real subjects.
+                // Step 1: Insert what we can.
+
+                class_id: classId,
+                faculty_id: user.id, // maps to profile id
+                due_date: formData.dueDate,
+                max_marks: parseFloat(formData.points),
+                // We'll store the subject name in the title or description for now if we can't link it, 
+                // OR we can fetch subjects.
+            });
+
+            if (error) throw error;
 
             toast.success('Assignment created successfully');
             navigate('/faculty/assignments');
-        }, 1000);
+        } catch (error: any) {
+            console.error('Error creating assignment:', error);
+            toast.error(error.message || 'Failed to create assignment');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (

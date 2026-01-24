@@ -984,6 +984,13 @@ export function InstitutionCalendar() {
                                 )}
                             </div>
                             <DialogFooter>
+                                <Button variant="destructive" onClick={() => {
+                                    setIsDetailsDialogOpen(false);
+                                    handleDeleteClick(selectedEvent.id);
+                                }}>
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                </Button>
                                 <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
                                     Close
                                 </Button>

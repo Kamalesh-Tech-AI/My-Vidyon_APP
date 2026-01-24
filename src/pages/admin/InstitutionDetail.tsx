@@ -30,9 +30,9 @@ import {
     Activity,
     CheckCircle,
     XCircle,
-    AlertCircle,
     Loader2,
-    Layers
+    Layers,
+    Trash2
 } from 'lucide-react';
 
 export function InstitutionDetail() {
@@ -140,6 +140,15 @@ export function InstitutionDetail() {
             key: 'status',
             header: 'Status',
             render: (item: any) => <Badge variant="success">Active</Badge>
+        },
+        {
+            key: 'actions',
+            header: '',
+            render: (item: any) => (
+                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteUser(item.id, 'students')}>
+                    <Trash2 className="w-4 h-4" />
+                </Button>
+            )
         }
     ];
 
@@ -158,7 +167,28 @@ export function InstitutionDetail() {
             header: 'Email',
             render: (item: any) => item.profile?.email || 'N/A'
         },
+        {
+            key: 'actions',
+            header: '',
+            render: (item: any) => (
+                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteUser(item?.id, 'staff_details')}>
+                    <Trash2 className="w-4 h-4" />
+                </Button>
+            )
+        }
     ];
+
+    const handleDeleteUser = async (id: string, table: string) => {
+        if (!confirm('Are you sure you want to delete this user?')) return;
+        try {
+            const { error } = await supabase.from(table).delete().eq('id', id);
+            if (error) throw error;
+            toast.success('User deleted successfully');
+            queryClient.invalidateQueries({ queryKey: ['institution-people'] });
+        } catch (e: any) {
+            toast.error("Failed to delete: " + e.message);
+        }
+    };
 
     const classColumns = [
         { key: 'name', header: 'Class' },

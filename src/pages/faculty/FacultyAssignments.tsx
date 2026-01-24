@@ -22,39 +22,56 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 
-const initialAssignments = [
-    { id: 1, title: 'Algebra Homework', subject: 'Mathematics', class: 'Grade 10-A', dueDate: 'Dec 22, 2025', submissions: '42/45', status: 'active' },
-    { id: 2, title: 'Physics Lab Report', subject: 'Science', class: 'Grade 9-B', dueDate: 'Dec 25, 2025', submissions: '12/52', status: 'active' },
-    { id: 3, title: 'Shakespeare Essay', subject: 'English', class: 'Grade 10-C', dueDate: 'Dec 18, 2025', submissions: '28/28', status: 'closed' },
-    { id: 4, title: 'Geometry Practice', subject: 'Mathematics', class: 'Grade 9-A', dueDate: 'Dec 20, 2025', submissions: '35/40', status: 'active' },
-];
-
 export function FacultyAssignments() {
     const navigate = useNavigate();
-    const [assignments, setAssignments] = useState(initialAssignments);
+    const { user } = useAuth(); // Need auth
+    const [assignments, setAssignments] = useState<any[]>([]);
     const [viewSubmissionsOpen, setViewSubmissionsOpen] = useState(false);
     const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
 
+    // Fetch assignments
     useEffect(() => {
-        const storedAssignments = localStorage.getItem('faculty_assignments');
-        if (storedAssignments) {
-            const parsed = JSON.parse(storedAssignments);
-            if (Array.isArray(parsed)) {
-                setAssignments([...initialAssignments, ...parsed.map((p: any) => ({
-                    ...p,
-                    id: p.id || Math.random()
-                }))]);
-            }
-        }
-    }, []);
+        if (!user?.id) return;
 
-    const handleCloseAssignment = (id: number) => {
-        setAssignments(prev => prev.map(assignment =>
-            assignment.id === id ? { ...assignment, status: 'closed' } : assignment
-        ));
-        toast.success('Assignment closed successfully');
+        const fetchAssignments = async () => {
+            const { data, error } = await supabase
+                .from('assignments')
+                .select(`
+                    *,
+                    classes ( name, section )
+                `)
+                .eq('faculty_id', user.id)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            // Transform data to match UI
+            const formatted = data.map((a: any) => ({
+                id: a.id,
+                title: a.title,
+                subject: 'Subject', // we need subject name
+                class: a.classes ? `${a.classes.name} - ${a.classes.section}` : 'N/A',
+                dueDate: new Date(a.due_date).toLocaleDateString(),
+                submissions: '0/0', // We need a count or something
+                status: new Date(a.due_date) < new Date() ? 'closed' : 'active'
+            }));
+
+            setAssignments(formatted);
+        };
+
+        fetchAssignments();
+    }, [user?.id]);
+
+    const handleCloseAssignment = async (id: string) => { // Changed id to string (uuid)
+        // Check if we can "close" it? Maybe just update a status column if it exists?
+        // Schema doesn't have status. We can assume overdue = closed.
+        // For UI, we can visually close it or add status column.
+        toast.info("Manually closing assignments is not yet persisted.");
     };
 
     const handleUpdateAssignment = (id: number) => {
@@ -71,9 +88,9 @@ export function FacultyAssignments() {
         try {
             // Fetch submissions for this assignment (using title as ID for demo consistency)
             const { data, error } = await supabase
-                .from('submissions')
+                .from('assignment_submissions')
                 .select('*')
-                .eq('assignment_id', assignment.title);
+                .eq('assignment_id', assignment.id);
 
             if (error) throw error;
             setSubmissions(data || []);

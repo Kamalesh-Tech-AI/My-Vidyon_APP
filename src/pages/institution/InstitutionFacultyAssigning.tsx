@@ -37,7 +37,26 @@ export function InstitutionFacultyAssigning() {
     // Compute unique class names and sections from allClasses
     // allClasses = [{id, name, section}, ...]
     // uniqueClasses = ['Grade 1', 'Grade 2'...]
-    const uniqueClasses = Array.from(new Set(allClasses.map(c => c.name))).sort();
+    const uniqueClasses = Array.from(new Set(allClasses.map(c => c.name))).sort((a, b) => {
+        const order = ['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
+        const indexA = order.findIndex(o => a.startsWith(o)); // simple match
+        const indexB = order.findIndex(o => b.startsWith(o));
+
+        // precise match preferred
+        const exactIndexA = order.indexOf(a);
+        const exactIndexB = order.indexOf(b);
+
+        if (exactIndexA !== -1 && exactIndexB !== -1) return exactIndexA - exactIndexB;
+        if (exactIndexA !== -1) return -1;
+        if (exactIndexB !== -1) return 1;
+
+        // Fallback to numeric extraction if possible
+        const numA = parseInt(a.replace(/\D/g, ''));
+        const numB = parseInt(b.replace(/\D/g, ''));
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+
+        return a.localeCompare(b);
+    });
 
     // Derived sections for selected class
     const [availableSections, setAvailableSections] = useState<string[]>([]);
@@ -279,7 +298,7 @@ export function InstitutionFacultyAssigning() {
                             <div>
                                 <Label htmlFor="class">Select Class *</Label>
                                 <Select value={selectedClass} onValueChange={setSelectedClass}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Choose class" />
                                     </SelectTrigger>
                                     <SelectContent>

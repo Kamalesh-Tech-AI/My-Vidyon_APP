@@ -32,8 +32,12 @@ interface Institution {
 
 type DialogType = 'student' | 'staff' | 'parent' | null;
 
+// ... imports
+import { useSearch } from '@/context/SearchContext';
+
 export function AdminUsers() {
   const navigate = useNavigate();
+  const { searchQuery } = useSearch(); // Use global search
   const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
   const [dialogType, setDialogType] = useState<DialogType>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -100,15 +104,18 @@ export function AdminUsers() {
   const { data: institutions = [], isLoading } = useQuery({
     queryKey: ['admin-institutions'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('institutions')
-        .select('*')
-        .order('name');
+      // ... existing fetch
+      const { data, error } = await supabase.from('institutions').select('*').order('name');
       if (error) throw error;
       return data || [];
     },
     enabled: isSupabaseConfigured()
   });
+
+  const filteredInstitutions = institutions.filter((inst: any) =>
+    inst.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    inst.city.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const openDialog = (institution: Institution, type: DialogType) => {
     setSelectedInstitution(institution);
@@ -340,7 +347,7 @@ export function AdminUsers() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {institutions.map((institution) => (
+          {filteredInstitutions.map((institution: any) => (
             <Card key={institution.institution_id} className="p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-start gap-4 mb-4">
                 {institution.logo_url ? (
@@ -426,21 +433,35 @@ export function AdminUsers() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="class">Class</Label>
-              <Input
-                id="class"
+              <Select
                 value={studentData.className}
-                onChange={(e) => setStudentData({ ...studentData, className: e.target.value })}
-                placeholder="10th"
-              />
+                onValueChange={(value) => setStudentData({ ...studentData, className: value })}
+              >
+                <SelectTrigger id="class">
+                  <SelectValue placeholder="Select Class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'].map((cls) => (
+                    <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="section">Section</Label>
-              <Input
-                id="section"
+              <Select
                 value={studentData.section}
-                onChange={(e) => setStudentData({ ...studentData, section: e.target.value })}
-                placeholder="A"
-              />
+                onValueChange={(value) => setStudentData({ ...studentData, section: value })}
+              >
+                <SelectTrigger id="section">
+                  <SelectValue placeholder="Select Section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {['A', 'B', 'C', 'D'].map((sec) => (
+                    <SelectItem key={sec} value={sec}>{sec}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="dob">Date of Birth</Label>

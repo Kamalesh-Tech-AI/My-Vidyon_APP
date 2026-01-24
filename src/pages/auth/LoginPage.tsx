@@ -229,7 +229,7 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t.login.passwordPlaceholder}
-                  className="w-full px-4 py-3.5 rounded-xl border border-input bg-card/50 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                  className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-input bg-card/50 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                 />
                 <button
                   type="button"
