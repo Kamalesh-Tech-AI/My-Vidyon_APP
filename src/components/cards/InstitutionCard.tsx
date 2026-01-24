@@ -1,4 +1,4 @@
-import { Building2, Users, GraduationCap, MapPin, Layers, Eye, Edit, BarChart3, Trash2 } from 'lucide-react';
+import { Building2, Users, GraduationCap, MapPin, Layers, Eye, Edit, BarChart3, Trash2, Ban, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 
@@ -9,7 +9,7 @@ interface InstitutionCardProps {
   location: string;
   students: number;
   faculty: number;
-  status: 'active' | 'pending' | 'suspended';
+  status: 'active' | 'pending' | 'suspended' | 'inactive' | 'deleted';
   type: string;
   logoUrl?: string; // Add logoUrl support
   classes?: number;
@@ -17,6 +17,7 @@ interface InstitutionCardProps {
   onClick?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onToggleStatus?: () => void; // New: Toggle active/inactive
 }
 
 export function InstitutionCard({
@@ -34,11 +35,14 @@ export function InstitutionCard({
   onClick,
   onEdit,
   onDelete,
+  onToggleStatus,
 }: InstitutionCardProps) {
   const statusVariant = {
     active: 'success',
     pending: 'warning',
     suspended: 'destructive',
+    inactive: 'destructive',
+    deleted: 'destructive',
   } as const;
 
   const handleQuickAction = (e: React.MouseEvent, action: string) => {
@@ -135,6 +139,30 @@ export function InstitutionCard({
           <Edit className="w-3 h-3 mr-1" />
           Edit
         </Button>
+
+        {onToggleStatus && (
+          <Button
+            variant="outline"
+            size="sm"
+            className={`text-[10px] sm:text-xs min-h-[36px] sm:min-h-[32px] ${status === 'active'
+                ? 'text-warning hover:bg-warning/10 border-warning/20'
+                : 'text-success hover:bg-success/10 border-success/20'
+              }`}
+            onClick={(e) => { e.stopPropagation(); onToggleStatus(); }}
+          >
+            {status === 'active' ? (
+              <>
+                <Ban className="w-3 h-3 mr-1" />
+                Inactive
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Activate
+              </>
+            )}
+          </Button>
+        )}
 
         {onDelete && (
           <Button

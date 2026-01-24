@@ -554,8 +554,9 @@ export function AddInstitution() {
                 state: state,
                 email: contactEmail,
                 phone: contactPhone,
-                academic_year: academicYear,
-                status: institutionStatus,
+                // Only include these if migration has been run (optional fields)
+                ...(academicYear && { current_academic_year: academicYear }),
+                ...(institutionStatus && { status: institutionStatus }),
                 // Only update admin credentials if explicit or new
                 ...((!isEditMode || showAdminCreds) && {
                     admin_email: adminEmail,

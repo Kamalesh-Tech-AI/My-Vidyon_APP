@@ -97,7 +97,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase.from('profiles').update({ role: detectedRole, institution_id: institutionId }).eq('id', userId);
       }
 
-      // 7. Get user metadata from Auth (for force_password_change)
+      // 7. Check institution status - FIXED to use institution_id (TEXT) not id (UUID)
+      let institutionStatus = 'active';
+      if (institutionId) {
+        console.log('🔒 [AUTH] Checking institution status for institutionId:', institutionId);
+
+        try {
+          // Query by institution_id (TEXT field like "sardgtq3r") not id (UUID)
+          const { data: institution, error: instError } = await supabase
+            .from('institutions')
+            .select('id, institution_id, name, status, current_academic_year')
+            .eq('institution_id', institutionId)  // Changed from .eq('id', institutionId)
+            .maybeSingle();
+
+          console.log('🔒 [AUTH] Institution query result:', { institution, instError });
+
+          if (instError) {
+            console.error('🔒 [AUTH] Error fetching institution:', instError);
+            // If status column doesn't exist (migration not run), allow login
+            if (instError.message?.includes('column') && instError.message?.includes('status')) {
+              console.warn('🔒 [AUTH] Status column does not exist. Migration not run. Allowing login.');
+              institutionStatus = 'active';
+            }
+          } else if (institution) {
+            institutionStatus = institution.status || 'active';
+            console.log('🔒 [AUTH] Institution found:', institution.name);
+            console.log('🔒 [AUTH] Institution status:', institutionStatus);
+
+            // Block login if institution is inactive (except for admin)
+            if (institutionStatus === 'inactive' && detectedRole !== 'admin') {
+              console.error('🚫 [AUTH] BLOCKING LOGIN - Institution is INACTIVE');
+              throw new Error('INSTITUTION_INACTIVE');
+            }
+
+            if (institutionStatus === 'deleted' && detectedRole !== 'admin') {
+              console.error('🚫 [AUTH] BLOCKING LOGIN - Institution is DELETED');
+              throw new Error('INSTITUTION_DELETED');
+            }
+
+            console.log('✅ [AUTH] Institution status check passed');
+          } else {
+            console.warn('⚠️ [AUTH] Institution not found for institution_id:', institutionId);
+          }
+        } catch (error: any) {
+          // Re-throw our custom errors
+          if (error.message === 'INSTITUTION_INACTIVE' || error.message === 'INSTITUTION_DELETED') {
+            console.error('🚫 [AUTH] Re-throwing blocking error');
+            throw error;
+          }
+          // Log other errors but don't block login
+          console.error('❌ [AUTH] Unexpected error checking institution status:', error);
+        }
+      }
+
+      // 8. Get user metadata from Auth (for force_password_change)
       const { data: { user: authUser } } = await supabase.auth.getUser();
       const forcePasswordChange = authUser?.user_metadata?.force_password_change === true;
 
@@ -109,8 +162,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         institutionId: institutionId,
         forcePasswordChange
       };
-    } catch (err) {
+    } catch (err: any) {
       console.error('Profile fetch transition error:', err);
+      if (err.message === 'INSTITUTION_INACTIVE') {
+        throw err; // Re-throw to handle in login
+      }
       return null;
     }
   }, []);
@@ -247,8 +303,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error('[AUTH] Login error:', error);
       setState(prev => ({ ...prev, isLoading: false }));
-      const errorMessage = error.message || "An error occurred during login";
-      toast.error(errorMessage);
+
+      // Handle specific error cases
+      if (error.message === 'INSTITUTION_INACTIVE') {
+        toast.error('Access Denied', {
+          description: 'Your institution is currently inactive. Please contact your administrator for access.',
+        });
+      } else if (error.message === 'INSTITUTION_DELETED') {
+        toast.error('Access Denied', {
+          description: 'Your institution has been deleted. Please contact support for assistance.',
+        });
+      } else {
+        const errorMessage = error.message || "An error occurred during login";
+        toast.error(errorMessage);
+      }
+
+      // Sign out if institution is inactive or deleted
+      if (error.message === 'INSTITUTION_INACTIVE' || error.message === 'INSTITUTION_DELETED') {
+        await supabase.auth.signOut();
+      }
+
       throw error;
     }
   }, [navigate, fetchUserProfile]);

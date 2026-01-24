@@ -101,18 +101,38 @@ export function AdminInstitutions() {
   };
 
   const handleDeleteInstitution = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+    if (window.confirm(`Are you sure you want to delete "${name}"? This will move it to the Deleted tab.`)) {
       try {
         const { error } = await supabase
           .from('institutions')
-          .delete()
+          .update({ status: 'deleted' })
           .eq('id', id);
 
         if (error) throw error;
-        toast.success('Institution deleted successfully');
+        toast.success('Institution moved to Deleted');
         queryClient.invalidateQueries({ queryKey: ['admin-institutions'] });
       } catch (error: any) {
         toast.error('Failed to delete institution: ' + error.message);
+      }
+    }
+  };
+
+  const handleToggleStatus = async (id: string, name: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const action = newStatus === 'inactive' ? 'deactivate' : 'activate';
+
+    if (window.confirm(`Are you sure you want to ${action} "${name}"?`)) {
+      try {
+        const { error } = await supabase
+          .from('institutions')
+          .update({ status: newStatus })
+          .eq('id', id);
+
+        if (error) throw error;
+        toast.success(`Institution ${action}d successfully`);
+        queryClient.invalidateQueries({ queryKey: ['admin-institutions'] });
+      } catch (error: any) {
+        toast.error(`Failed to ${action} institution: ` + error.message);
       }
     }
   };
@@ -124,8 +144,8 @@ export function AdminInstitutions() {
   });
 
   const activeInstitutions = filteredInstitutions.filter(i => i.status === 'active');
-  const pendingInstitutions = filteredInstitutions.filter(i => i.status === 'pending');
-  const suspendedInstitutions = filteredInstitutions.filter(i => i.status === 'inactive' || i.status === 'suspended');
+  const inactiveInstitutions = filteredInstitutions.filter(i => i.status === 'inactive');
+  const deletedInstitutions = filteredInstitutions.filter(i => i.status === 'deleted');
 
 
   return (
@@ -164,8 +184,8 @@ export function AdminInstitutions() {
         <Tabs defaultValue="active" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="active">Active ({activeInstitutions.length})</TabsTrigger>
-            <TabsTrigger value="pending">Pending ({pendingInstitutions.length})</TabsTrigger>
-            <TabsTrigger value="suspended">Suspended ({suspendedInstitutions.length})</TabsTrigger>
+            <TabsTrigger value="inactive">Inactive ({inactiveInstitutions.length})</TabsTrigger>
+            <TabsTrigger value="deleted">Deleted ({deletedInstitutions.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active">
@@ -189,6 +209,7 @@ export function AdminInstitutions() {
                     logoUrl={inst.logo_url}
                     onClick={() => navigate(`/admin/institutions/${inst.institution_id}`)}
                     onEdit={() => navigate(`/admin/add-institution?mode=edit&id=${inst.institution_id}`)}
+                    onToggleStatus={() => handleToggleStatus(inst.id, inst.name, inst.status)}
                     onDelete={() => handleDeleteInstitution(inst.id, inst.name)}
                   />
                 ))}
@@ -196,26 +217,20 @@ export function AdminInstitutions() {
             )}
           </TabsContent>
 
-          <TabsContent value="pending">
-            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-              <p className="text-muted-foreground">No pending institutions</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="suspended">
-            {suspendedInstitutions.length === 0 ? (
+          <TabsContent value="inactive">
+            {inactiveInstitutions.length === 0 ? (
               <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                <p className="text-muted-foreground">No suspended institutions</p>
+                <p className="text-muted-foreground">No inactive institutions</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {suspendedInstitutions.map((inst) => (
+                {inactiveInstitutions.map((inst) => (
                   <InstitutionCard
                     key={inst.id}
                     id={inst.id}
                     name={inst.name}
                     code={inst.institution_id}
-                    location={`${inst.city}, ${inst.state}`}
+                    location={`${inst.city || ''}${inst.state ? `, ${inst.state}` : ''}`}
                     students={inst.studentsCount || 0}
                     faculty={inst.staffCount || 0}
                     status={inst.status as any}
@@ -223,6 +238,36 @@ export function AdminInstitutions() {
                     logoUrl={inst.logo_url}
                     onClick={() => navigate(`/admin/institutions/${inst.institution_id}`)}
                     onEdit={() => navigate(`/admin/add-institution?mode=edit&id=${inst.institution_id}`)}
+                    onToggleStatus={() => handleToggleStatus(inst.id, inst.name, inst.status)}
+                    onDelete={() => handleDeleteInstitution(inst.id, inst.name)}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="deleted">
+            {deletedInstitutions.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <p className="text-muted-foreground">No deleted institutions</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {deletedInstitutions.map((inst) => (
+                  <InstitutionCard
+                    key={inst.id}
+                    id={inst.id}
+                    name={inst.name}
+                    code={inst.institution_id}
+                    location={`${inst.city || ''}${inst.state ? `, ${inst.state}` : ''}`}
+                    students={inst.studentsCount || 0}
+                    faculty={inst.staffCount || 0}
+                    status={inst.status as any}
+                    type={inst.type}
+                    logoUrl={inst.logo_url}
+                    onClick={() => navigate(`/admin/institutions/${inst.institution_id}`)}
+                    onEdit={() => navigate(`/admin/add-institution?mode=edit&id=${inst.institution_id}`)}
+                    onToggleStatus={() => handleToggleStatus(inst.id, inst.name, inst.status)}
                     onDelete={() => handleDeleteInstitution(inst.id, inst.name)}
                   />
                 ))}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +12,7 @@ import { DonutChart } from '@/components/charts/DonutChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Scan, UserCheck, Clock } from 'lucide-react';
 import {
   GraduationCap,
@@ -45,8 +46,33 @@ export function InstitutionDashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
+  // Academic Year Filter State
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('2025-26');
+
   const today = format(new Date(), 'yyyy-MM-dd');
   const role = (user as any)?.user_metadata?.role || user?.role;
+
+  // Fetch institution's current academic year
+  const { data: institutionData } = useQuery({
+    queryKey: ['institution-info', user?.institutionId],
+    queryFn: async () => {
+      if (!user?.institutionId) return null;
+      const { data } = await supabase
+        .from('institutions')
+        .select('current_academic_year, status')
+        .eq('id', user.institutionId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.institutionId,
+  });
+
+  // Set selected year to institution's current year when loaded
+  useEffect(() => {
+    if (institutionData?.current_academic_year) {
+      setSelectedAcademicYear(institutionData.current_academic_year);
+    }
+  }, [institutionData]);
 
   useEffect(() => {
     if (role === 'accountant') {
@@ -54,17 +80,17 @@ export function InstitutionDashboard() {
     }
   }, [role, navigate]);
 
-  // 1. Fetch Stats (Parallel)
+  // 1. Fetch Stats (Parallel) - Filtered by Academic Year
   const { data: stats } = useQuery({
-    queryKey: ['institution-stats', user?.institutionId, today],
+    queryKey: ['institution-stats', user?.institutionId, today, selectedAcademicYear],
     queryFn: async () => {
       if (!user?.institutionId) return { students: 0, teachers: 0, classes: 0, presence: 0 };
 
       const [studentsReq, teachersReq, classesReq, studentAttendanceReq, staffAttendanceReq] = await Promise.all([
-        supabase.from('students').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId),
+        supabase.from('students').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('academic_year', selectedAcademicYear),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('role', 'faculty'),
-        supabase.from('classes').select('id, groups!inner(institution_id)', { count: 'exact', head: true }).eq('groups.institution_id', user.institutionId),
-        supabase.from('student_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', today).in('status', ['present', 'late']),
+        supabase.from('classes').select('id, groups!inner(institution_id)', { count: 'exact', head: true }).eq('groups.institution_id', user.institutionId).eq('academic_year', selectedAcademicYear),
+        supabase.from('student_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', today).eq('academic_year', selectedAcademicYear).in('status', ['present', 'late']),
         supabase.from('staff_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', today).in('status', ['present', 'late'])
       ]);
 
@@ -80,14 +106,15 @@ export function InstitutionDashboard() {
     staleTime: 1000 * 30, // 30 seconds
   });
 
-  // 2. Fetch Recent Admissions
+  // 2. Fetch Recent Admissions - Filtered by Academic Year
   const { data: recentAdmissions } = useQuery({
-    queryKey: ['recent-admissions', user?.institutionId],
+    queryKey: ['recent-admissions', user?.institutionId, selectedAcademicYear],
     queryFn: async () => {
       const { data } = await supabase
         .from('students')
         .select('*')
         .eq('institution_id', user?.institutionId)
+        .eq('academic_year', selectedAcademicYear)
         .order('created_at', { ascending: false })
         .limit(5);
       return data || [];
@@ -244,7 +271,26 @@ export function InstitutionDashboard() {
     <InstitutionLayout>
       <PageHeader
         title="Institution Overview"
-        subtitle={`${user?.name} • Academic Year 2025-26`}
+        subtitle={`${user?.name} • Academic Year ${selectedAcademicYear}`}
+        actions={
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">Academic Year</label>
+              <Select value={selectedAcademicYear} onValueChange={setSelectedAcademicYear}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2025-26">2025-26</SelectItem>
+                  <SelectItem value="2024-25">2024-25</SelectItem>
+                  <SelectItem value="2023-24">2023-24</SelectItem>
+                  <SelectItem value="2022-23">2022-23</SelectItem>
+                  <SelectItem value="2021-22">2021-22</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        }
       />
 
       {/* Stats Grid */}
