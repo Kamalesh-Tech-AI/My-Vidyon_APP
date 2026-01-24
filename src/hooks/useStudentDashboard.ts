@@ -283,48 +283,79 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
         };
     }, [studentId, institutionId, queryClient]);
 
-    // 8. Fetch Subjects for Student's Class
-    const { data: subjects = [] } = useQuery({
-        queryKey: ['student-subjects', studentId],
+    // 8. Fetch Subjects for Student's Class via faculty_subjects
+    const { data: subjectsData = { subjects: [], classTeacher: 'Not Assigned' }, isLoading: subjectsLoading } = useQuery({
+        queryKey: ['student-subjects-view-full', studentId],
         queryFn: async () => {
-            if (!studentId) return [];
+            if (!studentId) return { subjects: [], classTeacher: 'Not Assigned' };
 
-            // Get student's class first
-            const { data: studentData } = await supabase
+            // Get student's class_id and section
+            const { data: studentData, error: studentError } = await supabase
                 .from('students')
-                .select('class_name, section')
+                .select('class_id, section, institution_id')
                 .eq('id', studentId)
                 .single();
 
-            if (!studentData) return [];
+            if (studentError || !studentData) return { subjects: [], classTeacher: 'Not Assigned' };
 
-            // Fetch subjects for that class
-            const { data, error } = await supabase
-                .from('subjects')
-                .select('*')
-                .eq('institution_id', institutionId)
-                .eq('class_name', studentData.class_name);
+            // 1. Fetch Class Teacher (Advisor)
+            const { data: advisorData } = await supabase
+                .from('faculty_subjects')
+                .select('profiles:faculty_profile_id(full_name)')
+                .eq('class_id', studentData.class_id)
+                .eq('section', studentData.section)
+                .eq('assignment_type', 'class_teacher')
+                .maybeSingle();
 
-            if (error) throw error;
+            // 2. Fetch Subjects
+            const { data: assignmentsData, error: assignmentsError } = await supabase
+                .from('faculty_subjects')
+                .select(`
+                    subject_id,
+                    faculty_profile_id,
+                    subjects:subject_id (
+                        id,
+                        name,
+                        code
+                    ),
+                    profiles:faculty_profile_id (
+                        full_name
+                    )
+                `)
+                .eq('class_id', studentData.class_id)
+                .eq('section', studentData.section)
+                .eq('assignment_type', 'subject_staff');
 
-            return (data || []).map((sub: any) => ({
-                id: sub.id,
-                name: sub.name,
-                code: sub.code || 'N/A',
-                instructor: sub.instructor_name || 'Not Assigned',
-                credits: sub.credits || 0,
-            }));
+            if (assignmentsError) throw assignmentsError;
+
+            const subjects = (assignmentsData || [])
+                .filter((a: any) => a.subjects)
+                .map((a: any) => ({
+                    id: a.subjects.id,
+                    title: a.subjects.name,
+                    code: a.subjects.code || 'N/A',
+                    instructor: a.profiles?.full_name || 'Not Assigned',
+                    progress: 0,
+                    students: 0,
+                    status: 'active' as const
+                }));
+
+            return {
+                subjects,
+                classTeacher: (advisorData?.profiles as any)?.full_name || 'Not Assigned'
+            };
         },
-        enabled: !!studentId && !!institutionId,
+        enabled: !!studentId,
         staleTime: 5 * 60 * 1000,
     });
 
-    // 9. Real-time subscription for subjects
+    // 9. Real-time subscription for subjects and assignments
     useEffect(() => {
         if (!institutionId) return;
 
         const subjectsChannel = supabase
             .channel('student-subjects-realtime')
+            // Subjects updates
             .on(
                 'postgres_changes',
                 {
@@ -335,7 +366,33 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
                 },
                 () => {
                     queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
-                    toast.info('Subjects updated');
+                }
+            )
+            // Faculty assignments updates
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'faculty_subjects',
+                    filter: `institution_id=eq.${institutionId}`,
+                },
+                () => {
+                    queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
+                    toast.info('Subject assignments updated');
+                }
+            )
+            // Profile updates (for instructor names)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'profiles',
+                    filter: `institution_id=eq.${institutionId}`,
+                },
+                () => {
+                    queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
                 }
             )
             .subscribe();
@@ -351,7 +408,8 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
         attendanceRecords,
         grades,
         feeStatus,
-        subjects,
-        isLoading: false,
+        subjects: subjectsData.subjects,
+        classTeacher: subjectsData.classTeacher,
+        isLoading: subjectsLoading,
     };
 }

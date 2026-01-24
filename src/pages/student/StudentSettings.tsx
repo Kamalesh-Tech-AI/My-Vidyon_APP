@@ -7,10 +7,38 @@ import { useAuth } from '@/context/AuthContext';
 import { User, Lock, Phone, Mail, LogOut, MapPin, GraduationCap, Building } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/TranslationContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useStudentDashboard } from '@/hooks/useStudentDashboard';
 
 export function StudentSettings() {
     const { user, logout } = useAuth();
     const { t } = useTranslation();
+
+    // Fetch Student Profile
+    const { data: studentProfile, isLoading } = useQuery({
+        queryKey: ['student-profile', user?.id],
+        queryFn: async () => {
+            if (!user?.email) return null;
+
+            const { data, error } = await supabase
+                .from('students')
+                .select('*, classes(id, name, groups(id, name))')
+                .ilike('email', user.email.trim())
+                .maybeSingle();
+
+            if (error) {
+                console.error('Profile Fetch Error:', error);
+                return null;
+            }
+            return data;
+        },
+        enabled: !!user?.email,
+        staleTime: 1000 * 60,
+    });
+
+    const { classTeacher } = useStudentDashboard(studentProfile?.id, studentProfile?.institution_id);
 
     const handlePasswordChange = (e: React.FormEvent) => {
         e.preventDefault();
@@ -18,6 +46,12 @@ export function StudentSettings() {
     };
 
     if (!user) return null;
+
+    const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+    const studentDisplayName = studentProfile?.name || user.name;
+    const studentId = studentProfile?.register_number || 'LOADING...';
+    const className = studentProfile ? `${studentProfile.class_name}-${studentProfile.section}` : 'LOADING...';
+    const departmentName = (studentProfile?.classes as any)?.groups?.name || 'Not Assigned';
 
     return (
         <StudentLayout>
@@ -34,22 +68,22 @@ export function StudentSettings() {
                             <div className="absolute -bottom-8 sm:-bottom-10 left-1/2 -translate-x-1/2">
                                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white p-1 border border-border">
                                     <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center text-xl sm:text-2xl font-bold text-primary">
-                                        {user.name.split(' ').map(n => n[0]).join('')}
+                                        {initials}
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div className="pt-10 sm:pt-12 pb-4 sm:pb-6 px-4 sm:px-6 text-center">
-                            <h3 className="font-bold text-lg sm:text-xl mb-1">{user.name}</h3>
-                            <p className="text-muted-foreground text-xs sm:text-sm mb-3 sm:mb-4">Student ID: STU-2025-001</p>
+                            <h3 className="font-bold text-lg sm:text-xl mb-1">{studentDisplayName}</h3>
+                            <p className="text-muted-foreground text-xs sm:text-sm mb-3 sm:mb-4">Student ID: {studentId}</p>
                             <div className="flex flex-col gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6">
                                 <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                                     <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                    <span className="truncate">{user.email}</span>
+                                    <span className="truncate">{studentProfile?.email || user.email}</span>
                                 </div>
                                 <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                                     <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                    Class 10-A
+                                    Class {className}
                                 </div>
                             </div>
                             <Button variant="outline" className="w-full text-destructive hover:bg-destructive/10 border-destructive/50 min-h-[44px]" onClick={logout}>
@@ -66,14 +100,14 @@ export function StudentSettings() {
                                 <Building className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary mt-1" />
                                 <div>
                                     <p className="text-xs sm:text-sm font-medium">Department</p>
-                                    <p className="text-[10px] sm:text-xs text-muted-foreground">Science Faculty</p>
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground">{departmentName}</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-2 sm:gap-3">
                                 <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary mt-1" />
                                 <div>
                                     <p className="text-xs sm:text-sm font-medium">Advisor</p>
-                                    <p className="text-[10px] sm:text-xs text-muted-foreground">Prof. Sarah Wilson</p>
+                                    <p className="text-[10px] sm:text-xs text-muted-foreground">{classTeacher || 'Assigned Faculty'}</p>
                                 </div>
                             </div>
                         </div>
@@ -87,36 +121,44 @@ export function StudentSettings() {
                             <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                             {t.parent.settings?.personalInfo || "Personal Information"}
                         </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            <div className="space-y-2">
-                                <Label>{t.parent.settings?.fullName || "Full Name"}</Label>
-                                <Input value={user.name} disabled />
+                        {isLoading ? (
+                            <div className="space-y-4">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
                             </div>
-                            <div className="space-y-2">
-                                <Label>{t.parent.settings?.email || "Email Address"}</Label>
-                                <Input value={user.email} disabled />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t.parent.settings?.phone || "Phone Number"}</Label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                    <Input className="pl-10" defaultValue="+91 98765 43210" />
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                <div className="space-y-2">
+                                    <Label>{t.parent.settings?.fullName || "Full Name"}</Label>
+                                    <Input value={studentProfile?.name || user.name} disabled />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>{t.parent.settings?.email || "Email Address"}</Label>
+                                    <Input value={studentProfile?.email || user.email} disabled />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>{t.parent.settings?.phone || "Phone Number"}</Label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input className="pl-10" value={studentProfile?.parent_contact || ""} placeholder="Not provided" readOnly />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Emergency Contact</Label>
+                                    <Input value={studentProfile?.parent_phone || ""} placeholder="Not provided" readOnly />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label>{t.parent.settings?.address || "Address"}</Label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                                        <Input className="pl-10" value={studentProfile?.address || ""} placeholder="No address provided" readOnly />
+                                    </div>
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Emergency Contact</Label>
-                                <Input defaultValue="+91 91234 56789" />
-                            </div>
-                            <div className="space-y-2 sm:col-span-2">
-                                <Label>{t.parent.settings?.address || "Address"}</Label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                                    <Input className="pl-10" defaultValue="123, Green Park, New Delhi" />
-                                </div>
-                            </div>
-                        </div>
+                        )}
                         <div className="mt-4 sm:mt-6 flex justify-end">
-                            <Button className="w-full sm:w-auto min-h-[44px]">{t.parent.settings?.saveChanges || "Save Changes"}</Button>
+                            <Button className="w-full sm:w-auto min-h-[44px]" disabled>{t.parent.settings?.saveChanges || "Save Changes"}</Button>
                         </div>
                     </div>
 

@@ -22,26 +22,9 @@ import {
   DollarSign,
 } from 'lucide-react';
 
-// Mock Data for charts (until we have historical data)
-const attendanceData = [
-  { name: 'Mon', value: 95 },
-  { name: 'Tue', value: 88 },
-  { name: 'Wed', value: 92 },
-  { name: 'Thu', value: 100 },
-  { name: 'Fri', value: 85 },
-  { name: 'Sat', value: 0 },
-];
-
-const gradeDistribution = [
-  { name: 'A Grade', value: 4 },
-  { name: 'B Grade', value: 2 },
-  { name: 'C Grade', value: 1 },
-];
-
-const mockNotifications = [
-  { title: 'Assignment Graded', message: 'Your Shakespeare Essay has been graded. You scored 95/100.', type: 'success' as const, time: '2 hours ago' },
-  { title: 'New Material Uploaded', message: 'New study material for Mathematics have been uploaded.', type: 'info' as const, time: '5 hours ago' },
-  { title: 'Exam Reminder', message: 'Your Unit Test - II for Mathematics is scheduled for next Monday.', type: 'warning' as const, time: '1 day ago' },
+// Fallback notifications if real ones are empty
+const getPlaceholderNotifications = (t: any) => [
+  { title: 'Welcome', message: 'Welcome to your new real-time dashboard.', type: 'info' as const, time: 'Just now' },
 ];
 
 export function StudentDashboard() {
@@ -75,9 +58,9 @@ export function StudentDashboard() {
     staleTime: 1000 * 60,
   });
 
-  // Use comprehensive  // Use the hook for all data
+  // Use the hook for all data
   const { stats, assignments, attendanceRecords, grades, subjects } = useStudentDashboard(
-    user?.id,
+    studentProfile?.id,
     studentProfile?.institution_id
   );
 
@@ -85,6 +68,36 @@ export function StudentDashboard() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayRecord = attendanceRecords.find(r => r.date === today);
   const isAfterAbsentThreshold = new Date().getHours() >= 10;
+
+  // 10. Fetch real academic events
+  const { data: upcomingEvents = [] } = useQuery({
+    queryKey: ['upcoming-events', user?.institutionId || studentProfile?.institution_id],
+    queryFn: async () => {
+      const instId = user?.institutionId || studentProfile?.institution_id;
+      if (!instId) return [];
+
+      const { data, error } = await supabase
+        .from('academic_events')
+        .select('*')
+        .eq('institution_id', instId)
+        .gte('event_date', new Date().toISOString())
+        .order('event_date', { ascending: true })
+        .limit(5);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!(user?.institutionId || studentProfile?.institution_id),
+  });
+  // 11. Calculate chart data from real records
+  const chartAttendanceData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => {
+    return { name: day, value: stats.attendancePercentage ? parseInt(stats.attendancePercentage) : 0 };
+  });
+
+  const chartGradeDistribution = [
+    { name: 'Graded', value: grades.length },
+    { name: 'Pending', value: assignments.filter(a => a.status === 'pending').length },
+  ];
 
   return (
     <StudentLayout>
@@ -128,26 +141,26 @@ export function StudentDashboard() {
           changeType="positive"
         />
         <StatCard
-          title="Pending Tasks"
-          value={stats.pendingAssignments}
+          title="Academic Info"
+          value={`${studentProfile?.class_name || 'N/A'}-${studentProfile?.section || ''}`}
           icon={Clock}
           iconColor="text-warning"
-          change="Due soon"
+          change={studentProfile?.register_number || "No ID"}
         />
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className="lg:col-span-2 dashboard-card p-4 sm:p-6">
-          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Weekly Attendance</h3>
+          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Attendance Trend</h3>
           <div className="chart-container-responsive">
-            <AreaChart data={attendanceData} color="hsl(var(--student))" height={220} />
+            <AreaChart data={chartAttendanceData} color="hsl(var(--student))" height={220} />
           </div>
         </div>
         <div className="dashboard-card p-4 sm:p-6">
-          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Grade Distribution</h3>
+          <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Assignment Progress</h3>
           <div className="chart-container-responsive">
-            <DonutChart data={gradeDistribution} height={220} />
+            <DonutChart data={chartGradeDistribution} height={220} />
           </div>
         </div>
       </div>
@@ -165,7 +178,7 @@ export function StudentDashboard() {
               subjects.map((subject: any) => (
                 <CourseCard
                   key={subject.id}
-                  title={subject.name}
+                  title={subject.title}
                   code={subject.code}
                   instructor={subject.instructor}
                 />
@@ -187,26 +200,30 @@ export function StudentDashboard() {
               <h3 className="font-semibold text-sm sm:text-base">Upcoming Events</h3>
             </div>
             <div className="space-y-2 sm:space-y-3">
-              <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
-                <div className="text-center flex-shrink-0">
-                  <div className="text-base sm:text-lg font-bold text-primary">22</div>
-                  <div className="text-[10px] sm:text-xs text-muted-foreground">Dec</div>
-                </div>
-                <div className="min-w-0">
-                  <p className="font-medium text-xs sm:text-sm truncate">Unit Test: Mathematics</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Class 10-A • 10:00 AM</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
-                <div className="text-center flex-shrink-0">
-                  <div className="text-base sm:text-lg font-bold text-primary">25</div>
-                  <div className="text-[10px] sm:text-xs text-muted-foreground">Dec</div>
-                </div>
-                <div className="min-w-0">
-                  <p className="font-medium text-xs sm:text-sm truncate">Science Fair</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Auditorium • 2:00 PM</p>
-                </div>
-              </div>
+              {upcomingEvents.length > 0 ? (
+                upcomingEvents.map((event: any) => {
+                  const eventDate = new Date(event.event_date);
+                  const day = eventDate.getDate();
+                  const month = eventDate.toLocaleString('default', { month: 'short' });
+
+                  return (
+                    <div key={event.id} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+                      <div className="text-center flex-shrink-0">
+                        <div className="text-base sm:text-lg font-bold text-primary">{day}</div>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground">{month}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-xs sm:text-sm truncate">{event.title}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                          {event.description || `${studentProfile?.class_name || ''} • Event`}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No upcoming events</p>
+              )}
             </div>
           </div>
 
@@ -232,7 +249,7 @@ export function StudentDashboard() {
           <a href="/student/notifications" className="text-xs sm:text-sm text-primary hover:underline">View All</a>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {mockNotifications.map((notification: any, index: number) => (
+          {getPlaceholderNotifications(t).map((notification: any, index: number) => (
             <NotificationCard key={index} {...notification} />
           ))}
         </div>

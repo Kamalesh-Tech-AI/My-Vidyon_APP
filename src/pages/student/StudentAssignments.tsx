@@ -12,44 +12,111 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useState } from 'react';
-import { Upload } from 'lucide-react';
-
-const assignments = {
-  pending: [
-    { title: 'Algebra Problem Set', course: 'Mathematics', dueDate: 'Dec 22, 2025', status: 'pending' as const },
-    { title: 'Plant Cell Diagram', course: 'Science', dueDate: 'Dec 24, 2025', status: 'pending' as const },
-    { title: 'Map Work: Rivers of India', course: 'Social Studies', dueDate: 'Dec 26, 2025', status: 'pending' as const },
-  ],
-  submitted: [
-    { title: 'Essay: My Favourite Holiday', course: 'English', dueDate: 'Dec 20, 2025', status: 'submitted' as const },
-    { title: 'Lab Report: Acid & Bases', course: 'Science', dueDate: 'Dec 19, 2025', status: 'submitted' as const },
-  ],
-  graded: [
-    { title: 'Kabir Ke Dohe', course: 'Hindi', dueDate: 'Dec 18, 2025', status: 'graded' as const, grade: '95', maxGrade: '100' },
-    { title: 'Geometry Test', course: 'Mathematics', dueDate: 'Dec 15, 2025', status: 'graded' as const, grade: '88', maxGrade: '100' },
-    { title: 'History Timeline', course: 'Social Studies', dueDate: 'Dec 12, 2025', status: 'graded' as const, grade: '92', maxGrade: '100' },
-  ],
-  overdue: [
-    { title: 'Grammar Worksheet', course: 'English', dueDate: 'Dec 10, 2025', status: 'overdue' as const },
-  ],
-};
+import { Upload, Loader2, FileX } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { format, isAfter, parseISO } from 'date-fns';
 
 export function StudentAssignments() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // 1. Fetch Student Profile
+  const { data: studentProfile, isLoading: profileLoading } = useQuery({
+    queryKey: ['student-profile', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return null;
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .ilike('email', user.email.trim())
+        .maybeSingle();
+
+      if (error) {
+        console.error('Profile Fetch Error:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!user?.email,
+  });
+
+  // 2. Fetch Assignments & Submissions
+  const { data: assignmentsData, isLoading: assignmentsLoading } = useQuery({
+    queryKey: ['student-assignments-view', studentProfile?.id, studentProfile?.class_id, studentProfile?.section],
+    queryFn: async () => {
+      if (!studentProfile) return { pending: [], submitted: [], graded: [], overdue: [] };
+
+      // Get all assignments for this class/section
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from('assignments')
+        .select(`
+          *,
+          subjects:subject_id (name),
+          profiles:teacher_id (full_name)
+        `)
+        .or(`class_id.eq.${studentProfile.class_id},class_name.eq.${studentProfile.class_name}`)
+        .filter('institution_id', 'eq', studentProfile.institution_id);
+
+      if (assignmentsError) throw assignmentsError;
+
+      // Get student's submissions
+      const { data: submissions, error: submissionsError } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('student_id', studentProfile.id);
+
+      if (submissionsError) throw submissionsError;
+
+      const now = new Date();
+
+      const processed = (assignments || []).map(a => {
+        const submission = (submissions || []).find(s => s.assignment_id === a.id || s.assignment_id === a.title);
+        const dueDate = a.due_date ? parseISO(a.due_date) : null;
+        const isOverdue = dueDate ? isAfter(now, dueDate) && !submission : false;
+
+        let status: 'pending' | 'submitted' | 'graded' | 'overdue' = 'pending';
+        if (submission) {
+          status = submission.status === 'graded' ? 'graded' : 'submitted';
+        } else if (isOverdue) {
+          status = 'overdue';
+        }
+
+        return {
+          ...a,
+          course: a.subjects?.name || a.subject || 'General',
+          instructor: a.profiles?.full_name || 'Faculty',
+          dueDate: a.due_date ? format(parseISO(a.due_date), 'MMM dd, yyyy') : 'No Due Date',
+          status,
+          grade: submission?.grade,
+          maxGrade: submission?.max_grade || '100',
+          submissionId: submission?.id
+        };
+      });
+
+      return {
+        pending: processed.filter(a => a.status === 'pending'),
+        submitted: processed.filter(a => a.status === 'submitted'),
+        graded: processed.filter(a => a.status === 'graded'),
+        overdue: processed.filter(a => a.status === 'overdue'),
+      };
+    },
+    enabled: !!studentProfile,
+  });
+
   const handleSubmitClick = (assignment: any) => {
     setSelectedAssignment(assignment);
-    setSelectedFile(null); // Reset file
+    setSelectedFile(null);
     setIsSubmitOpen(true);
   };
 
@@ -60,45 +127,31 @@ export function StudentAssignments() {
   };
 
   const handleSubmitConfirm = async () => {
-    if (!selectedFile || !selectedAssignment) {
-      toast.error("Please select a file to upload.");
+    if (!selectedFile || !selectedAssignment || !studentProfile) {
+      toast.error("Required data missing.");
       return;
     }
 
     setIsUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      // 1. Get Student Details (for Name and Class)
-      const { data: student } = await supabase
-        .from('students')
-        .select('id, name, class_name, section')
-        .eq('id', user?.id || 'demo-id') // Use real ID in prod
-        .maybeSingle(); // Use maybeSingle to avoid error if demo user not found
-
-      const studentName = student?.name || user?.email || 'Student';
-      const studentClass = student?.class_name || 'Grade 10-A'; // Fallback for demo
-      const userId = user?.id || 'demo-student-id';
-
-      // 2. Upload File
+      // 1. Upload File
       const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${userId}/${Date.now()}-${selectedAssignment.title.replace(/\s+/g, '-')}.${fileExt}`;
-      const filePath = fileName;
+      const fileName = `${studentProfile.id}/${Date.now()}-${selectedAssignment.title.replace(/\s+/g, '-')}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('assignments')
-        .upload(filePath, selectedFile);
+        .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
 
-      // 3. Insert Submission Record
+      // 2. Insert Submission Record
       const { error: dbError } = await supabase
         .from('submissions')
         .insert({
-          assignment_id: selectedAssignment.title,
-          student_id: userId,
-          student_name: studentName,
-          file_path: filePath,
+          assignment_id: selectedAssignment.id,
+          student_id: studentProfile.id,
+          student_name: studentProfile.name,
+          file_path: fileName,
           file_name: selectedFile.name,
           submitted_at: new Date().toISOString(),
           status: 'submitted'
@@ -106,26 +159,10 @@ export function StudentAssignments() {
 
       if (dbError) throw dbError;
 
-      // 4. Notify Class Teacher / Faculty
-      // Find faculty for this class
-      const { data: faculty } = await supabase
-        .from('staff_details')
-        .select('profile_id')
-        .eq('class_assigned', studentClass)
-        .maybeSingle();
+      // 3. Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['student-assignments-view'] });
 
-      if (faculty?.profile_id) {
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: faculty.profile_id,
-            title: 'New Assignment Submission',
-            message: `${studentName} has submitted: ${selectedAssignment.title}`,
-            type: 'assignment'
-          });
-      }
-
-      toast.success("Assignment submitted and staff notified!");
+      toast.success("Assignment submitted successfully!");
       setIsSubmitOpen(false);
     } catch (error: any) {
       console.error('Submission error:', error);
@@ -139,6 +176,17 @@ export function StudentAssignments() {
     toast.success("Extension request sent to staff!");
   };
 
+  if (profileLoading || assignmentsLoading) {
+    return (
+      <StudentLayout>
+        <PageHeader title={t.nav.assignments} subtitle="Loading your assignments..." />
+        <div className="flex justify-center p-12"><Loader2 className="animate-spin w-8 h-8 text-primary" /></div>
+      </StudentLayout>
+    );
+  }
+
+  const assignments = assignmentsData || { pending: [], submitted: [], graded: [], overdue: [] };
+
   return (
     <StudentLayout>
       <PageHeader
@@ -148,21 +196,27 @@ export function StudentAssignments() {
 
       <Tabs defaultValue="pending" className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="submitted">Submitted</TabsTrigger>
-          <TabsTrigger value="graded">Graded</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({assignments.pending.length})</TabsTrigger>
+          <TabsTrigger value="submitted">Submitted ({assignments.submitted.length})</TabsTrigger>
+          <TabsTrigger value="graded">Graded ({assignments.graded.length})</TabsTrigger>
+          <TabsTrigger value="overdue">Overdue ({assignments.overdue.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
-          {assignments.pending.map((assignment, index) => (
-            <div key={index} className="flex items-center gap-4">
-              <div className="flex-1">
-                <AssignmentCard {...assignment} />
+          {assignments.pending.length > 0 ? (
+            assignments.pending.map((assignment, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <div className="flex-1">
+                  <AssignmentCard {...assignment} />
+                </div>
+                <Button className="btn-primary" onClick={() => handleSubmitClick(assignment)}>{t.common.submit}</Button>
               </div>
-              <Button className="btn-primary" onClick={() => handleSubmitClick(assignment)}>{t.common.submit}</Button>
+            ))
+          ) : (
+            <div className="text-center py-10 bg-muted/30 rounded-xl border border-dashed">
+              <p className="text-muted-foreground">No pending assignments</p>
             </div>
-          ))}
+          )}
 
           <Dialog open={isSubmitOpen} onOpenChange={setIsSubmitOpen}>
             <DialogContent className="sm:max-w-[500px]">
@@ -194,26 +248,44 @@ export function StudentAssignments() {
         </TabsContent>
 
         <TabsContent value="submitted" className="space-y-4">
-          {assignments.submitted.map((assignment, index) => (
-            <AssignmentCard key={index} {...assignment} />
-          ))}
+          {assignments.submitted.length > 0 ? (
+            assignments.submitted.map((assignment, index) => (
+              <AssignmentCard key={index} {...assignment} />
+            ))
+          ) : (
+            <div className="text-center py-10 bg-muted/30 rounded-xl border border-dashed">
+              <p className="text-muted-foreground">No submitted assignments</p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="graded" className="space-y-4">
-          {assignments.graded.map((assignment, index) => (
-            <AssignmentCard key={index} {...assignment} />
-          ))}
+          {assignments.graded.length > 0 ? (
+            assignments.graded.map((assignment, index) => (
+              <AssignmentCard key={index} {...assignment} />
+            ))
+          ) : (
+            <div className="text-center py-10 bg-muted/30 rounded-xl border border-dashed">
+              <p className="text-muted-foreground">No graded assignments yet</p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="overdue" className="space-y-4">
-          {assignments.overdue.map((assignment, index) => (
-            <div key={index} className="flex items-center gap-4">
-              <div className="flex-1">
-                <AssignmentCard {...assignment} />
+          {assignments.overdue.length > 0 ? (
+            assignments.overdue.map((assignment, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <div className="flex-1">
+                  <AssignmentCard {...assignment} />
+                </div>
+                <Button variant="outline" onClick={handleRequestExtension}>Request Extension</Button>
               </div>
-              <Button variant="outline" onClick={handleRequestExtension}>Request Extension</Button>
+            ))
+          ) : (
+            <div className="text-center py-10 bg-muted/30 rounded-xl border border-dashed">
+              <p className="text-muted-foreground">No overdue assignments</p>
             </div>
-          ))}
+          )}
         </TabsContent>
       </Tabs>
     </StudentLayout>

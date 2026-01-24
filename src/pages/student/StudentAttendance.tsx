@@ -90,15 +90,30 @@ export function StudentAttendance() {
     return () => { supabase.removeChannel(channel); };
   }, [studentProfile?.id, queryClient]);
 
-  // 4. Calculate Stats
+  // 4. Calculate Stats & Chart Data
   const presentCount = history.filter(h => h.status === 'present' || h.status === 'late').length;
   const absentCount = history.filter(h => h.status === 'absent').length;
   const attendanceRate = history.length > 0 ? Math.round((presentCount / history.length) * 100) : 0;
 
+  // Calculate Streak (consecutive presence)
+  let streak = 0;
+  for (const record of history) {
+    if (record.status === 'present' || record.status === 'late') {
+      streak++;
+    } else if (record.status === 'absent') {
+      break;
+    }
+  }
+
+  // Generate Weekly Trend (Last 7 days)
+  const chartData = [...history].reverse().slice(-7).map(h => ({
+    name: h.date.split('/')[0] + '/' + h.date.split('/')[1], // Simple day/month format
+    value: (h.status === 'present' || h.status === 'late') ? 100 : 0
+  }));
 
   const columns = [
     { key: 'date', header: 'Date' },
-    { key: 'course', header: 'Course' },
+    { key: 'course', header: 'Type' },
     { key: 'time', header: 'Time' },
     {
       key: 'status',
@@ -153,29 +168,39 @@ export function StudentAttendance() {
           change="Recognized by System"
         />
         <StatCard
-          title="Streak"
-          value="N/A"
+          title="Presence Streak"
+          value={streak > 0 ? `${streak} Days` : "0 Days"}
           icon={Clock}
           iconColor="text-warning"
-          change="Consistency Tracker"
+          change="Consecutive Present"
+          changeType="positive"
         />
       </div>
 
-      {/* Charts (Hidden for now until enough data) */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 dashboard-card">
-          <h3 className="font-semibold mb-4">Weekly Attendance Trend</h3>
-          <AreaChart data={[]} color="hsl(var(--success))" height={280} />
-          <p className="text-sm text-muted-foreground text-center py-10 italic">Data will appear as you scan daily</p>
+        <div className="lg:col-span-2 dashboard-card p-6">
+          <h3 className="font-semibold mb-4">Daily Attendance Log (Last 7 Entries)</h3>
+          {chartData.length > 0 ? (
+            <AreaChart data={chartData} color="hsl(var(--success))" height={280} />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 opacity-50">
+              <Calendar className="w-10 h-10 mb-2" />
+              <p className="text-sm italic">Not enough data for trend</p>
+            </div>
+          )}
         </div>
-        <div className="dashboard-card">
-          <h3 className="font-semibold mb-4">Attendance Rate</h3>
-          <DonutChart data={[{ name: 'Present', value: attendanceRate }, { name: 'Absent', value: 100 - attendanceRate }]} height={280} />
+        <div className="dashboard-card p-6">
+          <h3 className="font-semibold mb-4">Attendance Share</h3>
+          <DonutChart data={[
+            { name: 'Present/Late', value: presentCount },
+            { name: 'Absent', value: absentCount }
+          ]} height={280} />
         </div>
       </div>
 
       {/* Recent Attendance */}
-      <div className="dashboard-card">
+      <div className="dashboard-card p-6">
         <h3 className="font-semibold mb-4">Recent Attendance Records</h3>
         <DataTable columns={columns} data={history} loading={isLoading} />
       </div>
