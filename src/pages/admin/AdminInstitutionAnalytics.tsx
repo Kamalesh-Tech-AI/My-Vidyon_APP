@@ -9,7 +9,6 @@ import { Download, Calendar, RefreshCw, Check } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import Loader from '@/components/common/Loader';
-import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import { toast } from 'sonner';
 import {
     DropdownMenu,
@@ -32,8 +31,7 @@ export function AdminInstitutionAnalytics() {
     const [dateRange, setDateRange] = useState<string>('This Year');
     const [isExporting, setIsExporting] = useState(false);
 
-    // Ensure loader displays for minimum 2.5 seconds for analytics
-    const showLoader = useMinimumLoadingTime(loading, 500);
+    // No longer using intentional delay for loader
 
     useEffect(() => {
         fetchAnalyticsData();
@@ -249,7 +247,7 @@ export function AdminInstitutionAnalytics() {
 
 
 
-    if (showLoader) {
+    if (loading) {
         return (
             <AdminLayout>
                 <Loader fullScreen={false} />

@@ -10,7 +10,6 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import Loader from '@/components/common/Loader';
-import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 
 export function AdminInstitutions() {
   const navigate = useNavigate();
@@ -71,8 +70,7 @@ export function AdminInstitutions() {
     refetchOnMount: false, // Use cached data on mount
   });
 
-  // Ensure loader displays for minimum 2 seconds for institutions
-  const showLoader = useMinimumLoadingTime(isLoading, 500);
+  // No longer using intentional delay for loader
 
   useEffect(() => {
     const channel = supabase
@@ -178,7 +176,7 @@ export function AdminInstitutions() {
 
       </div>
 
-      {showLoader ? (
+      {isLoading ? (
         <Loader fullScreen={false} />
       ) : (
         <Tabs defaultValue="active" className="w-full">

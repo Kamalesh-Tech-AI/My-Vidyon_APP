@@ -49,6 +49,7 @@ const roleIcons: Record<UserRole, React.ComponentType<{ className?: string }>> =
   admin: Shield,
   parent: Users,
   accountant: Users,
+  canteen_manager: Users,
 };
 
 export function DashboardLayout({ children, navItems, roleColor = 'text-primary' }: DashboardLayoutProps) {
@@ -172,9 +173,9 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
                 !sidebarOpen && 'justify-center p-0'
               )}
             >
-              <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
-                <span className="text-sm font-medium text-sidebar-foreground transition-colors">
-                  {user.name.split(' ').map(n => n[0]).join('')}
+              <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors border border-sidebar-border/30 whitespace-nowrap leading-none overflow-hidden">
+                <span className="text-sm font-medium text-sidebar-foreground transition-colors uppercase">
+                  {user.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </span>
               </div>
               {sidebarOpen && (
@@ -385,8 +386,8 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
               to={settingsPath}
               className="flex items-center gap-3 p-1.5 rounded-full border border-border hover:border-primary/50 hover:bg-muted/50 transition-all bg-card shadow-sm pr-4"
             >
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs ring-2 ring-primary/20">
-                {user.name.split(' ').map(n => n[0]).join('')}
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs ring-2 ring-primary/20 flex-shrink-0 whitespace-nowrap leading-none overflow-hidden">
+                {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
               </div>
               <div className="hidden xl:block text-left">
                 <p className="text-xs font-bold leading-tight">{user.name}</p>

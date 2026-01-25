@@ -10,7 +10,6 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import Loader from '@/components/common/Loader';
-import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import {
     User,
     Search,
@@ -340,14 +339,14 @@ export function InstitutionTimetable() {
         });
     };
 
-    const showLoader = useMinimumLoadingTime(isLoadingFaculty, 500);
+    // No longer using intentional delay for loader
 
     const filteredFaculties = faculties.filter((f: any) =>
         f.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         f.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (showLoader) {
+    if (isLoadingFaculty) {
         return (
             <InstitutionLayout>
                 <Loader fullScreen={false} />

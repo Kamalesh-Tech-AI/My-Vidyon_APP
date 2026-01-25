@@ -6,7 +6,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useFacultyDashboard } from '@/hooks/useFacultyDashboard';
 import Loader from '@/components/common/Loader';
-import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import {
   Users,
   BookOpen,
@@ -29,10 +28,9 @@ export function FacultyDashboard() {
     user?.institutionId
   );
 
-  // Show loader for minimum time
-  const showLoader = useMinimumLoadingTime(isLoading, 500);
+  // No longer using intentional delay for loader
 
-  if (showLoader) {
+  if (isLoading) {
     return (
       <FacultyLayout>
         <Loader fullScreen={false} />

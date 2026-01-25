@@ -10,7 +10,6 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import Loader from '@/components/common/Loader';
-import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
 import { Calendar, Clock, BookOpen, Save, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/common/Badge';
@@ -446,9 +445,9 @@ export function TimetableManagement() {
         });
     };
 
-    const showLoader = useMinimumLoadingTime(isLoadingSchedule || isLoadingClassTimetable, 500);
+    const isLoading = isLoadingSchedule || isLoadingClassTimetable;
 
-    if (showLoader) {
+    if (isLoading) {
         return (
             <FacultyLayout>
                 <Loader fullScreen={false} />

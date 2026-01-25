@@ -116,6 +116,7 @@ import { AccountantFees } from "./pages/accountant/AccountantFees";
 
 // Canteen Pages
 import { CanteenDashboard } from "./pages/canteen/CanteenDashboard";
+import { CanteenSettings } from "./pages/canteen/CanteenSettings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -228,6 +229,7 @@ const App = () => {
 
                       {/* Canteen Routes */}
                       <Route path="/canteen" element={<ProtectedRoute allowedRoles={['canteen_manager']}><CanteenDashboard /></ProtectedRoute>} />
+                      <Route path="/canteen/settings" element={<ProtectedRoute allowedRoles={['canteen_manager']}><CanteenSettings /></ProtectedRoute>} />
 
                       {/* Parent Routes */}
                       <Route path="/parent" element={<ProtectedRoute allowedRoles={['parent']}><ParentDashboard /></ProtectedRoute>} />

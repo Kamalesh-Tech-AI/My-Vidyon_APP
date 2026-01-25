@@ -54,6 +54,9 @@ export function InstitutionFees() {
     // Derived Classes & Sections
     const uniqueClasses = Array.from(new Set(allClasses.map(c => c.name))).sort();
 
+    // State for Stats
+    const [stats, setStats] = useState({ revenue: 0, outstanding: 0 });
+
     // State
     const [isSelectionStarted, setIsSelectionStarted] = useState(false);
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
@@ -69,7 +72,7 @@ export function InstitutionFees() {
 
     // Popup State
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
-    const [openDialog, setOpenDialog] = useState<'none' | 'fees' | 'bio' | 'track' | 'create_structure'>('none');
+    const [openDialog, setOpenDialog] = useState<'none' | 'fees' | 'bio' | 'track' | 'create_structure' | 'receipt'>('none');
 
     // Create Fee Structure State
     const [newFeeStructure, setNewFeeStructure] = useState({
@@ -78,6 +81,34 @@ export function InstitutionFees() {
         dueDate: '',
         description: ''
     });
+
+    // Fetch Global Stats
+    useEffect(() => {
+        if (!user?.institutionId) return;
+
+        const fetchStats = async () => {
+            if (user.id.startsWith('MOCK_')) {
+                setStats({ revenue: 1250000, outstanding: 45000 });
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('student_fees')
+                    .select('amount_paid, amount_due')
+                    .eq('institution_id', user.institutionId);
+
+                if (error) throw error;
+
+                const revenue = data.reduce((sum, r) => sum + (Number(r.amount_paid) || 0), 0);
+                const due = data.reduce((sum, r) => sum + (Number(r.amount_due) || 0), 0);
+                setStats({ revenue, outstanding: due - revenue });
+            } catch (err) {
+                console.error("Stats fetch error:", err);
+            }
+        };
+        fetchStats();
+    }, [user?.institutionId]);
 
     // Effects
     useEffect(() => {
@@ -114,9 +145,64 @@ export function InstitutionFees() {
         if (user?.id.startsWith('MOCK_')) {
             await new Promise(resolve => setTimeout(resolve, 800));
             setStudents([
-                { id: '1', name: 'John Doe', rollNo: '101', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=JD', fees: { total: 5000, paid: 5000, pending: 0, status: 'Paid' } },
-                { id: '2', name: 'Jane Smith', rollNo: '102', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=JS', fees: { total: 5000, paid: 2000, pending: 3000, status: 'Pending' } },
-                { id: '3', name: 'Alex Johnson', rollNo: '103', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=AJ', fees: { total: 5000, paid: 0, pending: 5000, status: 'Due', dueDate: '2026-02-01' } },
+                {
+                    id: '1',
+                    name: 'John Doe',
+                    rollNo: '101',
+                    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=JD',
+                    parentName: 'Robert Doe',
+                    contact: '+91 98765 43210',
+                    address: '123 Baker St, London',
+                    fees: {
+                        total: 5000,
+                        paid: 5000,
+                        pending: 0,
+                        status: 'Paid',
+                        structure: [
+                            { category: 'Tuition Fee', amount: 3000, paid: 3000 },
+                            { category: 'Transport Fee', amount: 2000, paid: 2000 }
+                        ]
+                    }
+                },
+                {
+                    id: '2',
+                    name: 'Jane Smith',
+                    rollNo: '102',
+                    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=JS',
+                    parentName: 'Mary Smith',
+                    contact: '+91 91234 56789',
+                    address: '45 Green Park, NY',
+                    fees: {
+                        total: 5000,
+                        paid: 2000,
+                        pending: 3000,
+                        status: 'Pending',
+                        structure: [
+                            { category: 'Tuition Fee', amount: 3000, paid: 2000 },
+                            { category: 'Transport Fee', amount: 2000, paid: 0 }
+                        ]
+                    }
+                },
+                {
+                    id: '3',
+                    name: 'Alex Johnson',
+                    rollNo: '103',
+                    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=AJ',
+                    parentName: 'Peter Johnson',
+                    contact: '+91 99887 76655',
+                    address: '88 Hill Top, CA',
+                    fees: {
+                        total: 5000,
+                        paid: 0,
+                        pending: 5000,
+                        status: 'Due',
+                        dueDate: '2026-02-01',
+                        structure: [
+                            { category: 'Tuition Fee', amount: 3000, paid: 0 },
+                            { category: 'Transport Fee', amount: 2000, paid: 0 }
+                        ]
+                    }
+                },
             ]);
             setLoading(false);
             return;
@@ -201,6 +287,40 @@ export function InstitutionFees() {
     }, [viewMode, selectedClass, selectedSection]);
 
 
+    const handleSendMessage = (student: any) => {
+        // In a real app, this would open a dialog to compose a message
+        // For now, we'll simulate sending a reminder
+        const message = `Dear ${student.name}, this is a reminder to pay your outstanding fees of ₹${student.fees.pending}.`;
+
+        // Simulate API call
+        toast.promise(new Promise(resolve => setTimeout(resolve, 1000)), {
+            loading: 'Sending reminder...',
+            success: `Reminder sent to ${student.name}`,
+            error: 'Failed to send message'
+        });
+    };
+
+    const handleSendReceipt = (student: any) => {
+        setSelectedStudent(student);
+        setOpenDialog('receipt');
+    };
+
+    const handleDownloadReceipt = () => {
+        toast.success("Receipt downloaded successfully!");
+        setOpenDialog('none');
+    };
+
+    const handleViewDetails = (student: any) => {
+        setSelectedStudent(student);
+        setOpenDialog('bio');
+    };
+
+    const handleViewFees = (student: any) => {
+        setSelectedStudent(student);
+        setOpenDialog('fees');
+    };
+
+
     // Handlers
     const handleClassSelect = (cls: string) => {
         if (selectedClass === cls) return;
@@ -252,9 +372,6 @@ export function InstitutionFees() {
             setOpenDialog('none');
             setNewFeeStructure({ name: '', amount: '', dueDate: '', description: '' });
 
-            // TODO: Ideally we should also Create 'student_fees' records for all students linked to this structure?
-            // For now, simpler implementation.
-
         } catch (e: any) {
             toast.error(e.message);
         }
@@ -272,7 +389,7 @@ export function InstitutionFees() {
                 }
             />
 
-            {/* Statistics Section - Hardcoded placeholders for now as real aggregation is heavy */}
+            {/* Statistics Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div className="dashboard-card p-6">
                     <div className="flex items-center gap-3 mb-2">
@@ -281,7 +398,7 @@ export function InstitutionFees() {
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">Total Revenue (YTD)</span>
                     </div>
-                    <span className="text-2xl font-bold">₹ --</span>
+                    <span className="text-2xl font-bold">₹ {stats.revenue.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="dashboard-card p-6">
                     <div className="flex items-center gap-3 mb-2">
@@ -290,7 +407,7 @@ export function InstitutionFees() {
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">Outstanding</span>
                     </div>
-                    <span className="text-2xl font-bold">₹ --</span>
+                    <span className="text-2xl font-bold">₹ {stats.outstanding.toLocaleString('en-IN')}</span>
                 </div>
                 {/* ... other stats ... */}
             </div>
@@ -476,8 +593,55 @@ export function InstitutionFees() {
 
                                             <div className="flex items-center gap-2 mt-4">
                                                 {/* Actions */}
-                                                <Button variant="secondary" size="sm" className="flex-1 gap-2 text-xs h-9" disabled>Details</Button>
-                                                <Button size="sm" className="flex-1 gap-2 text-xs h-9" variant="default" disabled>Fees</Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="flex-1 gap-2 text-xs h-9"
+                                                    onClick={() => handleViewDetails(student)}
+                                                >
+                                                    Details
+                                                </Button>
+
+                                                {student.fees.status === 'Paid' ? (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            className="flex-1 gap-2 text-xs h-9"
+                                                            variant="default"
+                                                            onClick={() => handleViewFees(student)}
+                                                        >
+                                                            Fees
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="h-9 w-9 p-0 border-primary/20 text-primary hover:bg-primary/5"
+                                                            onClick={() => handleSendReceipt(student)}
+                                                            title="Send Receipt"
+                                                        >
+                                                            <Send className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            className="flex-1 gap-2 text-xs h-9"
+                                                            variant="default"
+                                                            onClick={() => handleViewFees(student)}
+                                                        >
+                                                            Fees
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-9 w-9 p-0 bg-orange-500 hover:bg-orange-600 text-white"
+                                                            onClick={() => handleSendMessage(student)}
+                                                            title="Send Reminder"
+                                                        >
+                                                            <Send className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -513,6 +677,142 @@ export function InstitutionFees() {
                     <DialogFooter>
                         <Button onClick={handleCreateFeeStructure}>Create</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Student Details Dialog */}
+            <Dialog open={openDialog === 'bio'} onOpenChange={(open) => !open && setOpenDialog('none')}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Student Details</DialogTitle>
+                    </DialogHeader>
+                    {selectedStudent && (
+                        <div className="space-y-4 py-2">
+                            <div className="flex items-center gap-4 mb-4">
+                                <img src={selectedStudent.avatar} alt="Avatar" className="w-16 h-16 rounded-full bg-muted" />
+                                <div>
+                                    <h3 className="font-bold text-lg">{selectedStudent.name}</h3>
+                                    <p className="text-sm text-muted-foreground">Roll No: {selectedStudent.rollNo}</p>
+                                    <Badge variant="outline" className="mt-1">{selectedClass} - {selectedSection}</Badge>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span className="text-muted-foreground block mb-1">Parent Name</span>
+                                    <span className="font-medium">{selectedStudent.parentName}</span>
+                                </div>
+                                <div>
+                                    <span className="text-muted-foreground block mb-1">Contact</span>
+                                    <span className="font-medium">{selectedStudent.contact || selectedStudent.fees.status}</span>
+                                </div>
+                                <div className="col-span-2">
+                                    <span className="text-muted-foreground block mb-1">Address</span>
+                                    <span className="font-medium">{selectedStudent.address || "No address provided"}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Fees Details Dialog */}
+            <Dialog open={openDialog === 'fees'} onOpenChange={(open) => !open && setOpenDialog('none')}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Fee Breakdown</DialogTitle>
+                        <DialogDescription>Detailed fee status for {selectedStudent?.name}</DialogDescription>
+                    </DialogHeader>
+                    {selectedStudent && (
+                        <div className="space-y-4 py-2">
+                            <div className="p-4 bg-muted/20 rounded-lg flex justify-between items-center">
+                                <span className="font-medium">Status</span>
+                                <Badge variant={selectedStudent.fees.status === 'Paid' ? 'success' : 'warning'}>{selectedStudent.fees.status}</Badge>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Fee Structure</h4>
+                                {selectedStudent.fees.structure && selectedStudent.fees.structure.length > 0 ? (
+                                    selectedStudent.fees.structure.map((f: any, idx: number) => (
+                                        <div key={idx} className="flex justify-between items-center text-sm p-2 border-b last:border-0 border-border/50">
+                                            <span>{f.category}</span>
+                                            <div className="text-right">
+                                                <span className="block font-medium">Due: ₹{f.amount}</span>
+                                                <span className="block text-xs text-muted-foreground">Paid: ₹{f.paid}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-sm text-muted-foreground italic">No fee structure details found.</div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-between items-center text-sm pt-4 border-t">
+                                <span className="font-bold">Total Due</span>
+                                <span className="font-bold">₹{selectedStudent.fees.total}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="font-bold">Total Paid</span>
+                                <span className="font-bold text-success">₹{selectedStudent.fees.paid}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="font-bold">Outstanding</span>
+                                <span className="font-bold text-destructive">₹{selectedStudent.fees.pending}</span>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Receipt Dialog */}
+            <Dialog open={openDialog === 'receipt'} onOpenChange={(open) => !open && setOpenDialog('none')}>
+                <DialogContent className="max-w-md bg-white text-black p-0 overflow-hidden rounded-2xl">
+                    {selectedStudent && (
+                        <div className="relative">
+                            {/* Watermark */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none select-none overflow-hidden">
+                                <div className="text-4xl font-bold -rotate-45 whitespace-nowrap">created@myvidyon created@myvidyon</div>
+                            </div>
+
+                            <div className="p-8 relative z-10 bg-white/90">
+                                <div className="text-center border-b border-dashed border-gray-300 pb-6 mb-6">
+                                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <School className="w-8 h-8 text-primary" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold tracking-tight">Fee Receipt</h2>
+                                    <p className="text-sm text-gray-500 mt-1">Receipt #{Math.floor(Math.random() * 100000)}</p>
+                                    <p className="text-xs text-gray-400 mt-1">{new Date().toLocaleDateString()}</p>
+                                </div>
+
+                                <div className="space-y-4 mb-8">
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Student Name</span>
+                                        <span className="font-bold">{selectedStudent.name}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Roll Number</span>
+                                        <span className="font-bold">{selectedStudent.rollNo}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-600">Class</span>
+                                        <span className="font-bold">{selectedClass} - {selectedSection}</span>
+                                    </div>
+                                    <div className="my-4 border-t border-gray-100"></div>
+                                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                                        <span className="text-sm font-medium">Amount Paid</span>
+                                        <span className="text-xl font-bold text-success">₹{selectedStudent.fees.paid.toLocaleString('en-IN')}</span>
+                                    </div>
+                                </div>
+
+                                <div className="text-center">
+                                    <Button className="w-full h-12 text-lg gap-2" onClick={handleDownloadReceipt}>
+                                        <Send className="w-4 h-4" /> Send Receipt
+                                    </Button>
+                                    <p className="text-[10px] text-gray-400 mt-4">Automated computerized receipt. No signature required.</p>
+                                    <p className="text-[10px] text-gray-300 mt-1">created@myvidyon</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
 

@@ -1,26 +1,25 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { CanteenLayout } from '@/layouts/CanteenLayout';
-import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
 import {
-    ChevronRight,
-    ArrowLeft,
     CheckCircle2,
     XCircle,
-    Users,
-    GraduationCap,
     Loader2,
     Calendar,
-    Search
+    Search,
+    Users,
+    GraduationCap,
+    ChevronRight,
+    ArrowLeft
 } from 'lucide-react';
 import { useInstitution } from '@/context/InstitutionContext';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export function CanteenDashboard() {
@@ -30,7 +29,6 @@ export function CanteenDashboard() {
     const [selectedClass, setSelectedClass] = useState<string | null>(null);
     const [selectedSection, setSelectedSection] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-
     const [students, setStudents] = useState<any[]>([]);
     const [attendance, setAttendance] = useState<Record<string, string>>({});
     const [canteenEntries, setCanteenEntries] = useState<Record<string, string>>({});
@@ -42,7 +40,6 @@ export function CanteenDashboard() {
     // Get unique classes sorted
     const classGroups = useMemo(() => {
         const unique = Array.from(new Set(allClasses.map(c => c.name)));
-        // Custom sort for LKG, UKG, 1, 2...
         return unique.sort((a, b) => {
             const order = ['LKG', 'UKG'];
             const indexA = order.indexOf(a);
@@ -68,7 +65,7 @@ export function CanteenDashboard() {
 
         // Mock Data Bypass
         if (user?.id.startsWith('MOCK_')) {
-            await new Promise(resolve => setTimeout(resolve, 800)); // Simulate delay
+            await new Promise(resolve => setTimeout(resolve, 800));
             const mockStudents = [
                 { id: 'S1', name: 'John Doe', roll_no: '101' },
                 { id: 'S2', name: 'Jane Smith', roll_no: '102' },
@@ -90,8 +87,6 @@ export function CanteenDashboard() {
         }
 
         try {
-            // 1. Get students for class/section
-            // We need to find the correct class_id first or just filter by name/section
             const { data: studentsData, error: studentError } = await supabase
                 .from('students')
                 .select('*')
@@ -104,7 +99,6 @@ export function CanteenDashboard() {
 
             const studentIds = studentsData.map(s => s.id);
 
-            // 2. Get morning attendance
             const { data: attData } = await supabase
                 .from('student_attendance')
                 .select('student_id, status')
@@ -116,7 +110,6 @@ export function CanteenDashboard() {
             attData?.forEach(a => attMap[a.student_id] = a.status);
             setAttendance(attMap);
 
-            // 3. Get canteen entries
             const { data: canteenData } = await supabase
                 .from('canteen_attendance')
                 .select('student_id, status')
@@ -142,12 +135,14 @@ export function CanteenDashboard() {
         }
     }, [viewMode, selectedClass, selectedSection]);
 
-    const toggleCanteenEntry = async (studentId: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'present' ? 'absent' : 'present';
+    const handleStudentClick = async (studentId: string, morningStatus: string) => {
+        const newStatus = morningStatus === 'present'
+            ? (canteenEntries[studentId] === 'present' ? 'absent' : 'present')
+            : 'absent';
 
         if (user?.id.startsWith('MOCK_')) {
             setCanteenEntries(prev => ({ ...prev, [studentId]: newStatus }));
-            toast.success(newStatus === 'present' ? 'Permitted (Mock)' : 'Access Revoked (Mock)');
+            toast.success(newStatus === 'present' ? 'Permitted in canteen' : 'Marked absent in canteen');
             return;
         }
 
@@ -164,7 +159,7 @@ export function CanteenDashboard() {
             if (error) throw error;
 
             setCanteenEntries(prev => ({ ...prev, [studentId]: newStatus }));
-            toast.success(newStatus === 'present' ? 'Permitted' : 'Access Revoked');
+            toast.success(newStatus === 'present' ? 'Permitted in canteen' : 'Marked absent in canteen');
         } catch (err: any) {
             toast.error(err.message);
         }
@@ -191,6 +186,13 @@ export function CanteenDashboard() {
             s.roll_no?.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [students, searchTerm]);
+
+    const stats = useMemo(() => {
+        const morningPresent = filteredStudents.filter(s => attendance[s.id] === 'present').length;
+        const morningAbsent = filteredStudents.filter(s => attendance[s.id] === 'absent').length;
+        const canteenPermitted = filteredStudents.filter(s => canteenEntries[s.id] === 'present').length;
+        return { morningPresent, morningAbsent, canteenPermitted, total: filteredStudents.length };
+    }, [filteredStudents, attendance, canteenEntries]);
 
     return (
         <CanteenLayout>
@@ -260,10 +262,28 @@ export function CanteenDashboard() {
 
             {viewMode === 'students' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-10 duration-500">
-                    <div className="bg-card border-2 rounded-2xl p-4 md:p-6 shadow-sm overflow-hidden relative">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none hidden md:block">
-                            <Users className="w-32 h-32" />
-                        </div>
+                    {/* Stats Overview */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Card className="p-4 border-2">
+                            <div className="text-2xl font-bold text-foreground">{stats.total}</div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Total Students</div>
+                        </Card>
+                        <Card className="p-4 border-2 border-green-200 bg-green-50/50">
+                            <div className="text-2xl font-bold text-green-600">{stats.morningPresent}</div>
+                            <div className="text-xs text-green-700 uppercase tracking-wider mt-1">Morning Present</div>
+                        </Card>
+                        <Card className="p-4 border-2 border-red-200 bg-red-50/50">
+                            <div className="text-2xl font-bold text-red-600">{stats.morningAbsent}</div>
+                            <div className="text-xs text-red-700 uppercase tracking-wider mt-1">Morning Absent</div>
+                        </Card>
+                        <Card className="p-4 border-2 border-blue-200 bg-blue-50/50">
+                            <div className="text-2xl font-bold text-blue-600">{stats.canteenPermitted}</div>
+                            <div className="text-xs text-blue-700 uppercase tracking-wider mt-1">Canteen Permitted</div>
+                        </Card>
+                    </div>
+
+                    {/* Class/Section Header + Search */}
+                    <div className="bg-card border-2 rounded-2xl p-4 md:p-6 shadow-sm">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div className="flex items-center gap-3 md:gap-4">
                                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
@@ -286,104 +306,104 @@ export function CanteenDashboard() {
                         </div>
                     </div>
 
+                    {/* Students Grid */}
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
                             <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                            <p className="text-muted-foreground font-medium">Fetching student records...</p>
+                            <p className="text-muted-foreground font-medium">Loading students...</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredStudents.map((student) => {
-                                const isAbsentInMorning = attendance[student.id] === 'absent';
-                                const isPermittedAction = canteenEntries[student.id] === 'present';
+                        <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {filteredStudents.map((student) => {
+                                    const morningStatus = attendance[student.id] || 'present';
+                                    const isMorningPresent = morningStatus === 'present';
+                                    const isCanteenPermitted = canteenEntries[student.id] === 'present';
 
-                                return (
-                                    <Card
-                                        key={student.id}
-                                        className={cn(
-                                            "p-5 transition-all border-2 relative overflow-hidden group",
-                                            isAbsentInMorning ? "opacity-50 grayscale bg-muted/30" : "hover:shadow-md hover:border-primary/30 bg-card",
-                                            isPermittedAction && !isAbsentInMorning && "border-green-500/50 bg-green-50/10"
-                                        )}
-                                    >
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 rounded-full bg-muted border-2 border-transparent overflow-hidden group-hover:border-primary/20 transition-all">
-                                                    <img
-                                                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${student.name}`}
-                                                        alt={student.name}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-bold text-base leading-tight">{student.name}</h3>
-                                                    <p className="text-xs text-muted-foreground font-medium">Roll: {student.roll_no || student.id.slice(0, 4)}</p>
+                                    return (
+                                        <Card
+                                            key={student.id}
+                                            className={cn(
+                                                "p-4 transition-all border-2 cursor-pointer hover:shadow-lg",
+                                                isMorningPresent
+                                                    ? isCanteenPermitted
+                                                        ? "border-green-300 bg-green-50/30 hover:border-green-400"
+                                                        : "border-border hover:border-primary/30"
+                                                    : "border-red-200 bg-red-50/20 hover:border-red-300"
+                                            )}
+                                            onClick={() => handleStudentClick(student.id, morningStatus)}
+                                        >
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <div className="w-10 h-10 rounded-full bg-primary/10 border-2 border-primary/20 flex-shrink-0 flex items-center justify-center">
+                                                        <span className="text-xs font-bold text-primary uppercase">
+                                                            {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h3 className="font-bold text-sm leading-tight truncate">{student.name}</h3>
+                                                        <p className="text-xs text-muted-foreground font-medium">
+                                                            Roll: {student.roll_no || student.id.slice(0, 4)}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <Badge
-                                                variant={isAbsentInMorning ? "destructive" : "success"}
-                                                className="uppercase text-[10px] font-black"
-                                            >
-                                                {isAbsentInMorning ? "Morning Absent" : "Morning Present"}
-                                            </Badge>
-                                        </div>
 
-                                        <div className="flex gap-2">
-                                            <Button
-                                                className={cn(
-                                                    "flex-1 gap-2 rounded-xl h-11 font-bold transition-all shadow-sm",
-                                                    isPermittedAction ? "bg-green-600 hover:bg-green-700 text-white" : "bg-muted text-muted-foreground hover:bg-green-50 hover:text-green-600"
-                                                )}
-                                                onClick={() => toggleCanteenEntry(student.id, canteenEntries[student.id] || 'absent')}
-                                                disabled={isAbsentInMorning}
-                                            >
-                                                <CheckCircle2 className="w-5 h-5" />
-                                                {isPermittedAction ? "PERMITTED" : "PERMIT"}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "w-12 h-11 p-0 rounded-xl transition-all border-2",
-                                                    !isPermittedAction ? "bg-red-50 text-red-600 border-red-200" : "text-muted-foreground hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                                                )}
-                                                onClick={() => toggleCanteenEntry(student.id, canteenEntries[student.id] || 'absent')}
-                                                disabled={isAbsentInMorning || !isPermittedAction}
-                                            >
-                                                <XCircle className="w-5 h-5" />
-                                            </Button>
-                                        </div>
-
-                                        {isAbsentInMorning && (
-                                            <div className="absolute inset-0 bg-background/5 backdrop-blur-[1px] cursor-not-allowed flex flex-col items-center justify-center z-10 gap-3">
-                                                <Badge variant="destructive" className="px-4 py-2 scale-110 shadow-lg">NOT ELIGIBLE</Badge>
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    className="rounded-full w-10 h-10 p-0 shadow-lg hover:scale-110 transition-transform cursor-pointer"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleReport(student);
-                                                    }}
-                                                    title="Report Student (Found in canteen while absent)"
+                                            <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                                                <Badge
+                                                    variant={isMorningPresent ? "success" : "destructive"}
+                                                    className="text-[10px] font-black uppercase"
                                                 >
-                                                    <XCircle className="w-6 h-6" />
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </Card>
-                                );
-                            })}
+                                                    {isMorningPresent ? "Morning ✓" : "Morning ✗"}
+                                                </Badge>
 
-                            {filteredStudents.length === 0 && (
-                                <div className="col-span-full py-20 text-center space-y-4">
-                                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto opacity-40">
-                                        <Search className="w-10 h-10" />
+                                                <div className={cn(
+                                                    "w-12 h-12 rounded-full flex items-center justify-center transition-all",
+                                                    isMorningPresent
+                                                        ? isCanteenPermitted
+                                                            ? "bg-green-500 hover:bg-green-600"
+                                                            : "bg-gray-200 hover:bg-green-100"
+                                                        : "bg-red-500 hover:bg-red-600"
+                                                )}>
+                                                    {isMorningPresent ? (
+                                                        <CheckCircle2 className={cn(
+                                                            "w-7 h-7",
+                                                            isCanteenPermitted ? "text-white" : "text-gray-400"
+                                                        )} />
+                                                    ) : (
+                                                        <XCircle className="w-7 h-7 text-white" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    );
+                                })}
+
+                                {filteredStudents.length === 0 && (
+                                    <div className="col-span-full py-20 text-center space-y-4">
+                                        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto opacity-40">
+                                            <Search className="w-10 h-10" />
+                                        </div>
+                                        <p className="text-muted-foreground font-bold">No students found.</p>
                                     </div>
-                                    <p className="text-muted-foreground font-bold">No students matched your search.</p>
-                                    <Button variant="link" onClick={() => setSearchTerm('')}>Clear search</Button>
+                                )}
+                            </div>
+
+                            {/* Legend */}
+                            <div className="mt-4 p-4 bg-muted/30 rounded-xl border border-border">
+                                <h3 className="font-bold text-sm mb-3">How to use:</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                        <span><strong>Green Tick:</strong> Student present in morning. Click to permit in canteen.</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <XCircle className="w-5 h-5 text-red-600" />
+                                        <span><strong>Red Cross:</strong> Student absent in morning. Click to mark absent in canteen.</span>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
