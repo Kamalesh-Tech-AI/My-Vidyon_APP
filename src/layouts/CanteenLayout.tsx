@@ -29,7 +29,7 @@ export function CanteenLayout({ children }: { children: ReactNode }) {
                     </div>
                     <RealtimeNotificationBell />
 
-                    <div className="flex items-center gap-2 md:gap-3 pl-2 md:pl-4 border-l border-border">
+                    <Link to="/canteen/settings" className="flex items-center gap-2 md:gap-3 pl-2 md:pl-4 border-l border-border hover:bg-muted/50 transition-colors rounded-r-lg -mr-4 pr-4 py-1">
                         <div className="text-right hidden md:block">
                             <p className="text-sm font-bold leading-none">{user.name}</p>
                             <p className="text-[10px] text-muted-foreground mt-1">Canteen Manager</p>
@@ -37,14 +37,14 @@ export function CanteenLayout({ children }: { children: ReactNode }) {
                         <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs md:text-sm flex-shrink-0 whitespace-nowrap leading-none border border-primary/20 shadow-inner">
                             {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
-                        <button
-                            onClick={() => logout()}
-                            className="p-1.5 md:p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            title="Logout"
-                        >
-                            <LogOut className="w-4 h-4 md:w-5 md:h-5" />
-                        </button>
-                    </div>
+                    </Link>
+                    <button
+                        onClick={() => logout()}
+                        className="p-1.5 md:p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Logout"
+                    >
+                        <LogOut className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
                 </div>
             </header>
 
