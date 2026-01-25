@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Loader from '@/components/common/Loader';
 import { useMinimumLoadingTime } from '@/hooks/useMinimumLoadingTime';
+import { useERPRealtime } from '@/hooks/useERPRealtime';
 import {
   Building2,
   Users,
@@ -116,40 +117,8 @@ export function AdminDashboard() {
   // Ensure loader displays for minimum 1.5 seconds for smooth UX
   const showLoader = useMinimumLoadingTime(isLoading, 500);
 
-  useEffect(() => {
-    // Subscribe to platform activities for real-time feed
-    const activityChannel = supabase
-      .channel('platform_activities_realtime')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'platform_activities'
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['admin-activities'] });
-        queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-      })
-      .subscribe();
-
-    // Subscribe to critical table changes for stats
-    const tablesChannel = supabase
-      .channel('dashboard_stats_sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'institutions' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-        queryClient.invalidateQueries({ queryKey: ['admin-pending'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subscriptions' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(activityChannel);
-      supabase.removeChannel(tablesChannel);
-    };
-  }, [queryClient]);
+  // Subscribe to real-time updates via SSE
+  useERPRealtime();
 
 
   const activityColumns = [

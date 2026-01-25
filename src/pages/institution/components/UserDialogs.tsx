@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 // --- SUB-COMPONENTS ---
@@ -28,7 +29,8 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
     const [progress, setProgress] = useState('');
     const [data, setData] = useState({
         name: '', registerNumber: '', className: '', section: '', dob: '', gender: '',
-        parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '', phone: ''
+        parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '', phone: '',
+        bloodGroup: '', city: '', zipCode: '', parentRelation: 'Father', academicYear: '2025-26'
     });
     const [image, setImage] = useState<string | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -184,7 +186,12 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                     gender: data.gender,
                     address: data.address,
                     date_of_birth: data.dob,
-                    phone: (data as any).phone || ""
+                    phone: (data as any).phone || "",
+                    blood_group: data.bloodGroup,
+                    city: data.city,
+                    zip_code: data.zipCode,
+                    parent_relation: data.parentRelation,
+                    academic_year: data.academicYear
                 }
             });
 
@@ -206,7 +213,12 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
 
             // Close dialog immediately for better UX
             onOpenChange(false);
-            setData({ name: '', registerNumber: '', className: '', section: '', dob: '', gender: '', parentName: '', parentEmail: '', parentPhone: '', email: '', address: '', password: '', phone: '' });
+            setData({
+                name: '', registerNumber: '', className: '', section: '', dob: '', gender: '',
+                parentName: '', parentEmail: '', parentPhone: '', email: '', address: '',
+                password: '', phone: '', bloodGroup: '', city: '', zipCode: '',
+                parentRelation: 'Father', academicYear: '2025-26'
+            });
             setImage(null);
             setProgress('');
 
@@ -347,9 +359,43 @@ function AddStudentDialog({ open, onOpenChange, onSuccess, institutionId }: any)
                         <Label>Student Email *</Label>
                         <Input type="email" value={data.email} onChange={(e) => setData({ ...data, email: e.target.value })} placeholder="student@school.com" />
                     </div>
+                    <div className="space-y-2">
+                        <Label>Blood Group</Label>
+                        <Input value={data.bloodGroup} onChange={(e) => setData({ ...data, bloodGroup: e.target.value })} placeholder="e.g. O+" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Academic Year</Label>
+                        <Select value={data.academicYear} onValueChange={(val) => setData({ ...data, academicYear: val })}>
+                            <SelectTrigger><SelectValue placeholder="Select Year" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="2024-25">2024-25</SelectItem>
+                                <SelectItem value="2025-26">2025-26</SelectItem>
+                                <SelectItem value="2026-27">2026-27</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label>Address</Label>
                         <Input value={data.address} onChange={(e) => setData({ ...data, address: e.target.value })} placeholder="Full residential address" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>City</Label>
+                        <Input value={data.city} onChange={(e) => setData({ ...data, city: e.target.value })} placeholder="e.g. Mumbai" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Zip Code</Label>
+                        <Input value={data.zipCode} onChange={(e) => setData({ ...data, zipCode: e.target.value })} placeholder="e.g. 400001" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Parent Relation</Label>
+                        <Select value={data.parentRelation} onValueChange={(val) => setData({ ...data, parentRelation: val })}>
+                            <SelectTrigger><SelectValue placeholder="Select Relation" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Father">Father</SelectItem>
+                                <SelectItem value="Mother">Mother</SelectItem>
+                                <SelectItem value="Guardian">Guardian</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="space-y-2">
                         <Label>Student Phone</Label>
@@ -850,19 +896,84 @@ function AddStaffDialog({ open, onOpenChange, onSuccess, institutionId, fixedRol
 
 function AddParentDialog({ open, onOpenChange, onSuccess, institutionId, students }: any) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [fetchingParent, setFetchingParent] = useState(false);
+    const [existingChildrenIds, setExistingChildrenIds] = useState<string[]>([]);
     const [data, setData] = useState({ name: '', email: '', phone: '', password: '', studentIds: [] as string[] });
     const queryClient = useQueryClient();
 
-    // Filter students by matching parent email
+    // Check for existing parent when email changes
+    useEffect(() => {
+        const checkExistingParent = async () => {
+            if (!data.email || !data.email.includes('@')) return;
+
+            setFetchingParent(true);
+            try {
+                // 1. Fetch parent details
+                const { data: parent, error } = await supabase
+                    .from('parents')
+                    .select('id, name, phone, student_parents(student_id)')
+                    .eq('email', data.email.toLowerCase())
+                    .maybeSingle();
+
+                if (parent) {
+                    const currentChildrenIds = parent.student_parents?.map((sp: any) => sp.student_id) || [];
+                    setExistingChildrenIds(currentChildrenIds);
+
+                    // Pre-fill parent details if they exist
+                    setData(prev => ({
+                        ...prev,
+                        name: parent.name,
+                        phone: parent.phone || prev.phone,
+                        studentIds: Array.from(new Set([...prev.studentIds, ...currentChildrenIds]))
+                    }));
+                } else {
+                    setExistingChildrenIds([]);
+                }
+            } catch (err) {
+                console.error("Error checking existing parent:", err);
+            } finally {
+                setFetchingParent(false);
+            }
+        };
+
+        const timer = setTimeout(checkExistingParent, 500);
+        return () => clearTimeout(timer);
+    }, [data.email]);
+
+    // Auto-match students by parent_email
+    useEffect(() => {
+        if (!data.email) return;
+
+        const matchingStudents = students.filter((s: any) =>
+            s.parent_email?.toLowerCase() === data.email.toLowerCase()
+        ).map((s: any) => s.id);
+
+        if (matchingStudents.length > 0) {
+            setData(prev => ({
+                ...prev,
+                studentIds: Array.from(new Set([...prev.studentIds, ...matchingStudents]))
+            }));
+        }
+    }, [data.email, students]);
+
+    // Filter students for the list
     const filteredStudents = useMemo(() => {
         if (!data.email) return students;
-        return students.filter((s: any) =>
-            s.parent_email?.toLowerCase() === data.email.toLowerCase()
-        );
+
+        // Show all students, but those that match or are already linked should be easy to find
+        // Always return a NEW array to avoid mutation issues
+        return [...students].sort((a, b) => {
+            const aMatch = a.parent_email?.toLowerCase() === data.email.toLowerCase();
+            const bMatch = b.parent_email?.toLowerCase() === data.email.toLowerCase();
+            if (aMatch && !bMatch) return -1;
+            if (!aMatch && bMatch) return 1;
+            return 0;
+        });
     }, [students, data.email]);
 
     const handleSubmit = async () => {
-        if (!data.name || !data.email || !data.phone || !data.password || data.studentIds.length === 0) {
+        const passwordRequired = !isExistingParent;
+        if (!data.name || !data.email || !data.phone || (passwordRequired && !data.password) || data.studentIds.length === 0) {
             toast.error('Please fill all mandatory fields');
             return;
         }
@@ -889,19 +1000,12 @@ function AddParentDialog({ open, onOpenChange, onSuccess, institutionId, student
 
             if (error) throw error;
 
-            if (responseData?.user?.id && data.studentIds.length > 0) {
-                // Link multiple logic (same as before)
-                const { data: parentRecord } = await supabase.from('parents').select('id').eq('profile_id', responseData.user.id).single();
-                if (parentRecord) {
-                    const links = data.studentIds.map(sId => ({ student_id: sId, parent_id: parentRecord.id }));
-                    await supabase.from('student_parents').upsert(links, { onConflict: 'student_id,parent_id' });
-                }
-            }
-            toast.success('Parent added');
+            toast.success(isExistingParent ? 'Parent links updated' : 'Parent added');
             queryClient.invalidateQueries({ queryKey: ['institution-parents'] });
             onSuccess();
             onOpenChange(false);
             setData({ name: '', email: '', phone: '', password: '', studentIds: [] });
+            setExistingChildrenIds([]);
         } catch (error: any) {
             toast.error(error.message);
         } finally {
@@ -909,36 +1013,123 @@ function AddParentDialog({ open, onOpenChange, onSuccess, institutionId, student
         }
     };
 
+    const isExistingParent = existingChildrenIds.length > 0;
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-xl">
-                <DialogHeader><DialogTitle>Add Parent</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>{isExistingParent ? 'Edit Parent Links' : 'Add Parent'}</DialogTitle>
+                </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                    <div className="space-y-2"><Label>Name *</Label><Input value={data.name} onChange={e => setData({ ...data, name: e.target.value })} placeholder="e.g. Robert Doe" /></div>
-                    <div className="space-y-2"><Label>Email *</Label><Input type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} placeholder="valid@email.com" /></div>
-                    <div className="space-y-2"><Label>Phone *</Label><Input type="tel" value={data.phone} onChange={e => setData({ ...data, phone: e.target.value })} placeholder="e.g. 9876543210 (10 digits)" /></div>
-                    <div className="space-y-2"><Label>Password *</Label><Input type="password" value={data.password} onChange={e => setData({ ...data, password: e.target.value })} placeholder="Min 6 characters" /></div>
+                    <div className="space-y-2">
+                        <Label>Email *</Label>
+                        <Input type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} placeholder="valid@email.com" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Name *</Label>
+                        <Input
+                            value={data.name}
+                            onChange={e => setData({ ...data, name: e.target.value })}
+                            placeholder="e.g. Robert Doe"
+                            disabled={isExistingParent}
+                            className={isExistingParent ? "bg-muted cursor-not-allowed" : ""}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Phone *</Label>
+                        <Input
+                            type="tel"
+                            value={data.phone}
+                            onChange={e => setData({ ...data, phone: e.target.value })}
+                            placeholder="e.g. 9876543210"
+                            disabled={isExistingParent}
+                            className={isExistingParent ? "bg-muted cursor-not-allowed" : ""}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Password *</Label>
+                        <Input
+                            type="password"
+                            value={data.password}
+                            onChange={e => setData({ ...data, password: e.target.value })}
+                            placeholder={isExistingParent ? "••••••" : "Min 6 characters"}
+                            disabled={isExistingParent}
+                            className={isExistingParent ? "bg-muted cursor-not-allowed" : ""}
+                        />
+                    </div>
                     <div className="space-y-2 md:col-span-2">
-                        <Label>Children * {data.email && `(matching ${data.email})`}</Label>
-                        <div className="grid grid-cols-1 gap-2 border rounded-lg p-3 max-h-40 overflow-y-auto bg-card">
+                        <Label className="flex items-center justify-between">
+                            <span>Children *</span>
+                            <div className="flex gap-2 text-[10px]">
+                                {fetchingParent && <Loader2 className="w-3 h-3 animate-spin" />}
+                                {isExistingParent && <span className="text-muted-foreground uppercase tracking-wider font-semibold">Existing Parent Mode</span>}
+                            </div>
+                        </Label>
+                        <div className="grid grid-cols-1 gap-2 border rounded-lg p-3 max-h-56 overflow-y-auto bg-muted/20">
                             {filteredStudents.length === 0 ? (
-                                <p className="text-xs text-muted-foreground text-center py-2">
-                                    {data.email ? 'No students found with this parent email' : 'Enter parent email to see matching students'}
-                                </p>
+                                <p className="text-xs text-muted-foreground text-center py-2">No students found.</p>
                             ) : (
-                                filteredStudents.map((child: any) => (
-                                    <div key={child.id} className="flex items-center gap-2">
-                                        <input type="checkbox" checked={data.studentIds.includes(child.id)}
-                                            onChange={(e) => {
-                                                const newIds = e.target.checked ? [...data.studentIds, child.id] : data.studentIds.filter(id => id !== child.id);
-                                                setData({ ...data, studentIds: newIds });
-                                            }}
-                                        />
-                                        <span className="text-sm">{child.name}</span>
-                                    </div>
-                                ))
+                                filteredStudents.map((child: any) => {
+                                    const isAutoMatched = child.parent_email?.toLowerCase() === data.email.toLowerCase();
+                                    const isAlreadyLinked = existingChildrenIds.includes(child.id);
+
+                                    return (
+                                        <div
+                                            key={child.id}
+                                            className={`flex items-center justify-between p-2 rounded-md transition-colors ${isAlreadyLinked
+                                                ? 'bg-primary/5'
+                                                : isAutoMatched
+                                                    ? 'bg-green-500/5 border border-green-500/20'
+                                                    : 'hover:bg-accent'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <input type="checkbox" checked={data.studentIds.includes(child.id)}
+                                                    onChange={(e) => {
+                                                        const newIds = e.target.checked
+                                                            ? [...data.studentIds, child.id]
+                                                            : data.studentIds.filter(id => id !== child.id);
+                                                        setData({ ...data, studentIds: newIds });
+                                                    }}
+                                                    className="w-4 h-4 rounded border-primary text-primary focus:ring-primary"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-semibold">{child.name}</span>
+                                                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                                        <span>{child.register_number}</span>
+                                                        <span>•</span>
+                                                        <span>{child.class_name} {child.section}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {isAlreadyLinked && (
+                                                    <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-tighter px-1.5 h-4 bg-primary/10 text-primary border-none shadow-none">
+                                                        Linked
+                                                    </Badge>
+                                                )}
+                                                {isAutoMatched && !isAlreadyLinked && (
+                                                    <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-tighter px-1.5 h-4 border-green-500 text-green-600 bg-green-50 shadow-none">
+                                                        New Match
+                                                    </Badge>
+                                                )}
+                                                {child.parent_email && !isAutoMatched && !isAlreadyLinked && (
+                                                    <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-tighter px-1.5 h-4 border-orange-200 text-orange-600 bg-orange-50/50 shadow-none">
+                                                        Other Parent
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
+                        {isExistingParent && (
+                            <p className="text-[10px] text-muted-foreground mt-1 text-center">
+                                Identity fields are locked because this parent is already registered.
+                            </p>
+                        )}
                     </div>
                 </div>
                 <DialogFooter>

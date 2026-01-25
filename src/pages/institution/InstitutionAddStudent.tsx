@@ -50,7 +50,8 @@ export function InstitutionAddStudent() {
         parentName: '',
         parentRelation: 'Father',
         parentPhone: '',
-        parentEmail: ''
+        parentEmail: '',
+        academicYear: '2025-26'
     });
 
     const [image, setImage] = useState<string | null>(null);
@@ -177,6 +178,7 @@ export function InstitutionAddStudent() {
                     city: formData.city,
                     zip_code: formData.zipCode,
                     image_url: imageUrl,
+                    academic_year: formData.academicYear,
                     institution_id: (await supabase.auth.getUser()).data.user?.user_metadata?.institution_id
                 })
                 .select()
@@ -432,6 +434,20 @@ export function InstitutionAddStudent() {
                                     <Label htmlFor="parentEmail">Parent Email</Label>
                                     <Input type="email" id="parentEmail" name="parentEmail" value={formData.parentEmail} onChange={handleChange} placeholder="parent@example.com" />
                                 </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="academicYear">Academic Year</Label>
+                                    <select
+                                        id="academicYear"
+                                        name="academicYear"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={formData.academicYear}
+                                        onChange={handleChange}
+                                    >
+                                        <option value="2024-25">2024-25</option>
+                                        <option value="2025-26">2025-26</option>
+                                        <option value="2026-27">2026-27</option>
+                                    </select>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -444,7 +460,7 @@ export function InstitutionAddStudent() {
                     </Button>
                 </div>
             </form>
-        </InstitutionLayout>
+        </InstitutionLayout >
     );
 }
 

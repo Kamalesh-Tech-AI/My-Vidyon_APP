@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { useERPRealtime } from './useERPRealtime';
 
 interface DashboardStats {
     totalStudents: number;
@@ -223,84 +224,8 @@ export function useFacultyDashboard(facultyId?: string, institutionId?: string) 
             : '0%',
     };
 
-    // 8. Real-time Subscriptions
-    useEffect(() => {
-        if (!facultyId || !institutionId) return;
-
-        const channel = supabase
-            .channel('faculty-dashboard-realtime')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'students',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['faculty-total-students'] });
-                    queryClient.invalidateQueries({ queryKey: ['faculty-my-students'] });
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'student_attendance',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['faculty-today-attendance'] });
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'faculty_subjects',
-                    filter: `faculty_profile_id=eq.${facultyId}`,
-                },
-                () => {
-                    // Update both subjects list AND my-students/pending-leaves if class teacher assignment changed
-                    queryClient.invalidateQueries({ queryKey: ['faculty-assigned-subjects'] });
-                    queryClient.invalidateQueries({ queryKey: ['faculty-my-students'] });
-                    queryClient.invalidateQueries({ queryKey: ['faculty-pending-leaves'] });
-                    toast.info('Your assignments have been updated');
-                }
-            )
-            // Schedule changes
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'timetable_slots',
-                    filter: `faculty_id=eq.${facultyId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['faculty-today-schedule'] });
-                }
-            )
-            // New Leave Requests
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'leave_requests',
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['faculty-pending-leaves'] });
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [facultyId, institutionId, queryClient]);
+    // 8. Real-time Subscriptions (Migrated to SSE)
+    useERPRealtime(institutionId);
 
     return {
         stats,

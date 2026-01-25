@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { useERPRealtime } from './useERPRealtime';
 
 interface Child {
     id: string;
@@ -198,108 +199,8 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         totalPendingFees: feeData?.pending || 0,
     };
 
-    // 7. Real-time Subscriptions
-    useEffect(() => {
-        if (!parentId || childIds.length === 0) return;
-
-        const channel = supabase
-            .channel('parent-dashboard-realtime')
-            // Student changes (new child added, etc.)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'students',
-                    filter: `parent_id=eq.${parentId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['parent-children'] });
-                    toast.info('Student information updated');
-                }
-            )
-            // Attendance changes
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'student_attendance',
-                },
-                (payload: any) => {
-                    if (childIds.includes(payload.new?.student_id)) {
-                        queryClient.invalidateQueries({ queryKey: ['parent-children-attendance'] });
-                        toast.info('Attendance updated');
-                    }
-                }
-            )
-            // Grades posted
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'grades',
-                },
-                (payload: any) => {
-                    if (childIds.includes(payload.new?.student_id)) {
-                        const childName = children.find(c => c.id === payload.new?.student_id)?.name;
-                        toast.success(`New grade posted for ${childName}`);
-                    }
-                }
-            )
-            // Leave request status changes
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'student_leave_requests',
-                },
-                (payload: any) => {
-                    if (childIds.includes(payload.new?.student_id)) {
-                        queryClient.invalidateQueries({ queryKey: ['parent-leave-requests'] });
-                        if (payload.new?.status !== payload.old?.status) {
-                            toast.info(`Leave request ${payload.new?.status}`);
-                        }
-                    }
-                }
-            )
-            // Fee payments
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'student_fees',
-                },
-                (payload: any) => {
-                    if (childIds.includes(payload.new?.student_id)) {
-                        queryClient.invalidateQueries({ queryKey: ['parent-fees'] });
-                        toast.info('Fee payment updated');
-                    }
-                }
-            )
-            // Academic Events
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'academic_events',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['parent-events'] });
-                    toast.info('New event added');
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [parentId, childIds, institutionId, queryClient, children]);
+    // 7. Real-time Subscriptions (Migrated to SSE)
+    useERPRealtime(institutionId);
 
     return {
         stats,

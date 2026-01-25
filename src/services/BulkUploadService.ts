@@ -76,7 +76,20 @@ export class BulkUploadService {
                             full_name: user.full_name || user.name,
                             institution_id: institutionId,
                             register_number: user.register_number,
-                            staff_id: user.staff_id || user.staffId // Handle both cases
+                            staff_id: user.staff_id || user.staffId,
+                            class_name: user.class_name || user.class,
+                            section: user.section,
+                            date_of_birth: user.dob || user.date_of_birth,
+                            gender: user.gender,
+                            parent_name: user.parent_name,
+                            parent_email: user.parent_email,
+                            parent_phone: user.parent_phone,
+                            parent_contact: user.parent_contact || user.parent_phone,
+                            address: user.address,
+                            blood_group: user.blood_group || user.bloodGroup,
+                            city: user.city,
+                            zip_code: user.zip_code || user.zipCode,
+                            academic_year: user.academic_year || user.academicYear
                         }
                     });
 

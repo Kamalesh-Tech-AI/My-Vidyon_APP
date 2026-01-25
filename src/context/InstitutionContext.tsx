@@ -98,32 +98,46 @@ export function InstitutionProvider({ children }: { children: ReactNode }) {
                 .order('name');
             setAllSubjectsList(subjectsData || []);
 
-            // 2. Fetch Staff (Profiles with roles) & Staff Details (for department)
-            // Fetching all and filtering client-side to match InstitutionUsers Page logic perfectly
-            const { data: staffProfiles } = await supabase
-                .from('profiles')
-                .select('id, full_name, role')
-                .eq('institution_id', institutionId);
-
-            const { data: staffDetails } = await supabase
+            // 2. Fetch Staff via staff_details (source of truth for institutional link)
+            // Joined with profiles for basic user info
+            const { data: staffRecords, error: staffError } = await supabase
                 .from('staff_details')
-                .select('profile_id, department')
+                .select(`
+                    profile_id,
+                    department,
+                    role,
+                    profiles:profile_id (
+                        id,
+                        full_name,
+                        role
+                    )
+                `)
                 .eq('institution_id', institutionId);
 
-            const staffMap = new Map();
-            staffDetails?.forEach((d: any) => staffMap.set(d.profile_id, d.department));
+            if (staffError) {
+                console.error("InstitutionContext: Error fetching staff from staff_details:", staffError);
+            }
 
-            // Permitted roles for assignment
-            const targetRoles = ['faculty', 'teacher', 'admin', 'support', 'institution'];
+            console.log(`InstitutionContext: Found ${staffRecords?.length || 0} total staff records in staff_details`);
 
-            setAllStaffMembers(staffProfiles
-                ?.filter((s: any) => targetRoles.includes(s.role))
-                .map((s: any) => ({
-                    id: s.id,
-                    name: s.full_name || 'Unknown',
-                    department: staffMap.get(s.id) || null
-                })) || []
-            );
+            // Permitted roles for assignment - expanded list
+            const targetRoles = ['faculty', 'teacher', 'admin', 'support', 'institution', 'accountant', 'canteen_manager', 'staff'];
+
+            const filteredStaff = (staffRecords || [])
+                .filter((record: any) => {
+                    // Use role from staff_details if available, fallback to profile role
+                    const role = record.role || record.profiles?.role;
+                    if (!role) return false;
+                    return targetRoles.some(r => r.toLowerCase() === role.toLowerCase());
+                })
+                .map((record: any) => ({
+                    id: record.profile_id,
+                    name: record.profiles?.full_name || 'Unknown',
+                    department: record.department || null
+                }));
+
+            console.log(`InstitutionContext: Filtered to ${filteredStaff.length} staff members using roles:`, targetRoles);
+            setAllStaffMembers(filteredStaff);
 
             // 3. Fetch Classes (for Class Teachers and structure)
             // 3. Fetch Classes (via Groups to ensure correct path)
@@ -320,10 +334,10 @@ export function InstitutionProvider({ children }: { children: ReactNode }) {
                 await supabase.from('notifications').insert(notifications);
             }
 
-            toast.success("Staff assigned successfully!");
+            console.log(`InstitutionContext: Staff assigned to subject ${subjectId}`);
         } catch (e: any) {
             console.error("Assign staff error:", e);
-            toast.error(e.message || "Failed to assign staff");
+            throw e; // Throw so caller (like handleSave) can catch and show toast
         }
     }, [institutionId, allSubjectsList, allClasses]);
 
@@ -376,10 +390,22 @@ export function InstitutionProvider({ children }: { children: ReactNode }) {
                 });
             }
 
-            toast.success("Class teacher assigned!");
+            // 3. Sync with classes table (Crucial for access control and legacy queries)
+            // Even if unassigning (teacherId = ''), we set it to null
+            const { error: updateError } = await supabase
+                .from('classes')
+                .update({ class_teacher_id: teacherId || null })
+                .eq('id', classId);
+
+            if (updateError) {
+                console.error("InstitutionContext: Error syncing classes table:", updateError);
+                // We don't throw yet, as faculty_subjects was updated. But it's an issue.
+            }
+
+            console.log(`InstitutionContext: Class teacher updated for ${classId}`);
         } catch (e: any) {
             console.error("Assign class teacher error:", e);
-            toast.error(e.message);
+            throw e;
         }
     }, [institutionId, allClasses]);
 

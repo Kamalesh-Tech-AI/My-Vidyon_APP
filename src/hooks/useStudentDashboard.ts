@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { useERPRealtime } from './useERPRealtime';
 
 interface StudentDashboardStats {
     totalAssignments: number;
@@ -187,101 +188,8 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
         pendingFees: feeStatus?.pending || 0,
     };
 
-    // 7. Real-time Subscriptions
-    useEffect(() => {
-        if (!studentId || !institutionId) return;
-
-        const channel = supabase
-            .channel('student-dashboard-realtime')
-            // Assignments
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'assignments',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-assignments'] });
-                    toast.info('New assignment posted');
-                }
-            )
-            // Submissions
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'submissions',
-                    filter: `student_id=eq.${studentId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-assignments'] });
-                }
-            )
-            // Attendance
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'student_attendance',
-                    filter: `student_id=eq.${studentId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-attendance'] });
-                    toast.info('Attendance updated');
-                }
-            )
-            // Grades
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'grades',
-                    filter: `student_id=eq.${studentId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-grades'] });
-                    toast.success('New grade posted!');
-                }
-            )
-            // Fee Payments
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'fee_payments',
-                    filter: `student_id=eq.${studentId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-fees'] });
-                    toast.info('Fee payment updated');
-                }
-            )
-            // Academic Events
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'academic_events',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-events'] });
-                    toast.info('New event added');
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [studentId, institutionId, queryClient]);
+    // 7. Real-time Subscriptions (Migrated to SSE)
+    useERPRealtime(institutionId);
 
     // 8. Fetch Subjects for Student's Class via faculty_subjects
     const { data: subjectsData = { subjects: [], classTeacher: 'Not Assigned' }, isLoading: subjectsLoading } = useQuery({
@@ -349,58 +257,7 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
         staleTime: 5 * 60 * 1000,
     });
 
-    // 9. Real-time subscription for subjects and assignments
-    useEffect(() => {
-        if (!institutionId) return;
-
-        const subjectsChannel = supabase
-            .channel('student-subjects-realtime')
-            // Subjects updates
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'subjects',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
-                }
-            )
-            // Faculty assignments updates
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'faculty_subjects',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
-                    toast.info('Subject assignments updated');
-                }
-            )
-            // Profile updates (for instructor names)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'profiles',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['student-subjects'] });
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(subjectsChannel);
-        };
-    }, [institutionId, queryClient]);
+    // 9. Real-time subscription for subjects and assignments (DEPRECATED: Managed by central SSE)
 
     return {
         stats,

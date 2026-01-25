@@ -14,81 +14,99 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const { email, password, role, full_name, institution_id, register_number, staff_id, phone, student_id, parent_email, parent_phone, parent_name, class_name, section, department, subjects, date_of_birth, image_url, gender, address } = await req.json()
+        const body = await req.json();
+        console.log("Received request body:", body);
+
+        const {
+            email, password, role, full_name, institution_id, register_number, staff_id, phone,
+            student_id, student_ids, parent_email, parent_phone, parent_name, class_name, section,
+            department, subjects, date_of_birth, image_url, gender, address,
+            blood_group, city, zip_code, parent_relation, academic_year, parent_contact
+        } = body;
 
         if (!email || !role || !institution_id) {
             throw new Error("Missing required fields: email, role, and institution_id are required.")
         }
 
-        // Initialize Supabase Admin Client with SERVICE ROLE KEY
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-        if (!supabaseUrl || !supabaseServiceKey) {
-            throw new Error("Internal Configuration Error: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set in the Edge Function environment.");
-        }
-
+        // Initialize Supabase Admin Client
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-        // MANUAL TOKEN VERIFICATION
-        // We will deploy with --no-verify-jwt to bypass Gateway 401 issues,
-        // so we must verify the token here for security.
-        const authHeader = req.headers.get('Authorization');
-        if (!authHeader) {
-            throw new Error('Missing Authorization header');
-        }
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user: requestUser }, error: userError } = await supabaseAdmin.auth.getUser(token);
-
-        if (userError || !requestUser) {
-            console.error('Token verification failed:', userError);
-            return new Response(JSON.stringify({ error: 'Unauthorized', details: userError?.message }), { status: 401, headers: corsHeaders });
-        }
-
-        // Determine password: use provided password or default to institution_id
-        // Helper to normalize role
         const normalizeRole = (r: string) => {
             const lower = r.toLowerCase();
             return lower === 'teacher' ? 'faculty' : lower;
         };
-
         const finalRole = normalizeRole(role);
 
         // Validate password length (Supabase requires 6 chars)
         let finalPassword = password || institution_id;
         if (finalPassword.length < 6) {
-            finalPassword = finalPassword.padEnd(6, '0'); // Pad with zeros if too short
+            finalPassword = finalPassword.padEnd(6, '0');
         }
         const forcePasswordChange = !password;
 
-        // 1. Create User in Auth
-        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-            email,
-            password: finalPassword,
-            user_metadata: {
-                role: finalRole,
-                full_name,
-                institution_id,
-                force_password_change: forcePasswordChange
-            },
-            email_confirm: true
-        })
+        console.log(`Processing user: ${email.toLowerCase()}, role: ${finalRole}`);
 
-        if (authError) throw authError
+        // 1. Check if user already exists
+        const { data: existingUser, error: checkError } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('email', email.toLowerCase())
+            .maybeSingle();
 
-        const userId = authUser.user.id;
+        if (checkError) console.error("Error checking existing user:", checkError);
 
-        // 2. Explicitly Insert/Update Profile with all fields
+        let userId = existingUser?.id;
+        let authUserDetails: any = null;
+
+        if (!userId) {
+            console.log("User not found in profiles, creating new auth user...");
+            const { data: newAuthUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+                email: email.toLowerCase(),
+                password: finalPassword,
+                user_metadata: {
+                    role: finalRole,
+                    full_name,
+                    institution_id,
+                    force_password_change: forcePasswordChange
+                },
+                email_confirm: true
+            })
+
+            if (authError) {
+                console.error("Auth creation failed:", authError);
+                throw authError;
+            }
+
+            userId = newAuthUser.user.id;
+            authUserDetails = newAuthUser.user;
+            console.log("Auth user created successfully:", userId);
+        } else {
+            console.log("Existing user found with ID:", userId);
+            // Construct a user object that mimics the auth response enough for the frontend
+            authUserDetails = {
+                id: userId,
+                email: email.toLowerCase(),
+                user_metadata: {
+                    role: finalRole,
+                    full_name: full_name,
+                    institution_id: institution_id
+                }
+            };
+        }
+
+        // 2. Upsert Profile
+        console.log("Upserting profile...");
         const profileData: any = {
             id: userId,
-            email: email,
+            email: email.toLowerCase(),
             full_name: full_name,
             role: finalRole,
             institution_id: institution_id,
             updated_at: new Date().toISOString()
         };
 
-        // Add optional fields if provided
         if (phone) profileData.phone = phone;
         if (staff_id) profileData.staff_id = staff_id;
         if (department) profileData.department = department;
@@ -96,88 +114,90 @@ Deno.serve(async (req) => {
 
         const { error: profileError } = await supabaseAdmin
             .from('profiles')
-            .upsert(profileData);
+            .upsert(profileData, { onConflict: 'id' });
 
         if (profileError) {
-            console.error("Error creating/updating profile record:", profileError);
+            console.error("Profile upsert error:", profileError);
+            throw new Error(`Profile update failed: ${profileError.message}`);
         }
 
-        // 3. Role-specific table insertions
+        // 3. Role-specific table updates
         if (finalRole === 'student') {
+            console.log("Syncing student record...");
             const { error: studentError } = await supabaseAdmin
                 .from('students')
                 .upsert({
-                    id: userId,
-                    name: full_name,
-                    email: email,
+                    id: student_id || userId,
+                    profile_id: userId,
                     institution_id: institution_id,
+                    name: full_name,
                     register_number: register_number || `REG-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-                    parent_email: parent_email,
-                    parent_phone: parent_phone,
-                    parent_name: parent_name,
                     class_name: class_name,
                     section: section,
                     image_url: image_url,
-                    phone: phone, // Student's personal phone
+                    phone: phone,
                     gender: gender,
                     address: address,
-                    dob: date_of_birth // Map date_of_birth (frontend) to dob (db)
-                });
+                    dob: date_of_birth,
+                    blood_group: blood_group,
+                    city: city,
+                    zip_code: zip_code,
+                    parent_relation: parent_relation,
+                    academic_year: academic_year || '2025-26',
+                    parent_contact: parent_contact || parent_phone
+                }, { onConflict: 'profile_id' });
+
             if (studentError) {
-                console.error("Error creating student record:", studentError);
-                throw new Error(`Failed to create student: ${studentError.message}`);
+                console.error("Student sync error:", studentError);
+                throw new Error(`Student sync failed: ${studentError.message}`);
             }
+
         } else if (finalRole === 'parent') {
+            console.log("Syncing parent record and student links...");
             const { data: parentData, error: parentError } = await supabaseAdmin
                 .from('parents')
                 .upsert({
                     profile_id: userId,
-                    name: full_name,
-                    email: email,
                     institution_id: institution_id,
+                    name: full_name,
+                    email: email.toLowerCase(),
                     phone: phone
-                }, { onConflict: 'email' })
+                }, { onConflict: 'profile_id' })
                 .select()
                 .single();
 
             if (parentError) {
-                console.error("Error creating parent record:", parentError);
-            } else if (student_id && parentData) {
-                // Link to student if provided
-                const { error: linkError } = await supabaseAdmin
-                    .from('student_parents')
-                    .upsert({
-                        student_id: student_id,
-                        parent_id: parentData.id
-                    });
-                if (linkError) console.error("Error linking parent to student:", linkError);
-            }
-        } else if (finalRole === 'accountant') {
-            const { error: accountantError } = await supabaseAdmin
-                .from('accountants')
-                .upsert({
-                    profile_id: userId,
-                    institution_id: institution_id
-                });
+                console.error("Parent sync error:", parentError);
+                throw new Error(`Parent sync failed: ${parentError.message}`);
+            } else if (parentData) {
+                const targetStudentIds = student_ids || (student_id ? [student_id] : []);
 
-            if (accountantError) {
-                console.error("Error creating accountant record:", accountantError);
-                throw new Error(`Failed to create accountant: ${accountantError.message}`);
+                if (targetStudentIds.length > 0) {
+                    console.log(`Linking parent ${parentData.id} to students:`, targetStudentIds);
+
+                    // a. Link in student_parents join table
+                    const links = targetStudentIds.map((sId: string) => ({
+                        student_id: sId,
+                        parent_id: parentData.id
+                    }));
+
+                    const { error: linkError } = await supabaseAdmin
+                        .from('student_parents')
+                        .upsert(links, { onConflict: 'student_id,parent_id' });
+                    if (linkError) console.error("student_parents link error:", linkError);
+
+                    // b. Update students.parent_id (FK to profiles)
+                    const { error: studentUpdateError } = await supabaseAdmin
+                        .from('students')
+                        .update({ parent_id: userId })
+                        .in('id', targetStudentIds);
+                    if (studentUpdateError) console.error("Students parent_id update error:", studentUpdateError);
+
+                    console.log("Relationship syncing complete.");
+                }
             }
-        } else if (finalRole === 'canteen_manager') {
-            const { error: canteenError } = await supabaseAdmin
-                .from('staff_details')
-                .upsert({
-                    profile_id: userId,
-                    institution_id: institution_id,
-                    role: 'canteen_manager',
-                    staff_id: staff_id || `CM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
-                });
-            if (canteenError) {
-                console.error("Error creating canteen manager record:", canteenError);
-                throw new Error(`Failed to create canteen manager: ${canteenError.message}`);
-            }
-        } else if (finalRole === 'faculty' || finalRole === 'institution' || finalRole === 'admin') {
+        } else if (['faculty', 'institution', 'admin', 'accountant', 'canteen_manager'].includes(finalRole)) {
+            console.log("Syncing staff record...");
             const { error: staffError } = await supabaseAdmin
                 .from('staff_details')
                 .upsert({
@@ -187,51 +207,32 @@ Deno.serve(async (req) => {
                     department: department || null,
                     subjects: subjects || [],
                     staff_id: staff_id || `STF-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-                }, {
-                    onConflict: 'profile_id'
-                });
+                }, { onConflict: 'profile_id' });
+
             if (staffError) {
-                console.error("Error creating staff record:", staffError);
-                throw new Error(`Failed to create staff: ${staffError.message}`);
+                console.error("Staff sync error:", staffError);
+                throw new Error(`Staff sync failed: ${staffError.message}`);
             }
 
-            // SPECIAL CASE: Link Institution Admin Email
-            if (role === 'institution') {
-                const { error: instUpdateError } = await supabaseAdmin
+            if (finalRole === 'institution') {
+                await supabaseAdmin
                     .from('institutions')
-                    .update({ admin_email: email, admin_password: finalPassword })
+                    .update({ admin_email: email.toLowerCase(), admin_password: finalPassword })
                     .eq('institution_id', institution_id);
-                if (instUpdateError) console.error("Error linking institution admin email:", instUpdateError);
             }
         }
 
+        console.log("Edge Function processed successfully.");
         return new Response(
-            JSON.stringify({ user: authUser.user }),
-            {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 200
-            }
-        )
+            JSON.stringify({ user: authUserDetails }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
 
     } catch (error: any) {
-        console.error("Full error in create-user:", error);
-        console.error("Error details:", {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint
-        });
-
+        console.error("CRITICAL Edge Function Error:", error);
         return new Response(
-            JSON.stringify({
-                error: error.message || "Unknown error occurred",
-                details: error.details || null,
-                hint: error.hint || null
-            }),
-            {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 400
-            }
-        )
+            JSON.stringify({ error: error.message || "Unknown error occurred" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
     }
 })

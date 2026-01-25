@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { useERPRealtime } from './useERPRealtime';
 
 interface InstitutionDashboardStats {
     totalStudents: number;
@@ -161,109 +162,8 @@ export function useInstitutionDashboard(institutionId?: string) {
         pendingLeaveRequests,
     };
 
-    // 8. Real-time Subscriptions
-    useEffect(() => {
-        if (!institutionId) return;
-
-        const channel = supabase
-            .channel('institution-dashboard-realtime')
-            // Student count changes
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'students',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                (payload: any) => {
-                    queryClient.invalidateQueries({ queryKey: ['institution-total-students'] });
-                    if (payload.eventType === 'INSERT') {
-                        toast.success('New student enrolled');
-                    }
-                }
-            )
-            // Staff count changes
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'profiles',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                (payload: any) => {
-                    if (['faculty', 'teacher', 'staff'].includes(payload.new?.role)) {
-                        queryClient.invalidateQueries({ queryKey: ['institution-total-staff'] });
-                        if (payload.eventType === 'INSERT') {
-                            toast.success('New staff member added');
-                        }
-                    }
-                }
-            )
-            // Attendance updates
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'student_attendance',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['institution-today-attendance'] });
-                }
-            )
-            // Application status
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'applications',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                (payload: any) => {
-                    queryClient.invalidateQueries({ queryKey: ['institution-pending-applications'] });
-                    if (payload.eventType === 'INSERT') {
-                        toast.info('New application received');
-                    }
-                }
-            )
-            // Fee payments
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'fee_payments',
-                    filter: `institution_id=eq.${institutionId}`,
-                },
-                (payload: any) => {
-                    queryClient.invalidateQueries({ queryKey: ['institution-total-revenue'] });
-                    if (payload.eventType === 'INSERT' && payload.new?.status === 'paid') {
-                        toast.success('Payment received');
-                    }
-                }
-            )
-            // Leave requests
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'leave_requests',
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['institution-pending-leaves'] });
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [institutionId, queryClient]);
+    // 8. Real-time Subscriptions (Migrated to SSE)
+    useERPRealtime(institutionId);
 
     return {
         stats,
