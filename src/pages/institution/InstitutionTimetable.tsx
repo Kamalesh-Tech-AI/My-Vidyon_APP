@@ -497,6 +497,23 @@ export function InstitutionTimetable() {
                 .single();
 
             if (error) throw error;
+
+            // Send notification to faculty
+            if (selectedFaculty?.id) {
+                try {
+                    await supabase.from('notifications').insert({
+                        user_id: selectedFaculty.id,
+                        title: 'Special Class Assigned',
+                        message: `You have been assigned a special class: ${specialClassTitle || 'Special Event'} on ${specialClassDate} at ${editingSlot.data.start_time}.`,
+                        type: 'timetable',
+                        created_at: new Date().toISOString(),
+                        read: false,
+                        action_url: `/faculty/timetable?date=${specialClassDate}`
+                    });
+                } catch (notifyError) {
+                    console.error('Failed to send notification to faculty:', notifyError);
+                }
+            }
         },
         onSuccess: () => {
             toast.success('Special class saved locally');
