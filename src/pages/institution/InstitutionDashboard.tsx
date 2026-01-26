@@ -74,7 +74,7 @@ export function InstitutionDashboard() {
       const [studentsReq, teachersReq, classesReq, studentAttendanceReq, staffAttendanceReq, studentsDataReq] = await Promise.all([
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('academic_year', selectedAcademicYear),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('role', 'faculty'),
-        supabase.from('classes').select('id, groups!inner(institution_id)', { count: 'exact', head: true }).eq('groups.institution_id', user.institutionId).eq('academic_year', selectedAcademicYear),
+        supabase.from('classes').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('academic_year', selectedAcademicYear),
         supabase.from('student_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', today).eq('academic_year', selectedAcademicYear).in('status', ['present', 'late']),
         supabase.from('staff_attendance').select('id', { count: 'exact', head: true }).eq('institution_id', user.institutionId).eq('attendance_date', today).in('status', ['present', 'late']),
         // Fetch raw student data for charts

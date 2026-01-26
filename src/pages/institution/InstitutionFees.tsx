@@ -461,8 +461,8 @@ export function InstitutionFees() {
             />
 
             {/* Statistics Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="dashboard-card p-6">
+            <div className="stats-grid mb-6 sm:mb-8">
+                <div className="stat-card">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-success/10 rounded-lg text-success">
                             <IndianRupee className="w-5 h-5" />
@@ -471,7 +471,7 @@ export function InstitutionFees() {
                     </div>
                     <span className="text-2xl font-bold">₹ {stats.revenue.toLocaleString('en-IN')}</span>
                 </div>
-                <div className="dashboard-card p-6">
+                <div className="stat-card">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-primary/10 rounded-lg text-primary">
                             <IndianRupee className="w-5 h-5" />
@@ -480,11 +480,11 @@ export function InstitutionFees() {
                     </div>
                     <span className="text-2xl font-bold">₹ {stats.outstanding.toLocaleString('en-IN')}</span>
                 </div>
-                {/* ... other stats ... */}
+                {/* Add placeholders or remove extra div if not needed as stats-grid handles columns */}
             </div>
 
             {/* Main Interactive Area */}
-            <div className="dashboard-card h-[600px] overflow-hidden bg-card border shadow-sm relative">
+            <div className="dashboard-card h-[calc(100dvh-220px)] min-h-[500px] overflow-hidden bg-card border shadow-sm relative flex flex-col">
                 {viewMode === 'tree' ? (
                     <div className="w-full h-full flex flex-col">
                         <div className="h-16 border-b flex items-center px-6 justify-between bg-card/50">
@@ -534,7 +534,7 @@ export function InstitutionFees() {
                                 <div className="flex flex-col lg:flex-row h-full divide-y lg:divide-y-0 lg:divide-x divide-border/50">
                                     {/* Class Selection Column */}
                                     <div className={cn(
-                                        "flex-1 min-w-[250px] max-w-full lg:max-w-sm flex flex-col bg-card/30 animate-in slide-in-from-left-4 duration-300",
+                                        "flex-1 min-w-[250px] max-w-full lg:max-w-sm flex flex-col bg-card/50 border-r border-border/50 animate-in slide-in-from-left-4 duration-300",
                                         selectedClass ? "hidden lg:flex" : "flex"
                                     )}>
                                         <div className="p-4 bg-muted/20 text-xs font-semibold uppercase tracking-wider text-muted-foreground sticky top-0 backdrop-blur-sm z-10">Select Class</div>
@@ -563,7 +563,7 @@ export function InstitutionFees() {
 
                                     {/* Section Selection Column */}
                                     <div className={cn(
-                                        "flex-1 min-w-[250px] max-w-full lg:max-w-sm flex flex-col bg-card/30 relative",
+                                        "flex-1 min-w-[250px] max-w-full lg:max-w-sm flex flex-col bg-card/50 border-r border-border/50 relative",
                                         (!selectedClass || selectedSection) ? "hidden lg:flex" : "flex"
                                     )}>
                                         {selectedClass ? (

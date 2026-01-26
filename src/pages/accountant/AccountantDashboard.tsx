@@ -70,7 +70,7 @@ export function AccountantDashboard() {
             />
 
             {/* Stats Row */}
-            <div className="stats-grid mb-8">
+            <div className="stats-grid mb-6 sm:mb-8">
                 <StatCard
                     title="Total Revenue"
                     value={`₹${(stats?.revenue || 0).toLocaleString()}`}
@@ -102,14 +102,14 @@ export function AccountantDashboard() {
             </div>
 
             {/* Main Content Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
                 {/* Payment Status Chart */}
-                <Card className="dashboard-card">
-                    <CardHeader>
-                        <CardTitle>Fee Status Distribution</CardTitle>
-                        <CardDescription>Breakdown of student fee records</CardDescription>
+                <Card className="bg-card border border-border rounded-lg shadow-card overflow-hidden">
+                    <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                        <CardTitle className="text-base sm:text-lg">Fee Status Distribution</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">Breakdown of student fee records</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[300px]">
+                    <CardContent className="h-[280px] sm:h-[300px] px-3 sm:px-6 pb-4 sm:pb-6">
                         {isLoading ? (
                             <div className="h-full flex items-center justify-center text-muted-foreground">Loading...</div>
                         ) : stats?.pieData && stats.pieData.length > 0 ? (
@@ -143,12 +143,12 @@ export function AccountantDashboard() {
                 </Card>
 
                 {/* Quick Actions / Recent (Placeholder for now) */}
-                <Card className="dashboard-card">
-                    <CardHeader>
-                        <CardTitle>Recent Transactions</CardTitle>
-                        <CardDescription>Latest fee payments recorded</CardDescription>
+                <Card className="bg-card border border-border rounded-lg shadow-card overflow-hidden">
+                    <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                        <CardTitle className="text-base sm:text-lg">Recent Transactions</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">Latest fee payments recorded</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6">
                         <div className="space-y-4">
                             {/* In future, fetch actual transactions table. For now, a placeholder illustrative empty state */}
                             <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">

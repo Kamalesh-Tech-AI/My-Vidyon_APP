@@ -399,7 +399,7 @@ export function DashboardLayout({ children, navItems, roleColor = 'text-primary'
         </header>
 
         {/* Page Content */}
-        <div className="p-4 sm:p-6 lg:p-8 safe-area-inset">
+        <div className="px-3 py-4 sm:px-4 sm:py-6 lg:px-8 lg:py-8 safe-area-inset w-full max-w-full overflow-x-hidden">
           {children}
         </div>
       </main>

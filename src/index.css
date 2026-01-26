@@ -229,7 +229,15 @@
 
 @layer components {
   .dashboard-card {
-    @apply bg-card rounded-lg border border-border p-4 sm:p-6 shadow-card transition-all duration-200 hover:shadow-md;
+    @apply bg-card rounded-lg border border-border shadow-card transition-all duration-200 hover:shadow-md;
+    padding: 0.75rem;
+    overflow: hidden;
+  }
+
+  @media (min-width: 640px) {
+    .dashboard-card {
+      padding: 1.5rem;
+    }
   }
 
   .stat-card {
