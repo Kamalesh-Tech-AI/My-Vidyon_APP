@@ -1,7 +1,4 @@
-import { useState, useEffect } from "react";
 import { SearchProvider } from "@/context/SearchContext";
-
-import VideoIntro from "@/components/common/VideoIntro";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -129,22 +126,6 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  const [showVideo, setShowVideo] = useState(true);
-
-
-  const handleVideoComplete = () => {
-    setShowVideo(false);
-  };
-
-
-
-  // Show video intro first
-  if (showVideo) {
-    return <VideoIntro onComplete={handleVideoComplete} />;
-  }
-
-
-
   return (
     <QueryClientProvider client={queryClient}>
       <TranslationProvider>
