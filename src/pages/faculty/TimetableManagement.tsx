@@ -454,7 +454,14 @@ export function TimetableManagement() {
                 let matchedPeriod = -1;
                 for (let p = 1; p <= configData.periods_per_day; p++) {
                     const timings = calculatePeriodTimings(p);
-                    if (timings.start === slot.start_time.substring(0, 5)) {
+
+                    // Convert DB time to AM/PM format to match timings.start
+                    const [h, m] = slot.start_time.split(':').map(Number);
+                    const hh = h % 12 || 12;
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    const formattedStartTime = `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+
+                    if (timings.start === formattedStartTime) {
                         matchedPeriod = p;
                         break;
                     }

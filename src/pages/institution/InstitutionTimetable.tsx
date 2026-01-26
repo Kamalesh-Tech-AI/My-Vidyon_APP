@@ -949,11 +949,18 @@ export function InstitutionTimetable() {
                                                 </td>
                                                 {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
                                                     const key = `${rowLabel}-${period}`;
+                                                    const timings = calculatePeriodTimings(period); // Recalculate timings for each period
                                                     const slot = isSpecialMode
-                                                        ? specialSlots.find(s =>
-                                                            s.period_index === period &&
-                                                            (selectedFaculty ? s.faculty_id === selectedFaculty.id : true)
-                                                        )
+                                                        ? specialSlots.find(s => {
+                                                            // Calculate DB time to AM/PM format to match timings.start
+                                                            const [h, m] = s.start_time.split(':').map(Number);
+                                                            const hh = h % 12 || 12;
+                                                            const ampm = h >= 12 ? 'PM' : 'AM';
+                                                            const formattedStartTime = `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+
+                                                            return formattedStartTime === timings.start &&
+                                                                (selectedFaculty ? s.faculty_id === selectedFaculty.id : true);
+                                                        })
                                                         : viewTimetableData[key];
 
                                                     return (
