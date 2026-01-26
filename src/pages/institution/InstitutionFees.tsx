@@ -439,11 +439,11 @@ export function InstitutionFees() {
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="flex flex-col md:flex-row h-full divide-y md:divide-y-0 md:divide-x divide-border/50">
+                                <div className="flex flex-col lg:flex-row h-full divide-y lg:divide-y-0 lg:divide-x divide-border/50">
                                     {/* Class Selection Column */}
                                     <div className={cn(
-                                        "flex-1 min-w-[250px] max-w-full md:max-w-sm flex flex-col bg-card/30 animate-in slide-in-from-left-4 duration-300",
-                                        selectedClass ? "hidden md:flex" : "flex"
+                                        "flex-1 min-w-[250px] max-w-full lg:max-w-sm flex flex-col bg-card/30 animate-in slide-in-from-left-4 duration-300",
+                                        selectedClass ? "hidden lg:flex" : "flex"
                                     )}>
                                         <div className="p-4 bg-muted/20 text-xs font-semibold uppercase tracking-wider text-muted-foreground sticky top-0 backdrop-blur-sm z-10">Select Class</div>
                                         <ScrollArea className="flex-1">
@@ -471,8 +471,8 @@ export function InstitutionFees() {
 
                                     {/* Section Selection Column */}
                                     <div className={cn(
-                                        "flex-1 min-w-[250px] max-w-full md:max-w-sm flex flex-col bg-card/30 relative",
-                                        (!selectedClass || selectedSection) ? "hidden md:flex" : "flex"
+                                        "flex-1 min-w-[250px] max-w-full lg:max-w-sm flex flex-col bg-card/30 relative",
+                                        (!selectedClass || selectedSection) ? "hidden lg:flex" : "flex"
                                     )}>
                                         {selectedClass ? (
                                             <div className="absolute inset-0 flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
@@ -503,7 +503,7 @@ export function InstitutionFees() {
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 p-8 text-center hidden md:flex">
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 p-8 text-center hidden lg:flex">
                                                 <Layers className="w-12 h-12 mb-4 opacity-20" />
                                                 <p>Select a class to view sections</p>
                                             </div>
@@ -513,7 +513,7 @@ export function InstitutionFees() {
                                     {/* Summary / Action Column */}
                                     <div className={cn(
                                         "flex-[2] flex flex-col bg-muted/10 relative",
-                                        !selectedSection ? "hidden md:flex" : "flex"
+                                        !selectedSection ? "hidden lg:flex" : "flex"
                                     )}>
                                         {selectedSection ? (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center p-8 animate-in zoom-in-95 fade-in duration-500 text-center">
@@ -532,7 +532,7 @@ export function InstitutionFees() {
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 p-8 text-center hidden md:flex">
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 p-8 text-center hidden lg:flex">
                                                 <Users className="w-16 h-16 mb-4 opacity-20" />
                                                 <p>{selectedClass ? "Select a section to proceed" : "Start by selecting a class"}</p>
                                             </div>
