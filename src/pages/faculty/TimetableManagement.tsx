@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import Loader from '@/components/common/Loader';
 import { Badge } from '@/components/common/Badge';
 import { Fragment } from 'react';
+import { cn } from '@/lib/utils';
 import {
     Plus,
     Trash2,
@@ -288,38 +289,52 @@ export function TimetableManagement() {
         enabled: !!user?.id,
     });
 
-    // Fetch faculty's class assignment (optional - not required for timetable to work)
-    const { data: staffDetails } = useQuery({
-        queryKey: ['faculty-assignment', user?.id],
+    // Fetch faculty's class assignment (Using faculty_subjects with assignment_type = 'class_teacher')
+    const { data: classTeacherAssignment, isLoading: isLoadingAssignment } = useQuery({
+        queryKey: ['faculty-class-assignment', user?.id],
         queryFn: async () => {
             if (!user?.id) return null;
 
             const { data, error } = await supabase
-                .from('staff_details')
-                .select('*')
-                .eq('profile_id', user.id)
+                .from('faculty_subjects')
+                .select(`
+                    id,
+                    section,
+                    classes:class_id (id, name)
+                `)
+                .eq('faculty_profile_id', user.id)
+                .eq('assignment_type', 'class_teacher')
                 .maybeSingle();
 
             if (error) {
-                console.log('Staff details not found (optional):', error);
+                console.error('Error fetching class teacher assignment:', error);
                 return null;
             }
-            return data;
+
+            if (data) {
+                return {
+                    class_assigned: (data.classes as any)?.name,
+                    section_assigned: data.section,
+                    class_id: (data.classes as any)?.id
+                };
+            }
+            return null;
         },
         enabled: !!user?.id,
-        retry: false,
     });
+
+    const isClassTeacher = !!classTeacherAssignment;
 
     // Fetch class details (optional)
     const { data: classDetails } = useQuery({
-        queryKey: ['class-details', staffDetails?.class_assigned],
+        queryKey: ['class-details', classTeacherAssignment?.class_assigned],
         queryFn: async () => {
-            if (!staffDetails?.class_assigned) return null;
+            if (!classTeacherAssignment?.class_assigned) return null;
 
             const { data, error } = await supabase
                 .from('classes')
                 .select('id, name')
-                .eq('name', staffDetails.class_assigned)
+                .eq('name', classTeacherAssignment.class_assigned)
                 .maybeSingle();
 
             if (error) {
@@ -328,7 +343,7 @@ export function TimetableManagement() {
             }
             return data;
         },
-        enabled: !!staffDetails?.class_assigned,
+        enabled: !!classTeacherAssignment?.class_assigned,
         retry: false,
     });
 
@@ -367,23 +382,11 @@ export function TimetableManagement() {
         enabled: !!user?.institutionId,
     });
 
-    // Fetch class timetable (for editing)
+    // Fetch class timetable (for editing) - only for class teachers
     const { data: classTimetable = [], isLoading: isLoadingClassTimetable } = useQuery({
-        queryKey: ['class-timetable', staffDetails?.class_assigned, staffDetails?.section_assigned],
+        queryKey: ['class-timetable', classTeacherAssignment?.class_assigned, classTeacherAssignment?.section_assigned],
         queryFn: async () => {
-            if (!staffDetails?.class_assigned || !user?.institutionId) return [];
-
-            console.log(`Fetching class timetable for ${staffDetails.class_assigned} ${staffDetails.section_assigned}...`);
-
-            // Get the class_id
-            const { data: targetClass } = await supabase
-                .from('classes')
-                .select('id')
-                .eq('name', staffDetails.class_assigned)
-                .limit(1)
-                .single();
-
-            if (!targetClass) return [];
+            if (!classTeacherAssignment?.class_assigned || !classTeacherAssignment?.class_id || !user?.institutionId) return [];
 
             // Get all slots for this class and section
             const { data, error } = await supabase
@@ -393,8 +396,8 @@ export function TimetableManagement() {
                     subjects:subject_id (name),
                     profiles:faculty_id (full_name)
                 `)
-                .eq('class_id', targetClass.id)
-                .eq('section', staffDetails.section_assigned)
+                .eq('class_id', classTeacherAssignment.class_id)
+                .eq('section', classTeacherAssignment.section_assigned)
                 .order('day_of_week')
                 .order('period_index');
 
@@ -405,7 +408,7 @@ export function TimetableManagement() {
 
             return data || [];
         },
-        enabled: !!staffDetails?.class_assigned && !!user?.institutionId,
+        enabled: isClassTeacher && !!user?.institutionId,
     });
 
     const dayMap: { [key: string]: string } = {
@@ -435,6 +438,43 @@ export function TimetableManagement() {
         myScheduleData[key] = { ...slot, day_of_week: normalizedDay };
     });
 
+    // Merge special slots for the CURRENT FACULTY into myScheduleData
+    // We only show special slots for the selected specialClassDate in the weekly grid
+    // to avoid confusion (since weekly grid is for recurring periods)
+    if (specialClassDate) {
+        const selectedDate = new Date(specialClassDate);
+        const dayOfWeek = selectedDate.getDay(); // 0 is Sunday
+        const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust to 0=Mon, 5=Sat
+        const selectedDayName = DAYS[dayIndex];
+
+        specialSlots.forEach((slot: any) => {
+            if (slot.faculty_id === user?.id) {
+                // Try to map back to a period based on start_time
+                // This is a heuristic: match exact start_time or find closest
+                let matchedPeriod = -1;
+                for (let p = 1; p <= configData.periods_per_day; p++) {
+                    const timings = calculatePeriodTimings(p);
+                    if (timings.start === slot.start_time.substring(0, 5)) {
+                        matchedPeriod = p;
+                        break;
+                    }
+                }
+
+                if (matchedPeriod !== -1) {
+                    const key = `${selectedDayName}-${matchedPeriod}`;
+                    myScheduleData[key] = {
+                        ...slot,
+                        day_of_week: selectedDayName,
+                        period_index: matchedPeriod,
+                        is_special: true,
+                        subjects: slot.subjects,
+                        classes: slot.classes
+                    };
+                }
+            }
+        });
+    }
+
     // Save class timetable slot
     const saveSlotMutation = useMutation({
         mutationFn: async () => {
@@ -444,28 +484,26 @@ export function TimetableManagement() {
 
             console.log('Saving slot:', editingSlot);
 
-            // Get the class assigned to this faculty
-            const { data: staff } = await supabase
-                .from('staff_details')
-                .select('class_assigned, section_assigned')
-                .eq('profile_id', user.id)
+            // Get the class assigned to this faculty (Using faculty_subjects)
+            const { data: assignment } = await supabase
+                .from('faculty_subjects')
+                .select(`
+                    section,
+                    classes:class_id (id, name)
+                `)
+                .eq('faculty_profile_id', user.id)
+                .eq('assignment_type', 'class_teacher')
                 .maybeSingle();
 
-            if (!staff?.class_assigned) {
+            if (!assignment || !(assignment.classes as any)?.id) {
                 throw new Error('You are not assigned as a class teacher. Please contact admin.');
             }
 
-            // Get the class_id
-            const { data: targetClass } = await supabase
-                .from('classes')
-                .select('id')
-                .eq('name', staff.class_assigned)
-                .limit(1)
-                .single();
+            const targetClassId = (assignment.classes as any).id;
+            const targetClassName = (assignment.classes as any).name;
+            const section = assignment.section;
 
-            if (!targetClass) {
-                throw new Error(`Class ${staff.class_assigned} not found in database`);
-            }
+            // targetClassId and targetClassName already derived from assignment
 
             // Get or create config
             let configId = currentConfig?.id;
@@ -487,8 +525,8 @@ export function TimetableManagement() {
             await supabase
                 .from('timetable_slots')
                 .delete()
-                .eq('class_id', targetClass.id)
-                .eq('section', staff.section_assigned)
+                .eq('class_id', targetClassId)
+                .eq('section', section)
                 .eq('day_of_week', editingSlot.day)
                 .eq('period_index', editingSlot.period);
 
@@ -500,8 +538,8 @@ export function TimetableManagement() {
                 const slotData = {
                     config_id: configId,
                     faculty_id: editingSlot.data.assigned_faculty_id || user.id,
-                    class_id: targetClass.id,
-                    section: staff.section_assigned,
+                    class_id: targetClassId,
+                    section: section,
                     day_of_week: editingSlot.day,
                     period_index: editingSlot.period,
                     subject_id: parseInt(editingSlot.data.subject_id),
@@ -536,28 +574,28 @@ export function TimetableManagement() {
             if (!editingSlot || !user?.institutionId || !isSpecialMode) throw new Error('Missing data');
 
             // Get the class assigned to this faculty
-            const { data: staff } = await supabase
-                .from('staff_details')
-                .select('class_assigned, section_assigned')
-                .eq('profile_id', user.id)
+            const { data: assignment } = await supabase
+                .from('faculty_subjects')
+                .select(`
+                    section,
+                    classes:class_id (id, name)
+                `)
+                .eq('faculty_profile_id', user.id)
+                .eq('assignment_type', 'class_teacher')
                 .maybeSingle();
 
-            if (!staff?.class_assigned) {
+            if (!assignment || !(assignment.classes as any)?.id) {
                 throw new Error('You are not assigned as a class teacher.');
             }
 
-            // Get the class_id
-            const { data: targetClass } = await supabase
-                .from('classes')
-                .select('id')
-                .eq('name', staff.class_assigned)
-                .limit(1)
-                .single();
+            const targetClassId = (assignment.classes as any).id;
+            const targetClassName = (assignment.classes as any).name;
+            const section = assignment.section;
 
             const slotData = {
                 institution_id: user.institutionId,
-                class_id: targetClass.id,
-                section: staff.section_assigned,
+                class_id: targetClassId,
+                section: section,
                 event_date: specialClassDate,
                 subject_id: editingSlot.data.subject_id,
                 faculty_id: editingSlot.data.assigned_faculty_id || user.id,
@@ -576,8 +614,8 @@ export function TimetableManagement() {
             const { data: students } = await supabase
                 .from('students')
                 .select('id, parent_id')
-                .eq('class_name', staff.class_assigned)
-                .eq('section', staff.section_assigned)
+                .eq('class_name', targetClassName)
+                .eq('section', section)
                 .eq('institution_id', user.institutionId);
 
             if (students && students.length > 0) {
@@ -588,7 +626,7 @@ export function TimetableManagement() {
                         title: 'Special Class Scheduled',
                         message: `A special class for ${subjectName} has been scheduled on ${specialClassDate} at ${slotData.start_time}.`,
                         type: 'timetable',
-                        date: new Date().toISOString(),
+                        created_at: new Date().toISOString(),
                     }];
                     if (s.parent_id) {
                         msgs.push({
@@ -596,7 +634,7 @@ export function TimetableManagement() {
                             title: 'Special Class for your child',
                             message: `A special class for your child has been scheduled on ${specialClassDate} at ${slotData.start_time}.`,
                             type: 'timetable',
-                            date: new Date().toISOString(),
+                            created_at: new Date().toISOString(),
                         });
                     }
                     return msgs;
@@ -620,26 +658,23 @@ export function TimetableManagement() {
         mutationFn: async ({ day, period }: { day: string; period: number }) => {
             if (!user?.id) throw new Error('User not found');
 
-            const { data: staff } = await supabase
-                .from('staff_details')
-                .select('class_assigned, section_assigned')
-                .eq('profile_id', user.id)
+            const { data: assignment } = await supabase
+                .from('faculty_subjects')
+                .select(`
+                    section,
+                    classes:class_id (id)
+                `)
+                .eq('faculty_profile_id', user.id)
+                .eq('assignment_type', 'class_teacher')
                 .maybeSingle();
 
-            if (!staff?.class_assigned) throw new Error('Not class teacher');
-
-            const { data: targetClass } = await supabase
-                .from('classes')
-                .select('id')
-                .eq('name', staff.class_assigned)
-                .limit(1)
-                .single();
+            if (!assignment || !(assignment.classes as any)?.id) throw new Error('Not class teacher');
 
             const { error } = await supabase
                 .from('timetable_slots')
                 .delete()
-                .eq('class_id', targetClass.id)
-                .eq('section', staff.section_assigned)
+                .eq('class_id', (assignment.classes as any).id)
+                .eq('section', assignment.section)
                 .eq('day_of_week', day)
                 .eq('period_index', period);
 
@@ -716,7 +751,97 @@ export function TimetableManagement() {
         });
     };
 
-    const isLoading = isLoadingSchedule || isLoadingClassTimetable;
+    // Batch send notifications mutation for Special Classes
+    const sendBatchNotificationMutation = useMutation({
+        mutationFn: async () => {
+            if (!user?.id || !user?.institutionId || !specialClassDate) {
+                throw new Error('Missing required data');
+            }
+
+            // 1. Fetch special slots for this faculty and date
+            const { data: slots, error: slotsError } = await supabase
+                .from('special_timetable_slots')
+                .select(`
+                    id, 
+                    class_id, 
+                    section, 
+                    subject_id,
+                    subjects:subject_id (name)
+                `)
+                .eq('faculty_id', user.id)
+                .eq('event_date', specialClassDate)
+                .eq('institution_id', user.institutionId);
+
+            if (slotsError) throw slotsError;
+            if (!slots || slots.length === 0) {
+                throw new Error('No special slots found for today to notify about.');
+            }
+
+            const notifications: any[] = [];
+            const timestamp = new Date().toISOString();
+
+            // 2. Notify Students and Parents
+            const uniqueCombos = new Set<string>(); // "class_id|section"
+            slots.forEach(s => {
+                if (s.class_id) uniqueCombos.add(`${s.class_id}|${s.section}`);
+            });
+
+            // Fetch class data to get names if needed
+            const { data: allClassData } = await supabase.from('classes').select('id, name');
+
+            for (const combo of uniqueCombos) {
+                const [cid, sec] = combo.split('|');
+                const className = allClassData?.find(c => String(c.id) === String(cid))?.name;
+
+                if (!className) continue;
+
+                const { data: students } = await supabase
+                    .from('students')
+                    .select('id, parent_id')
+                    .eq('class_name', className)
+                    .eq('section', sec)
+                    .eq('institution_id', user.institutionId);
+
+                if (students && students.length > 0) {
+                    students.forEach(s => {
+                        notifications.push({
+                            user_id: s.id,
+                            title: 'Special Timetable Added',
+                            message: `A special timetable has been added to your schedule for ${specialClassDate} by ${user.name}.`,
+                            type: 'timetable',
+                            created_at: timestamp,
+                            read: false,
+                            action_url: `/student/timetable?date=${specialClassDate}`
+                        });
+
+                        if (s.parent_id) {
+                            notifications.push({
+                                user_id: s.parent_id,
+                                title: `Special Timetable for your child`,
+                                message: `A special timetable has been added for your child in ${className} - ${sec} on ${specialClassDate}.`,
+                                type: 'timetable',
+                                created_at: timestamp,
+                                read: false
+                            });
+                        }
+                    });
+                }
+            }
+
+            if (notifications.length > 0) {
+                const { error: notifyError } = await supabase.from('notifications').insert(notifications);
+                if (notifyError) throw notifyError;
+            }
+        },
+        onSuccess: () => {
+            toast.success('Notifications sent to all assigned students and parents');
+        },
+        onError: (err) => {
+            toast.error(err.message || 'Failed to send notifications');
+        }
+    });
+
+    const isLoading = isLoadingSchedule || isLoadingClassTimetable || isLoadingAssignment || isLoadingSpecial;
 
     if (isLoading) {
         return (
@@ -728,6 +853,7 @@ export function TimetableManagement() {
         );
     }
 
+    const canManageClass = isClassTeacher;
     const timingsList = calculateAllTimings();
 
     return (
@@ -736,13 +862,35 @@ export function TimetableManagement() {
                 <PageHeader
                     title="Timetable Management"
                     subtitle="View your schedule and manage your assigned class timetable"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 px-3 h-9 bg-muted/50 rounded-lg border shadow-sm">
+                                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                                <Input
+                                    type="date"
+                                    className="w-[130px] h-7 text-[11px] bg-transparent border-none focus-visible:ring-0 p-0"
+                                    value={specialClassDate}
+                                    onChange={(e) => setSpecialClassDate(e.target.value)}
+                                />
+                            </div>
+                            <Button
+                                onClick={() => sendBatchNotificationMutation.mutate()}
+                                disabled={sendBatchNotificationMutation.isPending}
+                                variant="secondary"
+                                className="h-9 text-xs font-bold gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 shadow-sm"
+                            >
+                                <Calendar className={cn("w-3.5 h-3.5", sendBatchNotificationMutation.isPending && "animate-pulse")} />
+                                {sendBatchNotificationMutation.isPending ? "Sending..." : "Notify Students"}
+                            </Button>
+                        </div>
+                    }
                 />
 
                 <Tabs defaultValue="my-schedule" className="w-full">
                     <TabsList className="grid w-full max-w-md grid-cols-3">
                         <TabsTrigger value="my-schedule">My Schedule</TabsTrigger>
                         <TabsTrigger value="class-timetable">
-                            {staffDetails?.class_assigned ? `${staffDetails.class_assigned}${staffDetails.section_assigned ? ` - ${staffDetails.section_assigned}` : ''}` : 'Class Timetable'}
+                            {classTeacherAssignment?.class_assigned ? `${classTeacherAssignment.class_assigned}${classTeacherAssignment.section_assigned ? ` - ${classTeacherAssignment.section_assigned}` : ''}` : 'Class Timetable'}
                         </TabsTrigger>
                         <TabsTrigger value="exam-schedule">Exams</TabsTrigger>
                     </TabsList>
@@ -798,11 +946,20 @@ export function TimetableManagement() {
                                                         <Fragment key={period}>
                                                             <td className="border p-2 min-w-[140px] h-[100px] align-top">
                                                                 {slot?.subject_id ? (
-                                                                    <div className="space-y-1 p-1">
-                                                                        <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/10 text-primary border-0 mb-1">
+                                                                    <div className={`space-y-1 p-1 rounded-md ${slot.is_special ? 'bg-orange-50/50 ring-1 ring-orange-200' : ''}`}>
+                                                                        <Badge
+                                                                            variant="default"
+                                                                            className={`w-full justify-start line-clamp-1 border-0 mb-1 ${slot.is_special ? 'bg-orange-200 text-orange-900 group-hover:bg-orange-300' : 'bg-primary/10 text-primary'}`}
+                                                                        >
                                                                             {slot.subjects?.name || 'Subject'}
+                                                                            {slot.is_special && <span className="ml-1 text-[8px] opacity-70">(Special)</span>}
                                                                         </Badge>
                                                                         <div className="text-xs font-medium pl-1">{slot.classes?.name || 'Class'} {slot.section}</div>
+                                                                        {slot.is_special && slot.title && (
+                                                                            <div className="text-[9px] text-orange-700 font-bold px-1 truncate italic">
+                                                                                {slot.title}
+                                                                            </div>
+                                                                        )}
                                                                         <div className="text-[10px] text-muted-foreground pl-1 font-bold">
                                                                             {slot.start_time} - {slot.end_time}
                                                                         </div>
@@ -849,182 +1006,194 @@ export function TimetableManagement() {
 
                     {/* Class Timetable Tab */}
                     <TabsContent value="class-timetable" className="mt-4">
-                        <Card>
-                            <CardContent className="p-0 overflow-hidden">
-                                <div className="p-4 bg-muted/30 border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <Badge className="bg-primary/10 text-primary border-primary/20">
-                                            {staffDetails?.class_assigned || 'Class'} {staffDetails?.section_assigned || ''}
-                                        </Badge>
-                                        <p className="text-sm text-muted-foreground">
-                                            Manage weekly schedule and schedule special classes
-                                        </p>
-                                    </div>
-                                    <Button
-                                        variant={isSpecialMode ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setIsSpecialMode(!isSpecialMode)}
-                                        className={isSpecialMode ? "bg-orange-500 hover:bg-orange-600" : ""}
-                                    >
-                                        <Calendar className="w-4 h-4 mr-2" />
-                                        {isSpecialMode ? "Exit Special Mode" : "Schedule Special Class"}
-                                    </Button>
-                                </div>
-
-                                {isSpecialMode && (
-                                    <div className="p-4 bg-orange-50/50 border-b flex items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3">
-                                            <label className="text-sm font-bold text-orange-700">Event Date:</label>
-                                            <Input
-                                                type="date"
-                                                className="w-40 bg-white"
-                                                value={specialClassDate}
-                                                onChange={(e) => setSpecialClassDate(e.target.value)}
-                                            />
+                        {!canManageClass ? (
+                            <Card>
+                                <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                                    <Calendar className="w-12 h-12 mb-4 opacity-20" />
+                                    <h3 className="text-lg font-medium">Access Restricted</h3>
+                                    <p className="max-w-sm mt-2 text-sm">
+                                        Only Class Teachers can manage the weekly timetable for their assigned class and section.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card>
+                                <CardContent className="p-0 overflow-hidden">
+                                    <div className="p-4 bg-muted/30 border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <Badge className="bg-primary/10 text-primary border-primary/20">
+                                                {classTeacherAssignment?.class_assigned || 'Class'} {classTeacherAssignment?.section_assigned || ''}
+                                            </Badge>
+                                            <p className="text-sm text-muted-foreground">
+                                                Manage weekly schedule and schedule special classes
+                                            </p>
                                         </div>
-                                        <Badge variant="outline" className="bg-white text-orange-600 border-orange-200">
-                                            Special Class Mode Active
-                                        </Badge>
+                                        <Button
+                                            variant={isSpecialMode ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setIsSpecialMode(!isSpecialMode)}
+                                            className={isSpecialMode ? "bg-orange-500 hover:bg-orange-600" : ""}
+                                        >
+                                            <Calendar className="w-4 h-4 mr-2" />
+                                            {isSpecialMode ? "Exit Special Mode" : "Schedule Special Class"}
+                                        </Button>
                                     </div>
-                                )}
 
-                                {!isSpecialMode ? (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full border-collapse min-w-[1000px]">
-                                            <thead>
-                                                <tr>
-                                                    <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0 z-10">Day</th>
-                                                    {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
-                                                        const timings = calculatePeriodTimings(p);
-                                                        return (
-                                                            <Fragment key={p}>
-                                                                <th className="border p-3 bg-muted/50 text-sm font-medium text-left">
-                                                                    <div className="font-bold">Period {p}</div>
-                                                                    <div className="text-[10px] font-normal text-muted-foreground mt-0.5 whitespace-nowrap">
-                                                                        {timings.start} - {timings.end}
-                                                                    </div>
-                                                                </th>
-                                                                {getBreakAfterPeriod('short') === p && (
-                                                                    <th className="border p-3 bg-blue-50/50 text-[10px] font-bold text-blue-600 text-center uppercase tracking-widest w-16">
-                                                                        Short Break
-                                                                    </th>
-                                                                )}
-                                                                {getBreakAfterPeriod('lunch') === p && (
-                                                                    <th className="border p-3 bg-orange-50/50 text-[10px] font-bold text-orange-600 text-center uppercase tracking-widest w-16">
-                                                                        Lunch
-                                                                    </th>
-                                                                )}
-                                                            </Fragment>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {DAYS.slice(0, configData.days_per_week).map((day) => (
-                                                    <tr key={day}>
-                                                        <td className="border p-4 font-semibold bg-muted/10 sticky left-0 z-10">{day}</td>
-                                                        {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
-                                                            const key = `${day}-${period}`;
-                                                            const slot = classTimetableData[key];
+                                    {isSpecialMode && (
+                                        <div className="p-4 bg-orange-50/50 border-b flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <label className="text-sm font-bold text-orange-700">Event Date:</label>
+                                                <Input
+                                                    type="date"
+                                                    className="w-40 bg-white"
+                                                    value={specialClassDate}
+                                                    onChange={(e) => setSpecialClassDate(e.target.value)}
+                                                />
+                                            </div>
+                                            <Badge variant="outline" className="bg-white text-orange-600 border-orange-200">
+                                                Special Class Mode Active
+                                            </Badge>
+                                        </div>
+                                    )}
+
+                                    {!isSpecialMode ? (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full border-collapse min-w-[1000px]">
+                                                <thead>
+                                                    <tr>
+                                                        <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0 z-10">Day</th>
+                                                        {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
+                                                            const timings = calculatePeriodTimings(p);
                                                             return (
-                                                                <Fragment key={period}>
-                                                                    <td
-                                                                        className="border p-2 min-w-[140px] h-[100px] align-top hover:bg-primary/5 transition-colors cursor-pointer relative group"
-                                                                        onClick={() => handleSlotClick(day, period)}
-                                                                    >
-                                                                        {slot?.subject_id ? (
-                                                                            <>
-                                                                                <div className="space-y-1 p-1">
-                                                                                    <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/10 text-primary border-0 mb-1">
-                                                                                        {slot.subjects?.name || 'Subject'}
-                                                                                    </Badge>
-                                                                                    <div className="text-xs font-medium pl-1">
-                                                                                        {slot.profiles?.full_name || 'Faculty'}
-                                                                                    </div>
-                                                                                    <div className="text-[10px] text-muted-foreground pl-1 font-bold">
-                                                                                        {slot.start_time} - {slot.end_time}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <button
-                                                                                    onClick={(e) => handleDeleteSlot(e, day, period)}
-                                                                                    className="absolute top-1 right-1 p-1 rounded-full bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
-                                                                                >
-                                                                                    <Trash2 className="w-3 h-3" />
-                                                                                </button>
-                                                                            </>
-                                                                        ) : (
-                                                                            <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 text-xs text-center border border-dashed rounded border-muted-foreground/10">
-                                                                                Assign
-                                                                            </div>
-                                                                        )}
-                                                                    </td>
-                                                                    {period === getBreakAfterPeriod('short') && (
-                                                                        <td className="border p-2 bg-blue-50/20 align-middle text-center">
-                                                                            <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-blue-400 tracking-[0.2em] uppercase mx-auto">
-                                                                                {configData.short_break_name}
-                                                                            </div>
-                                                                        </td>
+                                                                <Fragment key={p}>
+                                                                    <th className="border p-3 bg-muted/50 text-sm font-medium text-left">
+                                                                        <div className="font-bold">Period {p}</div>
+                                                                        <div className="text-[10px] font-normal text-muted-foreground mt-0.5 whitespace-nowrap">
+                                                                            {timings.start} - {timings.end}
+                                                                        </div>
+                                                                    </th>
+                                                                    {getBreakAfterPeriod('short') === p && (
+                                                                        <th className="border p-3 bg-blue-50/50 text-[10px] font-bold text-blue-600 text-center uppercase tracking-widest w-16">
+                                                                            Short Break
+                                                                        </th>
                                                                     )}
-                                                                    {period === getBreakAfterPeriod('lunch') && (
-                                                                        <td className="border p-2 bg-orange-50/20 align-middle text-center">
-                                                                            <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-orange-400 tracking-[0.2em] uppercase mx-auto">
-                                                                                Lunch
-                                                                            </div>
-                                                                        </td>
+                                                                    {getBreakAfterPeriod('lunch') === p && (
+                                                                        <th className="border p-3 bg-orange-50/50 text-[10px] font-bold text-orange-600 text-center uppercase tracking-widest w-16">
+                                                                            Lunch
+                                                                        </th>
                                                                     )}
                                                                 </Fragment>
                                                             );
                                                         })}
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : (
-                                    <div className="p-8">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                            {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
-                                                const slot = specialSlots.find(s => s.period_index === period);
-                                                const timing = calculatePeriodTimings(period);
-                                                return (
-                                                    <Card
-                                                        key={period}
-                                                        className={`overflow-hidden border-2 transition-all cursor-pointer ${slot ? 'border-orange-200 bg-orange-50/30' : 'hover:border-primary/50'}`}
-                                                        onClick={() => handleSpecialSlotClick(period)}
-                                                    >
-                                                        <CardContent className="p-4">
-                                                            <div className="flex justify-between items-start mb-3">
-                                                                <Badge variant="outline" className="bg-white">Period {period}</Badge>
-                                                                <span className="text-[10px] font-bold text-muted-foreground">{timing.start} - {timing.end}</span>
-                                                            </div>
-                                                            {slot ? (
-                                                                <div className="space-y-1">
-                                                                    <div className="font-bold text-orange-800 line-clamp-1">{slot.subjects?.name}</div>
-                                                                    <div className="text-xs text-muted-foreground line-clamp-1">{slot.profiles?.full_name}</div>
-                                                                    {slot.room_number && <div className="text-[10px] text-muted-foreground">Room: {slot.room_number}</div>}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="h-10 flex items-center justify-center text-muted-foreground/20">
-                                                                    <Plus className="w-5 h-5" />
-                                                                </div>
-                                                            )}
-                                                        </CardContent>
-                                                    </Card>
-                                                );
-                                            })}
+                                                </thead>
+                                                <tbody>
+                                                    {DAYS.slice(0, configData.days_per_week).map((day) => (
+                                                        <tr key={day}>
+                                                            <td className="border p-4 font-semibold bg-muted/10 sticky left-0 z-10">{day}</td>
+                                                            {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
+                                                                const key = `${day}-${period}`;
+                                                                const slot = classTimetableData[key];
+                                                                return (
+                                                                    <Fragment key={period}>
+                                                                        <td
+                                                                            className="border p-2 min-w-[140px] h-[100px] align-top hover:bg-primary/5 transition-colors cursor-pointer relative group"
+                                                                            onClick={() => handleSlotClick(day, period)}
+                                                                        >
+                                                                            {slot?.subject_id ? (
+                                                                                <>
+                                                                                    <div className="space-y-1 p-1">
+                                                                                        <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/10 text-primary border-0 mb-1">
+                                                                                            {slot.subjects?.name || 'Subject'}
+                                                                                        </Badge>
+                                                                                        <div className="text-xs font-medium pl-1">
+                                                                                            {slot.profiles?.full_name || 'Faculty'}
+                                                                                        </div>
+                                                                                        <div className="text-[10px] text-muted-foreground pl-1 font-bold">
+                                                                                            {slot.start_time} - {slot.end_time}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <button
+                                                                                        onClick={(e) => handleDeleteSlot(e, day, period)}
+                                                                                        className="absolute top-1 right-1 p-1 rounded-full bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                                                                                    >
+                                                                                        <Trash2 className="w-3 h-3" />
+                                                                                    </button>
+                                                                                </>
+                                                                            ) : (
+                                                                                <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 text-xs text-center border border-dashed rounded border-muted-foreground/10">
+                                                                                    Assign
+                                                                                </div>
+                                                                            )}
+                                                                        </td>
+                                                                        {period === getBreakAfterPeriod('short') && (
+                                                                            <td className="border p-2 bg-blue-50/20 align-middle text-center">
+                                                                                <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-blue-400 tracking-[0.2em] uppercase mx-auto">
+                                                                                    {configData.short_break_name}
+                                                                                </div>
+                                                                            </td>
+                                                                        )}
+                                                                        {period === getBreakAfterPeriod('lunch') && (
+                                                                            <td className="border p-2 bg-orange-50/20 align-middle text-center">
+                                                                                <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-orange-400 tracking-[0.2em] uppercase mx-auto">
+                                                                                    Lunch
+                                                                                </div>
+                                                                            </td>
+                                                                        )}
+                                                                    </Fragment>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    ) : (
+                                        <div className="p-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
+                                                    const slot = specialSlots.find(s => s.period_index === period);
+                                                    const timing = calculatePeriodTimings(period);
+                                                    return (
+                                                        <Card
+                                                            key={period}
+                                                            className={`overflow-hidden border-2 transition-all cursor-pointer ${slot ? 'border-orange-200 bg-orange-50/30' : 'hover:border-primary/50'}`}
+                                                            onClick={() => handleSpecialSlotClick(period)}
+                                                        >
+                                                            <CardContent className="p-4">
+                                                                <div className="flex justify-between items-start mb-3">
+                                                                    <Badge variant="outline" className="bg-white">Period {period}</Badge>
+                                                                    <span className="text-[10px] font-bold text-muted-foreground">{timing.start} - {timing.end}</span>
+                                                                </div>
+                                                                {slot ? (
+                                                                    <div className="space-y-1">
+                                                                        <div className="font-bold text-orange-800 line-clamp-1">{slot.subjects?.name}</div>
+                                                                        <div className="text-xs text-muted-foreground line-clamp-1">{slot.profiles?.full_name}</div>
+                                                                        {slot.room_number && <div className="text-[10px] text-muted-foreground">Room: {slot.room_number}</div>}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="h-10 flex items-center justify-center text-muted-foreground/20">
+                                                                        <Plus className="w-5 h-5" />
+                                                                    </div>
+                                                                )}
+                                                            </CardContent>
+                                                        </Card>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
                     </TabsContent>
 
                     {/* Exams Tab */}
                     <TabsContent value="exam-schedule" className="mt-4">
                         <ExamScheduleManager
                             classId={classDetails?.id}
-                            className={staffDetails?.class_assigned}
-                            section={staffDetails?.section_assigned}
+                            className={classTeacherAssignment?.class_assigned}
+                            section={classTeacherAssignment?.section_assigned}
                         />
                     </TabsContent>
                 </Tabs>

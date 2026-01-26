@@ -1,6 +1,9 @@
 import { ReactNode } from 'react';
 import { DashboardLayout } from './DashboardLayout';
 import { useTranslation } from '@/i18n/TranslationContext';
+import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import {
   LayoutDashboard,
   BookOpen,
@@ -18,6 +21,27 @@ import {
 
 export function FacultyLayout({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+
+  // Check if user is a class teacher to show/hide Timetable link
+  const { data: isClassTeacher = false } = useQuery({
+    queryKey: ['is-class-teacher', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data, error } = await supabase
+        .from('faculty_subjects')
+        .select('id')
+        .eq('faculty_profile_id', user.id)
+        .eq('assignment_type', 'class_teacher')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) return false;
+      return !!data;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+  });
 
   const facultyNavItems = [
     { label: t.nav.dashboard, href: '/faculty', icon: LayoutDashboard },
