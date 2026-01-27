@@ -35,6 +35,7 @@ export function ExamScheduleManager({ classId, className, section }: ExamSchedul
     const { user } = useAuth();
     const queryClient = useQueryClient();
 
+    const [selectedClassName, setSelectedClassName] = useState<string>('');
     const [selectedClass, setSelectedClass] = useState<string>('');
     const [selectedSection, setSelectedSection] = useState<string>('');
     const [selectedExamType, setSelectedExamType] = useState<ExamType | null>(null);
@@ -65,6 +66,46 @@ export function ExamScheduleManager({ classId, className, section }: ExamSchedul
         },
         enabled: !!user?.institutionId,
     });
+
+    // Filter unique class names
+    const uniqueClassNames = Array.from(new Set(classes.map(c => c.name))).sort((a, b) => {
+        // Natural sort for class names (e.g., 1st, 2nd, 10th)
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    // Available sections for the selected class name
+    const availableSections = Array.from(new Set(
+        classes
+            .filter(c => c.name === selectedClassName)
+            .flatMap(c => c.sections || [])
+    )).sort();
+
+    // Auto-select class ID based on name and section
+    useEffect(() => {
+        if (selectedClassName && selectedSection) {
+            const cls = classes.find(c =>
+                c.name === selectedClassName &&
+                Array.isArray(c.sections) &&
+                c.sections.includes(selectedSection)
+            );
+            if (cls) {
+                setSelectedClass(cls.id);
+            }
+        }
+    }, [selectedClassName, selectedSection, classes]);
+
+    // Initialize from props
+    useEffect(() => {
+        if (className && !selectedClassName) {
+            setSelectedClassName(className);
+        }
+        if (section && !selectedSection) {
+            setSelectedSection(section);
+        }
+        if (classId && !selectedClass) {
+            setSelectedClass(classId);
+        }
+    }, [className, section, classId]);
 
     // Get the selected class details
     const selectedClassData = classes.find(c => c.id === selectedClass);
@@ -406,14 +447,21 @@ export function ExamScheduleManager({ classId, className, section }: ExamSchedul
                             {/* Class Selector */}
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Class</label>
-                                <Select value={selectedClass} onValueChange={setSelectedClass}>
+                                <Select
+                                    value={selectedClassName}
+                                    onValueChange={(val) => {
+                                        setSelectedClassName(val);
+                                        setSelectedSection('');
+                                        setSelectedClass('');
+                                    }}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select class" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {classes.map((cls: any) => (
-                                            <SelectItem key={cls.id} value={cls.id}>
-                                                {cls.name}
+                                        {uniqueClassNames.map((name: string) => (
+                                            <SelectItem key={name} value={name}>
+                                                {name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -426,13 +474,13 @@ export function ExamScheduleManager({ classId, className, section }: ExamSchedul
                                 <Select
                                     value={selectedSection}
                                     onValueChange={setSelectedSection}
-                                    disabled={!selectedClass}
+                                    disabled={!selectedClassName}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select section" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {selectedClassData?.sections?.map((sec: string) => (
+                                        {availableSections.map((sec: string) => (
                                             <SelectItem key={sec} value={sec}>
                                                 Section {sec}
                                             </SelectItem>

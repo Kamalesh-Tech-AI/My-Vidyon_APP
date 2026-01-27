@@ -189,7 +189,7 @@ Deno.serve(async (req: Request) => {
                     console.log("Relationship syncing complete.");
                 }
             }
-        } else if (['faculty', 'institution', 'admin', 'accountant', 'canteen_manager'].includes(finalRole)) {
+        } else if (['faculty', 'institution', 'admin', 'accountant', 'canteen_manager', 'driver'].includes(finalRole)) {
             console.log("Syncing staff record...");
             const { error: staffError } = await supabaseAdmin
                 .from('staff_details')
