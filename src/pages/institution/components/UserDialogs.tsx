@@ -1141,4 +1141,101 @@ function AddParentDialog({ open, onOpenChange, onSuccess, institutionId, student
     );
 }
 
-export { AddStudentDialog, AddStaffDialog, AddParentDialog };
+function AddDriverDialog({ open, onOpenChange, onSuccess, institutionId }: any) {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [data, setData] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        staffId: ''
+    });
+    const queryClient = useQueryClient();
+
+    const handleSubmit = async () => {
+        if (!data.name || !data.email || !data.password) {
+            toast.error('Please fill all mandatory fields');
+            return;
+        }
+
+        setIsSubmitting(true);
+        const toastId = toast.loading('Creating driver account...');
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('No active session found. Please log in again.');
+
+            const { data: responseData, error } = await supabase.functions.invoke('create-user', {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                },
+                body: {
+                    email: data.email,
+                    password: data.password,
+                    role: 'driver',
+                    full_name: data.name,
+                    institution_id: institutionId,
+                    phone: data.phone || null,
+                    staff_id: data.staffId || `DRV-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+                }
+            });
+
+            if (error) throw error;
+            if (responseData?.error) throw new Error(responseData.error);
+
+            toast.success('Driver added successfully!', { id: toastId });
+            onOpenChange(false);
+            setData({ name: '', email: '', phone: '', password: '', staffId: '' });
+            queryClient.invalidateQueries({ queryKey: ['institution-staff', institutionId] });
+            onSuccess();
+
+        } catch (error: any) {
+            console.error('Driver creation error:', error);
+            toast.error(error.message || 'Failed to create driver', { id: toastId });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Add Driver</DialogTitle>
+                    <DialogDescription>Create a driver account for transportation.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Full Name *</Label>
+                        <Input value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} placeholder="e.g. David Smith" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Email *</Label>
+                        <Input type="email" value={data.email} onChange={(e) => setData({ ...data, email: e.target.value })} placeholder="driver@example.com" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Phone Number</Label>
+                        <Input type="tel" value={data.phone} onChange={(e) => setData({ ...data, phone: e.target.value })} placeholder="e.g. 9876543210" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Driver ID (Optional)</Label>
+                        <Input value={data.staffId} onChange={(e) => setData({ ...data, staffId: e.target.value })} placeholder="e.g. DRV-001" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Password *</Label>
+                        <Input type="password" value={data.password} onChange={(e) => setData({ ...data, password: e.target.value })} placeholder="Min 6 characters" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSubmit} disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Add Driver
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export { AddStudentDialog, AddStaffDialog, AddParentDialog, AddDriverDialog };

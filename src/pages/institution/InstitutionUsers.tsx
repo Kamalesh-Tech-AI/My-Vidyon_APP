@@ -14,7 +14,7 @@ import { useWebSocketContext } from '@/context/WebSocketContext';
 import { Input } from "@/components/ui/input";
 import { Badge } from '@/components/common/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AddStudentDialog, AddStaffDialog, AddParentDialog } from './components/UserDialogs';
+import { AddStudentDialog, AddStaffDialog, AddParentDialog, AddDriverDialog } from './components/UserDialogs';
 import {
     Dialog,
     DialogContent,
@@ -26,7 +26,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type DialogType = 'student' | 'staff' | 'parent' | 'accountant' | 'canteen' | null;
+type DialogType = 'student' | 'staff' | 'parent' | 'accountant' | 'canteen' | 'driver' | null;
 
 import { useSearch } from '@/context/SearchContext';
 
@@ -45,7 +45,7 @@ export function InstitutionUsers() {
 
     // Bulk Upload State
     const [showBulkUpload, setShowBulkUpload] = useState(false);
-    const [bulkFileType, setBulkFileType] = useState<'student' | 'staff' | 'parent'>('student');
+    const [bulkFileType, setBulkFileType] = useState<'student' | 'staff' | 'parent' | 'driver'>('student');
     const [bulkFile, setBulkFile] = useState<File | null>(null);
     const [isBulkUploading, setIsBulkUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
@@ -81,7 +81,8 @@ export function InstitutionUsers() {
 
             if (error) throw error;
             // Client-side filtering to avoid 400 errors if enum values don't match
-            const targetRoles = ['faculty', 'admin', 'teacher', 'accountant', 'canteen_manager'];
+            // Client-side filtering to avoid 400 errors if enum values don't match
+            const targetRoles = ['faculty', 'admin', 'teacher', 'accountant', 'canteen_manager', 'driver'];
             return (data || []).filter((p: any) => targetRoles.includes(p.role));
         },
         enabled: !!user?.institutionId,
@@ -231,7 +232,7 @@ export function InstitutionUsers() {
     };
 
     const handleDownloadTemplate = () => {
-        BulkUploadService.generateTemplate(bulkFileType);
+        BulkUploadService.generateTemplate(bulkFileType as any);
     };
 
     const filteredStudents = useMemo(() => institutionStudents.filter((s: any) =>
@@ -263,6 +264,13 @@ export function InstitutionUsers() {
         )
     ), [institutionStaff, searchTerm]);
 
+    const filteredDrivers = useMemo(() => institutionStaff.filter((s: any) =>
+        s.role === 'driver' && (
+            s.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            s.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+    ), [institutionStaff, searchTerm]);
+
     return (
         <InstitutionLayout>
             <PageHeader
@@ -284,12 +292,13 @@ export function InstitutionUsers() {
                 </div>
 
                 <Tabs defaultValue="students" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-[600px]">
+                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 lg:max-w-3xl mb-4">
                         <TabsTrigger value="students">Students</TabsTrigger>
                         <TabsTrigger value="staff">Staff</TabsTrigger>
                         <TabsTrigger value="parents">Parents</TabsTrigger>
                         <TabsTrigger value="accountants">Accountants</TabsTrigger>
                         <TabsTrigger value="canteen">Canteen</TabsTrigger>
+                        <TabsTrigger value="driver">Drivers</TabsTrigger>
                     </TabsList>
 
                     {/* STUDENTS TAB */}
@@ -580,6 +589,64 @@ export function InstitutionUsers() {
                             </div>
                         </Card>
                     </TabsContent>
+
+                    {/* DRIVERS TAB */}
+                    <TabsContent value="driver" className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-semibold">Registered Drivers ({filteredDrivers.length})</h3>
+                            <Button size="sm" onClick={() => setDialogType('driver')} className="gap-2">
+                                <Plus className="w-4 h-4" /> Add Driver
+                            </Button>
+                        </div>
+                        <Card className="border">
+                            <div className="relative w-full overflow-auto">
+                                <table className="w-full caption-bottom text-sm text-left">
+                                    <thead className="[&_tr]:border-b bg-muted/40">
+                                        <tr className="border-b transition-colors">
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Name</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Email</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Phone</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Status</th>
+                                            <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="[&_tr:last-child]:border-0">
+                                        {isStaffLoading ? (
+                                            <tr><td colSpan={5} className="p-4 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
+                                        ) : filteredDrivers.length === 0 ? (
+                                            <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No drivers found.</td></tr>
+                                        ) : (
+                                            filteredDrivers.map((driver: any) => (
+                                                <tr key={driver.id} className="border-b transition-colors hover:bg-muted/50">
+                                                    <td className="p-4 font-medium">{driver.full_name}</td>
+                                                    <td className="p-4">{driver.email}</td>
+                                                    <td className="p-4">{driver.phone || 'N/A'}</td>
+                                                    <td className="p-4">
+                                                        <Badge className={driver.is_active !== false ? "bg-green-100 text-green-700 hover:bg-green-100/80 border-0" : "bg-red-100 text-red-700 hover:bg-red-100/80 border-0"}>
+                                                            {driver.is_active !== false ? 'Active' : 'Disabled'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <Button
+                                                            variant={driver.is_active !== false ? "ghost" : "default"}
+                                                            size="sm"
+                                                            className={driver.is_active !== false
+                                                                ? "text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                                                : "bg-green-600 hover:bg-green-700 text-white"
+                                                            }
+                                                            onClick={() => handleToggleUserStatus(driver.id, 'staff', driver.is_active !== false)}
+                                                        >
+                                                            {driver.is_active !== false ? 'Disable' : 'Enable'}
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
+                    </TabsContent>
                 </Tabs>
             </div>
 
@@ -626,6 +693,15 @@ export function InstitutionUsers() {
                 />
             )}
 
+            {dialogType === 'driver' && (
+                <AddDriverDialog
+                    open={true}
+                    onOpenChange={(open: boolean) => !open && setDialogType(null)}
+                    institutionId={user?.institutionId}
+                    onSuccess={() => { }}
+                />
+            )}
+
             {dialogType === 'parent' && (
                 <AddParentDialog
                     open={true}
@@ -660,6 +736,7 @@ export function InstitutionUsers() {
                                     <SelectItem value="student">Student</SelectItem>
                                     <SelectItem value="staff">Staff</SelectItem>
                                     <SelectItem value="parent">Parent</SelectItem>
+                                    <SelectItem value="driver">Driver</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
