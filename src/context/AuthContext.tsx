@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 1. Fetch profile with institution data in one query
         const { data: profile } = await supabase
           .from('profiles')
-          .select('id, email, full_name, role, institution_id, is_active')
+          .select('id, email, full_name, role, institution_id, is_active, phone')
           .eq('id', userId)
           .maybeSingle();
 
@@ -61,8 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 2. Parallel queries for role detection (optimized)
         const [instRes, studentRes, parentRes, staffRes] = await Promise.all([
           supabase.from('institutions').select('institution_id').eq('admin_email', email).maybeSingle(),
-          supabase.from('students').select('institution_id, is_active').eq('email', email).maybeSingle(),
-          supabase.from('parents').select('institution_id, is_active').eq('email', email).maybeSingle(),
+          supabase.from('students').select('institution_id, is_active, phone, address').eq('email', email).maybeSingle(),
+          supabase.from('parents').select('institution_id, is_active, phone').eq('email', email).maybeSingle(),
           supabase.from('staff_details').select('institution_id, role').eq('profile_id', userId).maybeSingle()
         ]);
 
@@ -161,7 +161,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name: profile?.full_name || email.split('@')[0],
           role: detectedRole,
           institutionId: institutionId,
-          forcePasswordChange: false // We'll skip this check for performance
+          forcePasswordChange: false, // We'll skip this check for performance
+          phone: profile?.phone || studentRes.data?.phone || parentRes.data?.phone,
+          address: studentRes.data?.address
         };
       })();
 

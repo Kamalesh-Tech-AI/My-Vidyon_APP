@@ -7,10 +7,16 @@ import { useAuth } from '@/context/AuthContext';
 import { User, Lock, Phone, Mail, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/TranslationContext';
+import { useParentDashboard } from '@/hooks/useParentDashboard';
+import { useNavigate } from 'react-router-dom';
 
 export function ParentSettings() {
     const { user, logout } = useAuth();
     const { t } = useTranslation();
+    const navigate = useNavigate();
+
+    // Fetch real data
+    const { children } = useParentDashboard(user?.id, user?.institutionId);
 
     const handlePasswordChange = (e: React.FormEvent) => {
         e.preventDefault();
@@ -56,20 +62,27 @@ export function ParentSettings() {
                     <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
                         <h4 className="font-semibold mb-4">{t.parent.settings.linkedChildren}</h4>
                         <div className="space-y-3">
-                            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">AJ</div>
-                                <div>
-                                    <p className="font-medium text-sm">Alex Johnson</p>
-                                    <p className="text-xs text-muted-foreground">Class 10-A</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">EJ</div>
-                                <div>
-                                    <p className="font-medium text-sm">Emily Johnson</p>
-                                    <p className="text-xs text-muted-foreground">Class 6-B</p>
-                                </div>
-                            </div>
+                            {children.length > 0 ? (
+                                children.map((child) => (
+                                    <div
+                                        key={child.id}
+                                        className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
+                                        onClick={() => navigate(`/parent/child/${child.id}`)}
+                                    >
+                                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                                            {child.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm">{child.name}</p>
+                                            <p className="text-xs text-muted-foreground">{child.class} - {child.section}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-sm text-muted-foreground text-center py-4">
+                                    No children linked yet.
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -94,12 +107,12 @@ export function ParentSettings() {
                                 <Label>{t.parent.settings.phone}</Label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                    <Input className="pl-10" defaultValue="+91 98765 43210" disabled />
+                                    <Input className="pl-10" defaultValue={user.phone || 'Not Provided'} disabled />
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label>{t.parent.settings.address}</Label>
-                                <Input defaultValue="123, Green Park, New Delhi" disabled />
+                                <Input defaultValue={user.address || 'Not Provided'} disabled />
                             </div>
                         </div>
                     </div>

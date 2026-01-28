@@ -18,10 +18,13 @@ import {
     ClipboardCheck,
     FileText,
     Send,
-    Loader2
+    Loader2,
+    Award,
+    Download
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { supabase } from '@/lib/supabase';
+import { ParentExamScheduleView } from '@/components/parent/ParentExamScheduleView';
 import { useQuery } from '@tanstack/react-query';
 
 export function ParentChildDetail() {
@@ -101,6 +104,14 @@ export function ParentChildDetail() {
                 grade: g.grade_letter || '-'
             }));
 
+            // 5. Fetch Certificates
+            const { data: certificatesData } = await supabase
+                .from('certificates')
+                .select('*')
+                .eq('student_email', studentData.email)
+                .eq('status', 'active')
+                .order('uploaded_at', { ascending: false });
+
             return {
                 ...studentData,
                 name: studentData.full_name || studentData.name,
@@ -114,7 +125,8 @@ export function ParentChildDetail() {
                 ],
                 assignments: assignments.length > 0 ? assignments : [
                     { title: 'No assignments', subject: 'N/A', dueDate: '-', status: 'none' }
-                ]
+                ],
+                certificates: certificatesData || []
             };
         },
         enabled: !!studentId
@@ -194,6 +206,8 @@ export function ParentChildDetail() {
                         <TabsTrigger value="academic" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.academic}</TabsTrigger>
                         <TabsTrigger value="attendance" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.attendance}</TabsTrigger>
                         <TabsTrigger value="leave" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.leave}</TabsTrigger>
+                        <TabsTrigger value="exam-schedule" className="text-xs sm:text-sm px-3 sm:px-4">Exam Schedule</TabsTrigger>
+                        <TabsTrigger value="certificates" className="text-xs sm:text-sm px-3 sm:px-4">Certificates</TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -226,6 +240,12 @@ export function ParentChildDetail() {
                             icon={Calendar}
                             iconColor="text-info"
                             change="Spring Sem"
+                        />
+                        <StatCard
+                            title="Certificates"
+                            value={student.certificates.length}
+                            icon={Award}
+                            iconColor="text-purple-500"
                         />
                     </div>
 
@@ -351,6 +371,63 @@ export function ParentChildDetail() {
                                 <Badge variant="success">{t.parent.leave.approved}</Badge>
                             </div>
                         </div>
+                    </div>
+                </TabsContent>
+
+                {/* EXAM SCHEDULE TAB */}
+                <TabsContent value="exam-schedule">
+                    <ParentExamScheduleView
+                        institutionId={student.institution_id}
+                        classId={student.class_name}
+                        section={student.section}
+                    />
+                </TabsContent>
+
+                {/* CERTIFICATES TAB */}
+                <TabsContent value="certificates">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {student.certificates.length > 0 ? (
+                            student.certificates.map((cert: any) => (
+                                <div key={cert.id} className="bg-card rounded-lg border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="p-4 border-b border-border bg-muted/20">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Award className="w-5 h-5 text-primary" />
+                                                <h4 className="font-semibold line-clamp-1">{cert.category}</h4>
+                                            </div>
+                                            <Badge variant="success" className="text-xs">Active</Badge>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 space-y-3">
+                                        {cert.course_description && (
+                                            <div>
+                                                <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Description</p>
+                                                <p className="text-sm line-clamp-2">{cert.course_description}</p>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
+                                            <span>{new Date(cert.uploaded_at).toLocaleDateString()}</span>
+                                            <span>{Math.round(cert.file_size / 1024)} KB</span>
+                                        </div>
+                                        <Button
+                                            className="w-full mt-2"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => window.open(cert.file_url, '_blank')}
+                                        >
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Download
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="col-span-full flex flex-col items-center justify-center p-12 bg-card rounded-lg border border-dashed border-border text-center">
+                                <Award className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
+                                <h3 className="text-lg font-semibold">No Certificates Yet</h3>
+                                <p className="text-muted-foreground">Certificates earned will appear here.</p>
+                            </div>
+                        )}
                     </div>
                 </TabsContent>
             </Tabs>

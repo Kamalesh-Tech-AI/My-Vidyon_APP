@@ -4,11 +4,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { useParentDashboard } from '@/hooks/useParentDashboard';
 import { Phone, Shield, School, User, Calendar, CreditCard, AlertCircle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/common/Badge';
 
 export function ParentDashboard() {
     const { user } = useAuth();
     const { t } = useTranslation();
+    const navigate = useNavigate();
 
     const { stats, children, childrenAttendance, leaveRequests, feeData, specialClasses } = useParentDashboard(
         user?.id,
@@ -26,19 +28,19 @@ export function ParentDashboard() {
             <section className="mb-8 mt-6">
                 <h3 className="text-lg font-bold mb-4 px-1">Quick Services</h3>
                 <div className="shortcut-grid">
-                    <button className="shortcut-card">
+                    <button className="shortcut-card" onClick={() => navigate('/parent')}>
                         <div className="shortcut-icon-wrapper bg-blue-100 text-blue-600">
                             <User className="w-6 h-6" />
                         </div>
                         <span className="shortcut-label">Children</span>
                     </button>
-                    <button className="shortcut-card">
+                    <button className="shortcut-card" onClick={() => navigate('/parent/fees')}>
                         <div className="shortcut-icon-wrapper bg-green-100 text-green-600">
                             <CreditCard className="w-6 h-6" />
                         </div>
                         <span className="shortcut-label">Pay Fees</span>
                     </button>
-                    <button className="shortcut-card">
+                    <button className="shortcut-card" onClick={() => navigate('/parent/leave')}>
                         <div className="shortcut-icon-wrapper bg-purple-100 text-purple-600">
                             <Calendar className="w-6 h-6" />
                         </div>
@@ -68,7 +70,7 @@ export function ParentDashboard() {
                         </div>
                         <span className="shortcut-label">Emergency</span>
                     </button>
-                    <button className="shortcut-card">
+                    <button className="shortcut-card" onClick={() => navigate('/parent/settings')}>
                         <div className="shortcut-icon-wrapper bg-gray-100 text-gray-600">
                             <User className="w-6 h-6" />
                         </div>
@@ -78,7 +80,7 @@ export function ParentDashboard() {
             </section>
 
             {/* Native Ad / Announcement */}
-            <section className="native-ad-card shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+            <section className="native-ad-card shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => navigate('/parent/fees')}>
                 <div className="native-ad-badge">Recommended</div>
                 <div className="native-ad-content">
                     <div className="native-ad-image-container relative">
@@ -104,7 +106,11 @@ export function ParentDashboard() {
                     children.map((child) => {
                         const childAttendance = childrenAttendance.find(a => a.childId === child.id);
                         return (
-                            <div key={child.id} className="bg-card rounded-lg border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
+                            <div
+                                key={child.id}
+                                className="bg-card rounded-lg border border-border p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                                onClick={() => navigate(`/parent/child/${child.id}`)}
+                            >
                                 <div className="flex items-start justify-between mb-3">
                                     <div>
                                         <h3 className="font-semibold text-lg">{child.name}</h3>
