@@ -412,11 +412,16 @@ export function RealtimeNotificationBell() {
             else if (user?.role === 'parent') navigate('/parent/calendar');
             else navigate('/faculty/calendar');
         } else if (notification.type === 'attendance') {
-            // Special routing for attendance violations
-            if (user?.role === 'parent') navigate('/parent');
-            else if (user?.role === 'student') navigate('/student/attendance');
-            else if (user?.role === 'faculty') navigate('/faculty/attendance');
-            else navigate('/institution/dashboard');
+            // Priority: Use the specific action_url if provided by database
+            if (notification.actionUrl) {
+                navigate(notification.actionUrl);
+            } else {
+                // Fallback to static routing if for some reason actionUrl is missing
+                if (user?.role === 'parent') navigate('/parent');
+                else if (user?.role === 'student') navigate('/student/attendance');
+                else if (user?.role === 'faculty') navigate('/faculty/attendance');
+                else navigate('/institution/dashboard');
+            }
         }
     };
 

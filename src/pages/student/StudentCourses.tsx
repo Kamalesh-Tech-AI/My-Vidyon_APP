@@ -1,6 +1,6 @@
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
-import { CourseCard } from '@/components/cards/CourseCard';
+import { SubjectCard } from '@/components/cards/SubjectCard';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { useStudentDashboard } from '@/hooks/useStudentDashboard';
 import { useAuth } from '@/context/AuthContext';
@@ -47,8 +47,8 @@ export function StudentCourses() {
         </div>
       ) : subjects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {subjects.map((course: any) => (
-            <CourseCard key={course.id} {...course} />
+          {subjects.map((subject: any) => (
+            <SubjectCard key={subject.id} {...subject} />
           ))}
         </div>
       ) : (

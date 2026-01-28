@@ -1,5 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { FacultyLayout } from '@/layouts/FacultyLayout';
+import { InstitutionLayout } from '@/layouts/InstitutionLayout';
+import { useAuth } from '@/context/AuthContext';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Mail, Phone, MapPin, Calendar, Award, TrendingUp, BookOpen, MessageCircle, User, Loader2 } from 'lucide-react';
@@ -11,6 +13,12 @@ import { Badge } from '@/components/common/Badge';
 export function StudentProfile() {
     const { studentId } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const isInstitution = user?.role === 'institution' || user?.role === 'admin';
+
+    const Layout = isInstitution ? InstitutionLayout : FacultyLayout;
+    const backPath = isInstitution ? '/institution/users' : '/faculty/students';
 
     // 1. Fetch Student Data
     const { data: student, isLoading: isStudentLoading, error: studentError } = useQuery({
@@ -57,24 +65,24 @@ export function StudentProfile() {
 
     if (isStudentLoading) {
         return (
-            <FacultyLayout>
+            <Layout>
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
-            </FacultyLayout>
+            </Layout>
         );
     }
 
     if (studentError || !student) {
         return (
-            <FacultyLayout>
+            <Layout>
                 <div className="flex flex-col items-center justify-center min-h-[60vh]">
                     <h2 className="text-2xl font-bold mb-4">Student Not Found</h2>
-                    <Button onClick={() => navigate('/faculty/students')}>
+                    <Button onClick={() => navigate(backPath)}>
                         Back to Students
                     </Button>
                 </div>
-            </FacultyLayout>
+            </Layout>
         );
     }
 
@@ -98,12 +106,12 @@ export function StudentProfile() {
     };
 
     return (
-        <FacultyLayout>
+        <Layout>
             <PageHeader
                 title="Student Profile"
                 subtitle="View detailed information about the student"
                 actions={
-                    <Button variant="outline" onClick={() => navigate('/faculty/students')}>
+                    <Button variant="outline" onClick={() => navigate(backPath)}>
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back to Students
                     </Button>
@@ -274,6 +282,6 @@ export function StudentProfile() {
                     </div>
                 </div>
             </div>
-        </FacultyLayout>
+        </Layout>
     );
 }

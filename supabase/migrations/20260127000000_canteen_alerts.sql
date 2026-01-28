@@ -1,12 +1,11 @@
--- Migration: Simplified Canteen Notifications (Permission Based - Fixed Type Mismatches)
+-- Migration: Simplified Canteen Notifications (Permission Based - Fixed Type Mismatches & Targeted URLs)
 -- Date: 2026-01-27
 
 -- 1. CLEANUP
 DROP TRIGGER IF EXISTS tr_canteen_denial_notify ON public.student_attendance;
 DROP FUNCTION IF EXISTS tr_notify_canteen_denial();
 
--- 2. Modify student_attendance to align with user requirement:
--- Ensure canteen_permission is TEXT to handle 'true'/'false'/'allow'/'deny' and defaults to NULL
+-- 2. Modify student_attendance to align with user requirement (if not already done)
 DO $$ 
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='student_attendance' AND column_name='canteen_permission') THEN
@@ -18,7 +17,7 @@ ALTER TABLE public.student_attendance DROP CONSTRAINT IF EXISTS student_attendan
 ALTER TABLE public.student_attendance ALTER COLUMN canteen_permission DROP DEFAULT;
 ALTER TABLE public.student_attendance ALTER COLUMN canteen_permission SET DEFAULT NULL;
 
--- 3. Trigger Function with Robust Type Casting
+-- 3. Trigger Function with Robust Type Casting and Dynamic Student URLs
 CREATE OR REPLACE FUNCTION tr_notify_canteen_denial()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -29,8 +28,7 @@ DECLARE
     v_msg TEXT;
 BEGIN
     -- Only trigger if canteen_permission is explicitly set to 'false' or 'deny'
-    -- We cast to text for comparison to be safe with different underlying types
-    IF (NEW.canteen_permission::text IN ('false', 'deny')) 
+    IF (NEW.canteen_permission::text IN ('false', 'deny', 'False')) -- Added 'False' just in case
        AND (OLD.canteen_permission IS NULL OR OLD.canteen_permission::text != NEW.canteen_permission::text OR TG_OP = 'INSERT') THEN
         
         -- Get student info for the notification message
@@ -42,7 +40,6 @@ BEGIN
         v_ins_id_text := NEW.institution_id;
 
         -- Identify Class Teacher (using classes table schema)
-        -- We cast everything to text in the WHERE clause to avoid operator mismatch
         SELECT class_teacher_id INTO v_class_teacher_id 
         FROM public.classes 
         WHERE name = v_student.class_name 
@@ -60,7 +57,7 @@ BEGIN
 
         -- 1. Notify Parents
         INSERT INTO public.notifications (user_id, title, message, type, action_url)
-        SELECT pid, 'Canteen Access Denied', v_msg, 'attendance', '/parent'
+        SELECT pid, 'Canteen Access Denied', v_msg, 'attendance', '/parent/child/' || NEW.student_id
         FROM (
             SELECT p.profile_id as pid FROM public.student_parents sp
             JOIN public.parents p ON sp.parent_id = p.id
@@ -72,13 +69,13 @@ BEGIN
         -- 2. Notify Class Teacher
         IF v_class_teacher_id IS NOT NULL THEN
             INSERT INTO public.notifications (user_id, title, message, type, action_url)
-            VALUES (v_class_teacher_id, 'Canteen Permission Alert', v_msg, 'warning', '/faculty/attendance');
+            VALUES (v_class_teacher_id, 'Canteen Permission Alert', v_msg, 'warning', '/faculty/students/' || NEW.student_id);
         END IF;
 
-        -- 3. Notify Institution Admins (Fixed with Explicit Casting)
-        -- We match profile.institution_id (which might be UUID or TEXT) with our TEXT input
+        -- 3. Notify Institution Admins
+        -- Fix URL to use PLURAL 'students' to match App.tsx
         INSERT INTO public.notifications (user_id, title, message, type, action_url)
-        SELECT id, 'Canteen Access Denial: ' || v_student_name, v_msg, 'error', '/institution/dashboard'
+        SELECT id, 'Canteen Access Denial: ' || v_student_name, v_msg, 'error', '/institution/students/' || NEW.student_id
         FROM public.profiles
         WHERE (institution_id::text = v_ins_id_text OR institution_id::text IN (
             SELECT id::text FROM public.institutions WHERE institution_id = v_ins_id_text

@@ -47,19 +47,39 @@ interface Grade {
 export function useStudentDashboard(studentId?: string, institutionId?: string) {
     const queryClient = useQueryClient();
 
+    // 0. Resolve institution UUID from TEXT code if needed
+    const { data: instUuid } = useQuery({
+        queryKey: ['institution-uuid', institutionId],
+        queryFn: async () => {
+            if (!institutionId) return null;
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(institutionId)) {
+                return institutionId;
+            }
+            const { data } = await supabase
+                .from('institutions')
+                .select('id')
+                .eq('institution_id', institutionId)
+                .maybeSingle();
+            return data?.id || null;
+        },
+        enabled: !!institutionId,
+        staleTime: 24 * 60 * 60 * 1000,
+    });
+
     // 1. Fetch Assignments
     const { data: assignments = [] } = useQuery({
-        queryKey: ['student-assignments', studentId],
+        queryKey: ['student-assignments', studentId, instUuid],
         queryFn: async () => {
-            if (!studentId) return [];
+            console.log('🚀 [v3] Fetching assignments for student:', studentId);
+            if (!studentId || !instUuid) return [];
 
             const { data, error } = await supabase
                 .from('assignments')
                 .select(`
                     *,
-                    submissions!left(id, submitted_at, grade, status)
+                    assignment_submissions(id, submitted_at, marks_obtained, status)
                 `)
-                .eq('institution_id', institutionId)
+                .eq('institution_id', instUuid) // Changed to instUuid (UUID)
                 .order('due_date', { ascending: true });
 
             if (error) throw error;
@@ -69,10 +89,10 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
                 title: assignment.title,
                 subject: assignment.subject,
                 dueDate: assignment.due_date,
-                status: assignment.submissions?.[0]?.status || 'pending',
+                status: assignment.assignment_submissions?.[0]?.status || 'pending',
             })) as Assignment[];
         },
-        enabled: !!studentId && !!institutionId,
+        enabled: !!studentId && !!instUuid,
         staleTime: 2 * 60 * 1000,
     });
 
@@ -102,14 +122,15 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
 
     // 3. Fetch Grades
     const { data: grades = [] } = useQuery({
-        queryKey: ['student-grades', studentId],
+        queryKey: ['student-grades', studentId, instUuid],
         queryFn: async () => {
-            if (!studentId) return [];
+            if (!studentId || !instUuid) return [];
 
             const { data, error } = await supabase
                 .from('grades')
                 .select('*')
                 .eq('student_id', studentId)
+                .eq('institution_id', instUuid)
                 .order('date', { ascending: false });
 
             if (error) throw error;
@@ -123,7 +144,7 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
                 date: grade.date,
             })) as Grade[];
         },
-        enabled: !!studentId,
+        enabled: !!studentId && !!instUuid,
         staleTime: 2 * 60 * 1000,
     });
 
@@ -155,22 +176,22 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
 
     // 5. Fetch Upcoming Events
     const { data: upcomingEventsCount = 0 } = useQuery({
-        queryKey: ['student-events', institutionId],
+        queryKey: ['student-events', instUuid],
         queryFn: async () => {
-            if (!institutionId) return 0;
+            if (!instUuid) return 0;
 
             const today = new Date().toISOString().split('T')[0];
 
             const { count, error } = await supabase
                 .from('academic_events')
                 .select('id', { count: 'exact', head: true })
-                .eq('institution_id', institutionId)
+                .eq('institution_id', instUuid)
                 .gte('event_date', today);
 
             if (error) throw error;
             return count || 0;
         },
-        enabled: !!institutionId,
+        enabled: !!instUuid,
         staleTime: 5 * 60 * 1000,
     });
 
@@ -191,69 +212,109 @@ export function useStudentDashboard(studentId?: string, institutionId?: string) 
     // 7. Real-time Subscriptions (Migrated to SSE)
     useERPRealtime(institutionId);
 
-    // 8. Fetch Subjects for Student's Class via faculty_subjects
     const { data: subjectsData = { subjects: [], classTeacher: 'Not Assigned' }, isLoading: subjectsLoading } = useQuery({
-        queryKey: ['student-subjects-view-full', studentId],
+        queryKey: ['student-subjects-view-full', studentId, institutionId, instUuid],
         queryFn: async () => {
-            if (!studentId) return { subjects: [], classTeacher: 'Not Assigned' };
+            if (!studentId || !institutionId || !instUuid) return { subjects: [], classTeacher: 'Not Assigned' };
 
-            // Get student's class_id and section
+            // 1. Get student's current assignment (class_name and section)
             const { data: studentData, error: studentError } = await supabase
                 .from('students')
-                .select('class_id, section, institution_id')
+                .select('class_name, section, institution_id')
                 .eq('id', studentId)
                 .single();
 
-            if (studentError || !studentData) return { subjects: [], classTeacher: 'Not Assigned' };
+            if (studentError || !studentData) {
+                console.error('❌ Student data not found:', studentError);
+                return { subjects: [], classTeacher: 'Not Assigned' };
+            }
 
-            // 1. Fetch Class Teacher (Advisor)
-            const { data: advisorData } = await supabase
-                .from('faculty_subjects')
-                .select('profiles:faculty_profile_id(full_name)')
-                .eq('class_id', studentData.class_id)
-                .eq('section', studentData.section)
-                .eq('assignment_type', 'class_teacher')
+            console.log('🔍 Student Data:', studentData);
+
+            // 2. Resolve the class ID using class_name and institution_id (joined via groups)
+            // Strategy: Join with groups to filter by institution code and check sections array
+            const { data: classData, error: classError } = await supabase
+                .from('classes')
+                .select(`
+                    id, 
+                    name,
+                    groups!inner(institution_id)
+                `)
+                .eq('name', studentData.class_name)
+                .eq('groups.institution_id', institutionId)
+                .contains('sections', [studentData.section])
                 .maybeSingle();
 
-            // 2. Fetch Subjects
-            const { data: assignmentsData, error: assignmentsError } = await supabase
+            console.log('🔍 Resolved Class Data:', classData);
+
+            if (classError || !classData) {
+                console.error('⚠️ Class not found for:', studentData.class_name, studentData.section, classError);
+                return { subjects: [], classTeacher: 'Not Assigned' };
+            }
+
+            // 3. Fetch Faculty Subjects assignments
+            const { data: facultyAssignments, error: assignmentsError } = await supabase
                 .from('faculty_subjects')
                 .select(`
                     subject_id,
                     faculty_profile_id,
+                    section,
+                    assignment_type,
                     subjects:subject_id (
                         id,
                         name,
                         code
                     ),
                     profiles:faculty_profile_id (
-                        full_name
+                        id,
+                        full_name,
+                        phone
                     )
                 `)
-                .eq('class_id', studentData.class_id)
-                .eq('section', studentData.section)
-                .eq('assignment_type', 'subject_staff');
+                .eq('class_id', classData.id)
+                .eq('institution_id', institutionId)
+                .or(`section.ilike.${studentData.section?.trim() || ''},section.is.null,section.eq.""`);
 
-            if (assignmentsError) throw assignmentsError;
+            if (assignmentsError) {
+                console.error('❌ Error fetching faculty assignments:', assignmentsError);
+                throw assignmentsError;
+            }
 
-            const subjects = (assignmentsData || [])
-                .filter((a: any) => a.subjects)
-                .map((a: any) => ({
-                    id: a.subjects.id,
-                    title: a.subjects.name,
-                    code: a.subjects.code || 'N/A',
-                    instructor: a.profiles?.full_name || 'Not Assigned',
-                    progress: 0,
-                    students: 0,
-                    status: 'active' as const
-                }));
+            console.log('📋 [v3] Fetched Faculty Assignments:', facultyAssignments?.length);
+
+            // 4. Map the data into the format required by the UI
+            const subjects = (facultyAssignments || [])
+                .filter((a: any) => a.subjects && a.assignment_type === 'subject_staff')
+                .map((a: any) => {
+                    const profileData = Array.isArray(a.profiles) ? a.profiles[0] : a.profiles;
+
+                    if (profileData?.full_name && !profileData?.phone) {
+                        console.warn(`⚠️ Missing phone for instructor: ${profileData.full_name}`);
+                    }
+
+                    return {
+                        id: a.subjects.id,
+                        title: a.subjects.name,
+                        code: a.subjects.code || 'N/A',
+                        instructor: profileData?.full_name || 'Not Assigned',
+                        instructorPhone: profileData?.phone?.trim() || null,
+                        progress: 0,
+                        students: 0,
+                        status: 'active' as const
+                    };
+                });
+
+            // Find class teacher
+            const teacherEntry = (facultyAssignments || []).find((a: any) => a.assignment_type === 'class_teacher');
+            const teacherProfile = teacherEntry ? (Array.isArray(teacherEntry.profiles) ? teacherEntry.profiles[0] : teacherEntry.profiles) : null;
+            const classTeacher = teacherProfile?.full_name || 'Not Assigned';
 
             return {
                 subjects,
-                classTeacher: (advisorData?.profiles as any)?.full_name || 'Not Assigned'
+                classTeacher
             };
         },
-        enabled: !!studentId,
+        enabled: !!studentId && !!institutionId && !!instUuid,
         staleTime: 5 * 60 * 1000,
     });
 

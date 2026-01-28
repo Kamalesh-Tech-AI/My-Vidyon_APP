@@ -89,7 +89,8 @@ export class BulkUploadService {
                             blood_group: user.blood_group || user.bloodGroup,
                             city: user.city,
                             zip_code: user.zip_code || user.zipCode,
-                            academic_year: user.academic_year || user.academicYear
+                            academic_year: user.academic_year || user.academicYear,
+                            phone: user.phone || user.contact || user.mobile
                         }
                     });
 

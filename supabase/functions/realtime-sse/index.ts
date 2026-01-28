@@ -5,7 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
  * Supabase Edge Function: Real-time SSE Stream
  * This function provides a "Zero-Buffer" stream of database events.
  */
-serve(async (req) => {
+serve(async (req: Request) => {
     const { institution_id } = await req.json().catch(() => ({}))
 
     const stream = new ReadableStream({

@@ -172,7 +172,7 @@ const App = () => {
 
                       <Route path="/faculty/students" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyStudents /></ProtectedRoute>} />
                       <Route path="/faculty/student-leaves" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyStudentLeaves /></ProtectedRoute>} />
-                      <Route path="/faculty/students/:studentId" element={<ProtectedRoute allowedRoles={['faculty']}><StudentProfile /></ProtectedRoute>} />
+                      <Route path="/faculty/students/:studentId" element={<ProtectedRoute allowedRoles={['faculty', 'institution', 'admin']}><StudentProfile /></ProtectedRoute>} />
                       <Route path="/faculty/notifications" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyNotifications /></ProtectedRoute>} />
                       <Route path="/faculty/announcements" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyAnnouncements /></ProtectedRoute>} />
                       <Route path="/faculty/upload-certificate" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyUploadCertificate /></ProtectedRoute>} />
@@ -200,7 +200,7 @@ const App = () => {
                       <Route path="/institution/leave-approval" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionLeaveApproval /></ProtectedRoute>} />
                       <Route path="/institution/notifications" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionNotifications /></ProtectedRoute>} />
                       <Route path="/institution/users" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionUsers /></ProtectedRoute>} />
-                      <Route path="/institution/student/:studentId" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionStudentDetails /></ProtectedRoute>} />
+                      <Route path="/institution/students/:studentId" element={<ProtectedRoute allowedRoles={['institution', 'admin']}><StudentProfile /></ProtectedRoute>} />
                       <Route path="/institution/add-student" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionAddStudent /></ProtectedRoute>} />
 
                       <Route path="/institution/fees" element={<ProtectedRoute allowedRoles={['institution']}><InstitutionFees /></ProtectedRoute>} />

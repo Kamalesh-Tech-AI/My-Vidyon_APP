@@ -187,31 +187,13 @@
   }
 
   /* Mobile-specific (max-width for targeting only small screens) */
-  @media (max-width: 639px) {
 
-    /* Styles that ONLY apply to mobile */
-    .mobile-only-custom {
-      /* your styles */
-    }
-  }
 
   /* Tablet-specific (between mobile and desktop) */
-  @media (min-width: 640px) and (max-width: 1023px) {
 
-    /* Styles that ONLY apply to tablets */
-    .tablet-only-custom {
-      /* your styles */
-    }
-  }
 
   /* Desktop-specific (large screens only) */
-  @media (min-width: 1024px) {
 
-    /* Styles that ONLY apply to desktop */
-    .desktop-only-custom {
-      /* your styles */
-    }
-  }
 
   /* Landscape orientation */
   @media (orientation: landscape) {
