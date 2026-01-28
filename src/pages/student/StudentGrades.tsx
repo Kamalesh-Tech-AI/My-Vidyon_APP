@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Badge } from '@/components/common/Badge';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { TrendingUp, Award, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
     Select,
     SelectContent,
@@ -56,13 +57,16 @@ export function StudentGrades() {
                 .from('exam_results')
                 .select(`
                     *,
-                    exams!exam_id (id, name, exam_display_name, exam_type),
+                    exam_schedules!exam_id (id, exam_display_name, exam_type),
                     subjects!subject_id (name)
                 `)
                 .eq('student_id', studentProfile.id)
                 .eq('status', 'PUBLISHED');
 
-            if (error) throw error;
+            if (error) {
+                console.error('Error fetching student grades:', error);
+                throw error;
+            }
             return data || [];
         },
         enabled: !!studentProfile?.id,
@@ -74,7 +78,7 @@ export function StudentGrades() {
         if (!acc[examId]) {
             acc[examId] = {
                 id: examId,
-                title: result.exams?.exam_display_name || result.exams?.name || 'Generic Exam',
+                title: result.exam_schedules?.exam_display_name || result.exam_schedules?.exam_type || 'Exam',
                 results: [],
                 totalMarks: 0,
                 obtainedMarks: 0
@@ -102,6 +106,49 @@ export function StudentGrades() {
             setSelectedExam(examsList[0].id);
         }
     }, [examsList, selectedExam]);
+
+    // Real-time subscription for new published results
+    useEffect(() => {
+        if (!studentProfile?.id) return;
+
+        console.log('📡 Setting up real-time subscription for student:', studentProfile.id);
+
+        const channel = supabase
+            .channel('exam_results_realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'exam_results',
+                    filter: `student_id=eq.${studentProfile.id}`
+                },
+                (payload) => {
+                    console.log('📬 Real-time update received:', payload);
+
+                    // Check if the result is published
+                    if (payload.new && (payload.new as any).status === 'PUBLISHED') {
+                        toast.success('New exam results published! 🎉', {
+                            description: 'Your grades have been updated.',
+                            duration: 5000
+                        });
+
+                        // Refresh the grades data
+                        queryClient.invalidateQueries({ queryKey: ['student-grades-view'] });
+                    }
+                }
+            )
+            .subscribe((status) => {
+                console.log('📡 Subscription status:', status);
+            });
+
+        // Cleanup subscription on unmount
+        return () => {
+            console.log('🔌 Cleaning up real-time subscription');
+            supabase.removeChannel(channel);
+        };
+    }, [studentProfile?.id, queryClient]);
+
 
     const currentExamData = examsMap[selectedExam];
     const percentage = currentExamData

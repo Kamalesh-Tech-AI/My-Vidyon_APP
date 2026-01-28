@@ -17,7 +17,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Search, ClipboardList } from 'lucide-react';
-import { EXAM_TYPES } from '@/components/exam-schedule/ExamTypeSelector';
 
 interface ContextSelectorsProps {
     viewMode: 'ENTRY' | 'REVIEW' | 'CLASS_TEACHER';
@@ -78,22 +77,18 @@ export function ContextSelectors({
                                 <SelectValue placeholder="Select Exam" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectGroup>
-                                    <SelectLabel>Standard Exams</SelectLabel>
-                                    {EXAM_TYPES.map((type) => (
-                                        <SelectItem key={type.value} value={type.value}>
-                                            {type.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                                {exams.length > 0 && (
+                                {exams.length > 0 ? (
                                     <SelectGroup>
-                                        <SelectLabel>Dynamic Exams</SelectLabel>
+                                        <SelectLabel>Available Exams</SelectLabel>
                                         {exams.map((e: any) => (
                                             <SelectItem key={e.id} value={e.id}>
                                                 {e.exam_display_name || e.name}
                                             </SelectItem>
                                         ))}
+                                    </SelectGroup>
+                                ) : (
+                                    <SelectGroup>
+                                        <SelectLabel>No exams available</SelectLabel>
                                     </SelectGroup>
                                 )}
                             </SelectContent>
