@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface AcademicEvent {
     id: string;
@@ -40,10 +41,8 @@ interface AcademicEvent {
 
 export function StudentCalendar() {
     const { user } = useAuth();
-    const [events, setEvents] = useState<AcademicEvent[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+    const queryClient = useQueryClient();
 
     const [filterState, setFilterState] = useState({
         showHolidays: true,
@@ -62,66 +61,59 @@ export function StudentCalendar() {
         setIsDetailsDialogOpen(true);
     };
 
-    // Fetch Events with Realtime
+    // Use React Query for events
+    const { data: events = [], isLoading: loading, isFetching: isRefreshing } = useQuery({
+        queryKey: ['academic-events', user?.institutionId],
+        queryFn: async () => {
+            if (!user?.institutionId) return [];
+
+            const { data, error } = await supabase
+                .from('academic_events')
+                .select('*')
+                .eq('institution_id', user.institutionId)
+                .order('start_date', { ascending: true });
+
+            if (error) throw error;
+
+            setLastUpdated(new Date());
+
+            return (data || []).map(e => {
+                const start = new Date(e.start_date);
+                const end = new Date(e.end_date);
+
+                let dateStr = format(start, 'MMM dd, yyyy');
+                if (start.getTime() !== end.getTime()) {
+                    dateStr = `${format(start, 'MMM dd')} - ${format(end, 'MMM dd, yyyy')}`;
+                }
+
+                return {
+                    id: e.id,
+                    title: e.title,
+                    type: e.event_type,
+                    category: e.category || 'General',
+                    description: e.description || '',
+                    date: dateStr,
+                    start_date: e.start_date,
+                    end_date: e.end_date,
+                    banner_url: e.banner_url || null
+                };
+            }) as AcademicEvent[];
+        },
+        enabled: !!user?.institutionId,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+
+    // Realtime Subscription
     useEffect(() => {
         if (!user?.institutionId) return;
 
-        const fetchEvents = async () => {
-            try {
-                setIsRefreshing(true);
-                const { data, error } = await supabase
-                    .from('academic_events')
-                    .select('*')
-                    .eq('institution_id', user.institutionId)
-                    .order('start_date', { ascending: true });
-
-                if (error) throw error;
-
-                if (data) {
-                    const formattedEvents: AcademicEvent[] = data.map(e => {
-                        const start = new Date(e.start_date);
-                        const end = new Date(e.end_date);
-
-                        let dateStr = format(start, 'MMM dd, yyyy');
-                        if (start.getTime() !== end.getTime()) {
-                            dateStr = `${format(start, 'MMM dd')} - ${format(end, 'MMM dd, yyyy')}`;
-                        }
-
-                        return {
-                            id: e.id,
-                            title: e.title,
-                            type: e.event_type,
-                            category: e.category || 'General',
-                            description: e.description || '',
-                            date: dateStr,
-                            start_date: e.start_date,
-                            end_date: e.end_date,
-                            banner_url: e.banner_url || null
-                        };
-                    });
-                    setEvents(formattedEvents);
-                    setLastUpdated(new Date());
-                }
-            } catch (err: any) {
-                console.error("Error fetching academic events:", err);
-                toast.error("Failed to load calendar events");
-            } finally {
-                setLoading(false);
-                setIsRefreshing(false);
-            }
-        };
-
-        fetchEvents();
-
-        // Realtime Subscription - Listen to institution's calendar changes
         const channel = supabase
             .channel('student_calendar_realtime')
             .on('postgres_changes',
                 { event: '*', schema: 'public', table: 'academic_events', filter: `institution_id=eq.${user.institutionId}` },
-                (payload) => {
-                    console.log('Calendar event changed:', payload);
+                () => {
+                    queryClient.invalidateQueries({ queryKey: ['academic-events', user.institutionId] });
                     toast.info('Calendar updated', { duration: 2000 });
-                    fetchEvents();
                 }
             )
             .subscribe();
@@ -129,8 +121,7 @@ export function StudentCalendar() {
         return () => {
             supabase.removeChannel(channel);
         };
-
-    }, [user?.institutionId]);
+    }, [user?.institutionId, queryClient]);
 
     const getDaysInMonth = (date: Date) => {
         return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();

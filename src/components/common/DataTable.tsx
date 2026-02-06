@@ -65,7 +65,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
           {/* Desktop Table View */}
           <div className={cn(
-            'overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth-touch',
+            'table-responsive-wrapper px-1 sm:px-0',
             mobileCardView && 'hidden sm:block'
           )}>
             <table className="w-full min-w-[600px]">
@@ -90,7 +90,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   </tr>
                 ) : (
                   data.map((item, index) => (
-                    <tr key={index} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <tr key={index} className="border-b border-border/50 lg:hover:bg-muted/30 transition-colors">
                       {columns.map((column) => (
                         <td key={String(column.key)} className={cn('table-cell whitespace-nowrap', column.className)}>
                           {column.render

@@ -1,47 +1,65 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSSE } from './useSSE';
+import { useWebSocketContext } from '@/context/WebSocketContext';
 import { toast } from 'sonner';
 
 /**
- * Centralized Service to handle Real-time Updates via SSE.
- * This hook is used in Main Layouts or Dashboards to keep data fresh 
- * WITHOUT buffering entire JSON responses.
+ * Centralized Service to handle Real-time Updates using Supabase Realtime.
+ * This hook is used in Main Layouts or Dashboards to keep data fresh.
  */
 export function useERPRealtime(institutionId?: string) {
     const queryClient = useQueryClient();
-
-    // Connect to the streaming SSE endpoint (example URL)
-    // In a real setup, this would be your Supabase Edge Function or Backend URL
-    const { data: event, connectionStatus } = useSSE(
-        institutionId ? `${import.meta.env.VITE_API_URL || ''}/api/realtime-stream?institution_id=${institutionId}` : null
-    );
+    const { subscribeToTable, connectionStatus } = useWebSocketContext();
 
     useEffect(() => {
-        if (!event) return;
+        if (!institutionId) return;
 
-        // Handle different event types from the stream
-        switch (event.type) {
-            case 'STUDENT_CHANGED':
-                queryClient.invalidateQueries({ queryKey: ['faculty-total-students'] });
-                queryClient.invalidateQueries({ queryKey: ['institution-total-students'] });
-                break;
+        console.log(`📡 Setting up native realtime subscriptions for institution: ${institutionId}`);
 
-            case 'ATTENDANCE_UPDATED':
-                queryClient.invalidateQueries({ queryKey: ['faculty-today-attendance'] });
-                queryClient.invalidateQueries({ queryKey: ['institution-today-attendance'] });
-                break;
+        // 1. Subscribe to critical tables for this institution
 
-            case 'LEAVE_REQUESTED':
-                queryClient.invalidateQueries({ queryKey: ['faculty-pending-leaves'] });
-                toast.info(event.message || 'New leave request received');
-                break;
+        // Students table
+        const unsubStudents = subscribeToTable('students', (payload) => {
+            console.log('📡 Realtime: Student change detected', payload.eventType);
+            queryClient.invalidateQueries({ queryKey: ['faculty-total-students'] });
+            queryClient.invalidateQueries({ queryKey: ['faculty-my-students'] });
+            queryClient.invalidateQueries({ queryKey: ['faculty-assigned-subjects'] });
+            queryClient.invalidateQueries({ queryKey: ['institution-total-students'] });
+            queryClient.invalidateQueries({ queryKey: ['student-profile'] });
+        }, { filter: `institution_id=eq.${institutionId}` });
 
-            default:
-                // Generic refresh if unknown event
-                queryClient.invalidateQueries();
-        }
-    }, [event, queryClient]);
+        // Attendance table
+        const unsubAttendance = subscribeToTable('student_attendance', (payload) => {
+            console.log('📡 Realtime: Attendance update detected', payload.eventType);
+            queryClient.invalidateQueries({ queryKey: ['faculty-today-attendance'] });
+            queryClient.invalidateQueries({ queryKey: ['institution-today-attendance'] });
+            queryClient.invalidateQueries({ queryKey: ['student-attendance'] });
+        }, { filter: `institution_id=eq.${institutionId}` });
+
+        // Leave requests table
+        const unsubLeaves = subscribeToTable('leave_requests', (payload) => {
+            if (payload.eventType === 'INSERT') {
+                toast.info('New leave request received');
+            }
+            queryClient.invalidateQueries({ queryKey: ['faculty-pending-leaves'] });
+            queryClient.invalidateQueries({ queryKey: ['institution-pending-leaves'] });
+        });
+
+        // Announcements table
+        const unsubAnnouncements = subscribeToTable('announcements', (payload) => {
+            if (payload.eventType === 'INSERT') {
+                toast.info('New announcement published');
+            }
+            queryClient.invalidateQueries({ queryKey: ['announcements'] });
+        }, { filter: `institution_id=eq.${institutionId}` });
+
+        return () => {
+            unsubStudents();
+            unsubAttendance();
+            unsubLeaves();
+            unsubAnnouncements();
+        };
+    }, [institutionId, subscribeToTable, queryClient]);
 
     return { connectionStatus };
 }

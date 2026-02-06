@@ -17,6 +17,22 @@ export function ParentDashboard() {
         user?.institutionId
     );
 
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    const handleAttendanceClick = () => {
+        if (children && children.length > 0) {
+            // Navigate to the first child's attendance tab
+            navigate(`/parent/child/${children[0].id}?tab=attendance`);
+        } else {
+            navigate('/parent'); // Stay here if no children
+        }
+    };
+
     return (
         <ParentLayout>
             <PageHeader
@@ -28,7 +44,7 @@ export function ParentDashboard() {
             <section className="mb-8 mt-6">
                 <h3 className="text-lg font-bold mb-4 px-1">Quick Services</h3>
                 <div className="shortcut-grid">
-                    <button className="shortcut-card" onClick={() => navigate('/parent')}>
+                    <button className="shortcut-card" onClick={() => scrollToSection('children-section')}>
                         <div className="shortcut-icon-wrapper bg-blue-100 text-blue-600">
                             <User className="w-6 h-6" />
                         </div>
@@ -46,25 +62,25 @@ export function ParentDashboard() {
                         </div>
                         <span className="shortcut-label">Leave App</span>
                     </button>
-                    <button className="shortcut-card">
+                    <button className="shortcut-card" onClick={handleAttendanceClick}>
                         <div className="shortcut-icon-wrapper bg-orange-100 text-orange-600">
                             <Clock className="w-6 h-6" />
                         </div>
                         <span className="shortcut-label">Attendance</span>
                     </button>
-                    <button className="shortcut-card">
+                    <button className="shortcut-card" onClick={() => scrollToSection('emergency-section')}>
                         <div className="shortcut-icon-wrapper bg-red-100 text-red-600">
                             <Shield className="w-6 h-6" />
                         </div>
                         <span className="shortcut-label">Security</span>
                     </button>
-                    <button className="shortcut-card">
+                    <button className="shortcut-card" onClick={() => navigate('/parent/settings')}>
                         <div className="shortcut-icon-wrapper bg-indigo-100 text-indigo-600">
                             <School className="w-6 h-6" />
                         </div>
                         <span className="shortcut-label">School Info</span>
                     </button>
-                    <button className="shortcut-card">
+                    <button className="shortcut-card" onClick={() => scrollToSection('emergency-section')}>
                         <div className="shortcut-icon-wrapper bg-yellow-100 text-yellow-600">
                             <AlertCircle className="w-6 h-6" />
                         </div>
@@ -101,7 +117,7 @@ export function ParentDashboard() {
             </section>
 
             {/* Children Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-6 mb-8">
+            <div id="children-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-6 mb-8">
                 {children.length > 0 ? (
                     children.map((child) => {
                         const childAttendance = childrenAttendance.find(a => a.childId === child.id);
@@ -140,7 +156,7 @@ export function ParentDashboard() {
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
                 <div className="bg-card p-4 rounded-lg border border-border shadow-sm">
                     <div className="flex items-center gap-3 mb-2">
                         <User className="w-5 h-5 text-primary" />
@@ -234,7 +250,7 @@ export function ParentDashboard() {
             )}
 
             {/* Emergency Contacts */}
-            <div>
+            <div id="emergency-section">
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                     <Phone className="w-5 h-5 text-destructive" />
                     Emergency Contacts

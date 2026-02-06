@@ -1,0 +1,289 @@
+--- Faculty Assignments with Class Names ---
+[
+  {
+    "id": "c32b5cad-4016-448c-a81b-b170d185e44a",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "ce4929e1-f23f-41d0-8abb-281559e4ae1c",
+    "subject_id": "a0de1709-9a6a-4a7e-bfc2-d328728085e3",
+    "class_id": "7f605a66-9124-443e-8bc4-d6204eb14018",
+    "section": "B",
+    "created_at": "2026-01-19T10:00:18.853168+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "7th"
+    }
+  },
+  {
+    "id": "15736e9e-db52-477f-8a9a-98904bb938af",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "f3af8679-695a-430c-8335-f7e11d6b0eeb",
+    "subject_id": "ab0b19db-c90f-4a8f-af97-0da3e2cb8177",
+    "class_id": "7f605a66-9124-443e-8bc4-d6204eb14018",
+    "section": "B",
+    "created_at": "2026-01-19T10:21:20.041582+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "7th"
+    }
+  },
+  {
+    "id": "b5d6cb66-c983-4875-ab86-6a42cd823d7d",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "f3af8679-695a-430c-8335-f7e11d6b0eeb",
+    "subject_id": null,
+    "class_id": "7f605a66-9124-443e-8bc4-d6204eb14018",
+    "section": "B",
+    "created_at": "2026-01-19T10:21:20.04385+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "7th"
+    }
+  },
+  {
+    "id": "8a06885d-bbab-4f2c-a348-009dcdbb47fb",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "974ef38e-9669-4c41-9f3f-107160dce34d",
+    "subject_id": null,
+    "class_id": "7c24cf2b-5c99-49d8-bc8c-941770634e4b",
+    "section": "C",
+    "created_at": "2026-01-20T05:26:43.533408+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "6th"
+    }
+  },
+  {
+    "id": "f0c9a74d-5224-4650-bfc5-c08cf2462e5a",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "974ef38e-9669-4c41-9f3f-107160dce34d",
+    "subject_id": "a0de1709-9a6a-4a7e-bfc2-d328728085e3",
+    "class_id": "7c24cf2b-5c99-49d8-bc8c-941770634e4b",
+    "section": "C",
+    "created_at": "2026-01-20T05:26:43.535672+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "6th"
+    }
+  },
+  {
+    "id": "862a3d5f-9c86-4a0a-af95-0212e35680df",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "974ef38e-9669-4c41-9f3f-107160dce34d",
+    "subject_id": "a0de1709-9a6a-4a7e-bfc2-d328728085e3",
+    "class_id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "section": "C",
+    "created_at": "2026-01-20T05:31:31.481509+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "10th"
+    }
+  },
+  {
+    "id": "1a136aa4-4f44-45b7-b443-c520e00fbf65",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "01c1226f-d7d4-4033-a8d0-89eeb99fbc6a",
+    "subject_id": null,
+    "class_id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "section": "C",
+    "created_at": "2026-01-20T05:31:31.482579+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "10th"
+    }
+  },
+  {
+    "id": "04781c38-1ec3-4d26-b666-8da24b73a17c",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "80963202-30c0-4bcf-b674-a0162080bb2d",
+    "subject_id": null,
+    "class_id": "ecc4f437-a642-4feb-a894-75e004556b82",
+    "section": "D",
+    "created_at": "2026-01-20T05:52:10.31552+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "2nd"
+    }
+  },
+  {
+    "id": "9c03eb23-45a0-4620-9c60-3944032231cf",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "974ef38e-9669-4c41-9f3f-107160dce34d",
+    "subject_id": "ab0b19db-c90f-4a8f-af97-0da3e2cb8177",
+    "class_id": "ecc4f437-a642-4feb-a894-75e004556b82",
+    "section": "D",
+    "created_at": "2026-01-20T05:52:10.33088+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "2nd"
+    }
+  },
+  {
+    "id": "3b28f6df-6ad5-4ab4-985f-ce648f9fb7a8",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "7257691c-87ed-466b-be2d-54db079effea",
+    "subject_id": null,
+    "class_id": "a689b481-7ef0-40d1-9db3-f8878cc27d36",
+    "section": "B",
+    "created_at": "2026-01-20T06:00:19.353062+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "3rd"
+    }
+  },
+  {
+    "id": "a56db3fe-7003-4b61-b6dc-15939a666daa",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "974ef38e-9669-4c41-9f3f-107160dce34d",
+    "subject_id": "0a7ce350-ba8a-4969-be51-a0dbe34a570e",
+    "class_id": "a689b481-7ef0-40d1-9db3-f8878cc27d36",
+    "section": "B",
+    "created_at": "2026-01-20T06:00:19.353028+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "3rd"
+    }
+  },
+  {
+    "id": "760a4ef9-df2b-4de0-bd99-cfb0c2476f78",
+    "institution_id": "123456",
+    "faculty_profile_id": "8ea31f11-29ba-498e-89f8-9f205d2d5c96",
+    "subject_id": "e6f51fd8-3bb8-4c78-9f19-b724be460c96",
+    "class_id": "1b8e6a81-e7ee-41ef-aaf8-785766d50b4e",
+    "section": "A",
+    "created_at": "2026-01-20T09:45:58.892935+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "12th"
+    }
+  },
+  {
+    "id": "93084ec2-da88-453d-9dfc-7371a2961bdd",
+    "institution_id": "123456",
+    "faculty_profile_id": "8ea31f11-29ba-498e-89f8-9f205d2d5c96",
+    "subject_id": null,
+    "class_id": "1b8e6a81-e7ee-41ef-aaf8-785766d50b4e",
+    "section": "A",
+    "created_at": "2026-01-20T09:45:58.902366+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "12th"
+    }
+  },
+  {
+    "id": "595ac125-aba1-468f-b536-393d9ac29ba8",
+    "institution_id": "123456",
+    "faculty_profile_id": "45665ea7-d495-4d6e-aefb-7190ca032669",
+    "subject_id": null,
+    "class_id": "bd9182cb-8fa7-409e-9015-b3e901df006e",
+    "section": "A",
+    "created_at": "2026-01-24T07:18:01.450907+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "9th"
+    }
+  },
+  {
+    "id": "7a80bc4c-b498-4b4d-867d-f22f0bd34600",
+    "institution_id": "123456",
+    "faculty_profile_id": "45665ea7-d495-4d6e-aefb-7190ca032669",
+    "subject_id": "f719acf6-c59a-4c1f-8d6a-5fd262ce0a53",
+    "class_id": "bd9182cb-8fa7-409e-9015-b3e901df006e",
+    "section": "A",
+    "created_at": "2026-01-24T07:18:01.472764+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "9th"
+    }
+  },
+  {
+    "id": "76d7b9fd-fa32-42cd-b204-7c4e054b5c1b",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "26dd3454-a5e2-4824-82b5-96e8940803f4",
+    "subject_id": null,
+    "class_id": "2413141d-15bc-4cd0-856a-b57a5b654abb",
+    "section": "A",
+    "created_at": "2026-01-25T10:07:42.898401+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "9th"
+    }
+  },
+  {
+    "id": "4df50eaf-2953-42fb-b332-b090b73369d1",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "ce4929e1-f23f-41d0-8abb-281559e4ae1c",
+    "subject_id": null,
+    "class_id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "section": "A",
+    "created_at": "2026-01-25T10:07:48.936863+00:00",
+    "assignment_type": "class_teacher",
+    "classes": {
+      "name": "10th"
+    }
+  },
+  {
+    "id": "d9a92648-c89e-4ba8-a41b-70bf75bfe13f",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "01c1226f-d7d4-4033-a8d0-89eeb99fbc6a",
+    "subject_id": "ab0b19db-c90f-4a8f-af97-0da3e2cb8177",
+    "class_id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "section": "A",
+    "created_at": "2026-01-25T10:07:49.377328+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "10th"
+    }
+  },
+  {
+    "id": "276835eb-66f7-4b3c-bda9-0a8057c450a5",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "ce4929e1-f23f-41d0-8abb-281559e4ae1c",
+    "subject_id": "a0de1709-9a6a-4a7e-bfc2-d328728085e3",
+    "class_id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "section": "A",
+    "created_at": "2026-01-25T10:07:49.379016+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "10th"
+    }
+  },
+  {
+    "id": "b964edcd-194a-4442-b5c9-687fe3af2637",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "ce4929e1-f23f-41d0-8abb-281559e4ae1c",
+    "subject_id": "0a7ce350-ba8a-4969-be51-a0dbe34a570e",
+    "class_id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "section": "A",
+    "created_at": "2026-01-25T10:07:49.387208+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "10th"
+    }
+  },
+  {
+    "id": "0e5ab8b9-2c5b-42a4-a4ed-e5ecd49ead57",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "ce4929e1-f23f-41d0-8abb-281559e4ae1c",
+    "subject_id": "0371bd26-cd11-45e8-af3c-123b1b2363b2",
+    "class_id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "section": "A",
+    "created_at": "2026-01-25T10:07:49.395291+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "10th"
+    }
+  },
+  {
+    "id": "37d53398-d260-4f79-9bf9-02a63c6304a3",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "ce4929e1-f23f-41d0-8abb-281559e4ae1c",
+    "subject_id": "c0f32ba7-f8d0-4f5a-aea2-f9da52f26403",
+    "class_id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "section": "A",
+    "created_at": "2026-01-25T10:07:49.39641+00:00",
+    "assignment_type": "subject_staff",
+    "classes": {
+      "name": "10th"
+    }
+  }
+]

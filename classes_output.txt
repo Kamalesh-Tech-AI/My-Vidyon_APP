@@ -1,0 +1,215 @@
+--- Listing ALL Classes ---
+Classes: [
+  {
+    "id": "dbe109c6-96c0-4810-8128-65b906b1d5dd",
+    "name": "LKG"
+  },
+  {
+    "id": "c49d6889-db0e-442e-a6e3-815a0f415084",
+    "name": "9th"
+  },
+  {
+    "id": "8ac77441-c0b8-4e31-9d59-cd099ce0ec2f",
+    "name": "UKG"
+  },
+  {
+    "id": "ffbbdf70-650b-4b12-81a4-f05a1ba3d250",
+    "name": "1st"
+  },
+  {
+    "id": "7d148012-0aeb-4f23-a982-a175d9f047f3",
+    "name": "2nd"
+  },
+  {
+    "id": "8e39ab82-00d2-49d0-aa8d-b7c8b8b02cd1",
+    "name": "3rd"
+  },
+  {
+    "id": "88d629d4-ea99-4475-909d-a18abe0907ad",
+    "name": "4th"
+  },
+  {
+    "id": "e80345b7-8a2d-41f7-9b8d-f0e8665873fa",
+    "name": "5th"
+  },
+  {
+    "id": "1a4d7a9c-ec15-4136-8d06-5439579021a2",
+    "name": "11th"
+  },
+  {
+    "id": "81e16f36-8bda-417e-8192-3829f40bc539",
+    "name": "12th"
+  },
+  {
+    "id": "abe9ce76-02c3-4ef5-9d38-c7774313134e",
+    "name": "9th"
+  },
+  {
+    "id": "dc7b5268-433d-43cc-85f2-3af6c4a41b69",
+    "name": "10th"
+  },
+  {
+    "id": "554cbda1-3bf7-40f5-88ae-9e64ba12dd2b",
+    "name": "LKG"
+  },
+  {
+    "id": "3ca239f8-28c1-47a7-827d-d36a8fabf74b",
+    "name": "UKG"
+  },
+  {
+    "id": "526deda0-007c-4fb9-90ea-ba541520cd41",
+    "name": "1st"
+  },
+  {
+    "id": "d6c500d9-da0d-4368-b9a0-cb09314acaba",
+    "name": "4th"
+  },
+  {
+    "id": "3977ca61-5711-4610-8375-f99330c312ea",
+    "name": "5th"
+  },
+  {
+    "id": "fe21f8da-a0aa-42bb-9f7d-4848ebeb1664",
+    "name": "6th"
+  },
+  {
+    "id": "18374dc3-9c92-44a8-877d-d14d3d64d89f",
+    "name": "7th"
+  },
+  {
+    "id": "9d292815-f123-4a1d-9ad6-6e5752bcafec",
+    "name": "8th"
+  },
+  {
+    "id": "bd9182cb-8fa7-409e-9015-b3e901df006e",
+    "name": "9th"
+  },
+  {
+    "id": "6e712ddc-6056-48bf-8ceb-1a0313f07256",
+    "name": "10th"
+  },
+  {
+    "id": "6e36e0c3-e859-44e5-9b93-710c5eddf713",
+    "name": "11th"
+  },
+  {
+    "id": "1b8e6a81-e7ee-41ef-aaf8-785766d50b4e",
+    "name": "12th"
+  },
+  {
+    "id": "6a3b867f-399a-41e8-a625-93ebd800ee64",
+    "name": "6th"
+  },
+  {
+    "id": "533323d4-6f02-4efc-b7b7-a1e78867b2ce",
+    "name": "7th"
+  },
+  {
+    "id": "0976413a-6981-4168-8746-9cfd12e648ad",
+    "name": "8th"
+  },
+  {
+    "id": "0b3e7ac4-2918-455e-8602-ae0d37df9279",
+    "name": "LKG"
+  },
+  {
+    "id": "c0a116e5-d84c-4f2d-bb2b-f25b9075388c",
+    "name": "UKG"
+  },
+  {
+    "id": "7c478691-ac83-460e-84b8-e939656afde7",
+    "name": "1st"
+  },
+  {
+    "id": "ddb7e5b7-9da1-412d-8df6-07ce53f276a3",
+    "name": "2nd"
+  },
+  {
+    "id": "20b30d28-fa97-479e-aac7-c1a3d726f883",
+    "name": "3rd"
+  },
+  {
+    "id": "f3b41aa4-2e35-4a6f-bedb-666fb1a502a5",
+    "name": "4th"
+  },
+  {
+    "id": "6a7ffef1-9446-464d-b70e-83507ae854db",
+    "name": "5th"
+  },
+  {
+    "id": "a345507d-7647-4933-9e0f-b998ac8819ca",
+    "name": "11th"
+  },
+  {
+    "id": "9fff1465-e909-4201-a9f5-fe5f6dc13a38",
+    "name": "12th"
+  },
+  {
+    "id": "9c52ef96-97c5-45f1-bb19-c448955ce322",
+    "name": "9th"
+  },
+  {
+    "id": "58f5ab92-b17f-4ded-a5cf-6d5107e7ec63",
+    "name": "10th"
+  },
+  {
+    "id": "82bbaa56-6341-4300-aa96-2b79caf195fc",
+    "name": "6th"
+  },
+  {
+    "id": "f3d75061-852e-4725-82de-4b5d2a598a80",
+    "name": "7th"
+  },
+  {
+    "id": "1b9d8c94-455a-43b0-80ff-6ee61fa16d55",
+    "name": "8th"
+  },
+  {
+    "id": "2413141d-15bc-4cd0-856a-b57a5b654abb",
+    "name": "9th"
+  },
+  {
+    "id": "76f6ff57-2437-4c7a-80ea-cbdf195d7442",
+    "name": "10th"
+  },
+  {
+    "id": "065c03eb-6b4e-4004-9ba3-fe428daa95d4",
+    "name": "LKG"
+  },
+  {
+    "id": "787a2015-ddbd-4501-b609-754465ba4269",
+    "name": "UKG"
+  },
+  {
+    "id": "264fb8a2-e40f-4843-969c-ec957d90bd7b",
+    "name": "1st"
+  },
+  {
+    "id": "ecc4f437-a642-4feb-a894-75e004556b82",
+    "name": "2nd"
+  },
+  {
+    "id": "a689b481-7ef0-40d1-9db3-f8878cc27d36",
+    "name": "3rd"
+  },
+  {
+    "id": "10842d69-f545-43a5-ae4b-cbb749464ab2",
+    "name": "4th"
+  },
+  {
+    "id": "5835cdc3-bd6c-417f-8783-5c07532a95ca",
+    "name": "5th"
+  },
+  {
+    "id": "7c24cf2b-5c99-49d8-bc8c-941770634e4b",
+    "name": "6th"
+  },
+  {
+    "id": "7f605a66-9124-443e-8bc4-d6204eb14018",
+    "name": "7th"
+  },
+  {
+    "id": "65848f01-03dc-44e2-9ba6-3c024fd69a87",
+    "name": "8th"
+  }
+]

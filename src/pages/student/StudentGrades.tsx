@@ -179,19 +179,19 @@ export function StudentGrades() {
             />
 
             {examsList.length > 0 ? (
-                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-4 lg:space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                     {/* Exam Selector & Overview Card */}
                     <Card className="border-border/50 shadow-md bg-gradient-to-br from-card to-secondary/10">
-                        <CardHeader className="pb-4">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                <div className="space-y-1.5">
-                                    <CardTitle>Examination Results</CardTitle>
-                                    <CardDescription>Select an exam to view detailed subject-wise performance</CardDescription>
+                        <CardHeader className="pb-3 lg:pb-4 px-4 lg:px-6">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 lg:gap-6">
+                                <div className="space-y-1 lg:space-y-1.5">
+                                    <CardTitle className="text-base lg:text-lg">Examination Results</CardTitle>
+                                    <CardDescription className="text-xs lg:text-sm">Select an exam to view detailed subject-wise performance</CardDescription>
                                 </div>
 
-                                <div className="min-w-[250px]">
+                                <div className="min-w-[200px] lg:min-w-[250px]">
                                     <Select value={selectedExam} onValueChange={setSelectedExam}>
-                                        <SelectTrigger className="w-full bg-background/80 backdrop-blur-sm">
+                                        <SelectTrigger className="w-full bg-background/80 backdrop-blur-sm h-11">
                                             <div className="flex items-center gap-2">
                                                 <FileSpreadsheet className="w-4 h-4 text-primary" />
                                                 <SelectValue placeholder="Select Exam" />
@@ -212,41 +212,41 @@ export function StudentGrades() {
 
                     {/* Performance Overview & Details */}
                     {currentExamData && (
-                        <div className="grid gap-6 animate-in fade-in zoom-in-95 duration-500 delay-150">
+                        <div className="grid gap-4 lg:gap-6 animate-in fade-in zoom-in-95 duration-500 delay-150">
                             {/* Summary Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
                                 <Card className="bg-primary/5 border-primary/20">
-                                    <CardContent className="p-6 flex items-center gap-4">
-                                        <div className="p-3 bg-primary/20 rounded-full">
-                                            <Award className="w-6 h-6 text-primary" />
+                                    <CardContent className="p-4 lg:p-6 flex items-center gap-3 lg:gap-4">
+                                        <div className="p-2 lg:p-3 bg-primary/20 rounded-full">
+                                            <Award className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-primary/80 uppercase tracking-wider">Aggregate Score</p>
-                                            <h3 className="text-3xl font-black text-primary tracking-tight">{percentage}</h3>
+                                            <p className="text-xs lg:text-sm font-medium text-primary/80 uppercase tracking-wider">Aggregate Score</p>
+                                            <h3 className="text-2xl lg:text-3xl font-black text-primary tracking-tight">{percentage}</h3>
                                         </div>
                                     </CardContent>
                                 </Card>
                                 <Card>
-                                    <CardContent className="p-6 flex items-center gap-4">
-                                        <div className="p-3 bg-secondary/50 rounded-full">
-                                            <TrendingUp className="w-6 h-6 text-foreground" />
+                                    <CardContent className="p-4 lg:p-6 flex items-center gap-3 lg:gap-4">
+                                        <div className="p-2 lg:p-3 bg-secondary/50 rounded-full">
+                                            <TrendingUp className="w-5 h-5 lg:w-6 lg:h-6 text-foreground" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Marks</p>
-                                            <h3 className="text-3xl font-bold tracking-tight">
-                                                {currentExamData.obtainedMarks} <span className="text-lg text-muted-foreground font-medium">/ {currentExamData.totalMarks}</span>
+                                            <p className="text-xs lg:text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Marks</p>
+                                            <h3 className="text-2xl lg:text-3xl font-bold tracking-tight">
+                                                {currentExamData.obtainedMarks} <span className="text-base lg:text-lg text-muted-foreground font-medium">/ {currentExamData.totalMarks}</span>
                                             </h3>
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card>
-                                    <CardContent className="p-6 flex items-center gap-4">
-                                        <div className="p-3 bg-blue-500/10 rounded-full">
-                                            <FileSpreadsheet className="w-6 h-6 text-blue-500" />
+                                <Card className="sm:col-span-2 lg:col-span-1">
+                                    <CardContent className="p-4 lg:p-6 flex items-center gap-3 lg:gap-4">
+                                        <div className="p-2 lg:p-3 bg-blue-500/10 rounded-full">
+                                            <FileSpreadsheet className="w-5 h-5 lg:w-6 lg:h-6 text-blue-500" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Subjects</p>
-                                            <h3 className="text-3xl font-bold tracking-tight">{currentExamData.results.length}</h3>
+                                            <p className="text-xs lg:text-sm font-medium text-muted-foreground uppercase tracking-wider">Subjects</p>
+                                            <h3 className="text-2xl lg:text-3xl font-bold tracking-tight">{currentExamData.results.length}</h3>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -254,58 +254,58 @@ export function StudentGrades() {
 
                             {/* Detailed Table Card */}
                             <Card className="overflow-hidden border-border/50 shadow-sm">
-                                <CardHeader className="bg-muted/30 border-b pb-4">
+                                <CardHeader className="bg-muted/30 border-b pb-3 lg:pb-4 px-4 lg:px-6">
                                     <div className="flex items-center justify-between">
-                                        <CardTitle className="text-lg flex items-center gap-2">
+                                        <CardTitle className="text-base lg:text-lg flex items-center gap-2">
                                             Subject Breakdown
                                         </CardTitle>
-                                        <Badge variant="outline" className="font-mono">
+                                        <Badge variant="outline" className="font-mono text-xs">
                                             {currentExamData.title}
                                         </Badge>
                                     </div>
                                 </CardHeader>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
+                                <div className="overflow-x-auto scroll-smooth-touch">
+                                    <table className="w-full text-xs lg:text-sm min-w-[600px]">
                                         <thead>
                                             <tr className="bg-muted/10 border-b border-border/50">
-                                                <th className="py-4 px-6 text-left font-semibold text-muted-foreground uppercase text-xs tracking-wider">Subject</th>
-                                                <th className="py-4 px-6 text-center font-semibold text-muted-foreground uppercase text-xs tracking-wider">Internal</th>
-                                                <th className="py-4 px-6 text-center font-semibold text-muted-foreground uppercase text-xs tracking-wider">External</th>
-                                                <th className="py-4 px-6 text-center font-semibold text-muted-foreground uppercase text-xs tracking-wider">Total</th>
-                                                <th className="py-4 px-6 text-center font-semibold text-muted-foreground uppercase text-xs tracking-wider">Grade</th>
-                                                <th className="py-4 px-6 text-left font-semibold text-muted-foreground uppercase text-xs tracking-wider">Remarks</th>
+                                                <th className="py-3 lg:py-4 px-3 lg:px-6 text-left font-semibold text-muted-foreground uppercase text-[10px] lg:text-xs tracking-wider">Subject</th>
+                                                <th className="py-3 lg:py-4 px-3 lg:px-6 text-center font-semibold text-muted-foreground uppercase text-[10px] lg:text-xs tracking-wider">Internal</th>
+                                                <th className="py-3 lg:py-4 px-3 lg:px-6 text-center font-semibold text-muted-foreground uppercase text-[10px] lg:text-xs tracking-wider">External</th>
+                                                <th className="py-3 lg:py-4 px-3 lg:px-6 text-center font-semibold text-muted-foreground uppercase text-[10px] lg:text-xs tracking-wider">Total</th>
+                                                <th className="py-3 lg:py-4 px-3 lg:px-6 text-center font-semibold text-muted-foreground uppercase text-[10px] lg:text-xs tracking-wider">Grade</th>
+                                                <th className="py-3 lg:py-4 px-3 lg:px-6 text-left font-semibold text-muted-foreground uppercase text-[10px] lg:text-xs tracking-wider">Remarks</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/40">
                                             {currentExamData.results.map((result: any, index: number) => (
                                                 <tr key={index} className="hover:bg-muted/30 transition-colors group">
-                                                    <td className="py-4 px-6 font-medium text-foreground group-hover:text-primary transition-colors">
+                                                    <td className="py-3 lg:py-4 px-3 lg:px-6 font-medium text-foreground group-hover:text-primary transition-colors">
                                                         {result.course}
                                                     </td>
-                                                    <td className="py-4 px-6 text-center text-muted-foreground">
-                                                        {result.internal} <span className="text-[10px] text-muted-foreground/50">/20</span>
+                                                    <td className="py-3 lg:py-4 px-3 lg:px-6 text-center text-muted-foreground">
+                                                        {result.internal} <span className="text-[9px] lg:text-[10px] text-muted-foreground/50">/20</span>
                                                     </td>
-                                                    <td className="py-4 px-6 text-center text-muted-foreground">
-                                                        {result.external} <span className="text-[10px] text-muted-foreground/50">/80</span>
+                                                    <td className="py-3 lg:py-4 px-3 lg:px-6 text-center text-muted-foreground">
+                                                        {result.external} <span className="text-[9px] lg:text-[10px] text-muted-foreground/50">/80</span>
                                                     </td>
-                                                    <td className="py-4 px-6 text-center">
-                                                        <div className="inline-flex items-center justify-center font-bold bg-secondary/30 px-3 py-1 rounded-md min-w-[3rem]">
+                                                    <td className="py-3 lg:py-4 px-3 lg:px-6 text-center">
+                                                        <div className="inline-flex items-center justify-center font-bold bg-secondary/30 px-2 lg:px-3 py-1 rounded-md min-w-[2.5rem] lg:min-w-[3rem]">
                                                             {result.marks}
                                                         </div>
                                                     </td>
-                                                    <td className="py-4 px-6 text-center">
+                                                    <td className="py-3 lg:py-4 px-3 lg:px-6 text-center">
                                                         <Badge
                                                             variant={
                                                                 result.grade.startsWith('A') ? 'success' :
                                                                     result.grade.startsWith('B') ? 'info' :
                                                                         result.grade === 'F' ? 'destructive' : 'warning'
                                                             }
-                                                            className="shadow-sm"
+                                                            className="shadow-sm text-xs"
                                                         >
                                                             {result.grade}
                                                         </Badge>
                                                     </td>
-                                                    <td className="py-4 px-6 text-muted-foreground italic text-xs">
+                                                    <td className="py-3 lg:py-4 px-3 lg:px-6 text-muted-foreground italic text-[10px] lg:text-xs">
                                                         {result.remarks === '-' ? 'Satisfactory' : result.remarks}
                                                     </td>
                                                 </tr>

@@ -100,14 +100,33 @@ export function useFacultyDashboard(facultyId?: string, institutionId?: string) 
 
             if (error) throw error;
 
-            return (data || []).map((item: any) => ({
-                id: item.id,
-                subjectId: item.subject_id,
-                subjectName: item.subjects?.name || 'Unknown',
-                classId: item.class_id,
-                className: item.classes?.name || 'Unknown',
-                section: item.section,
+            // Enhance with student counts
+            const subjectsWithCounts = await Promise.all((data || []).map(async (item: any) => {
+                const className = item.classes?.name;
+                const section = item.section;
+
+                let count = 0;
+                if (className) {
+                    const { count: studentCount } = await supabase
+                        .from('students')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('class_name', className)
+                        .eq('section', section || 'A');
+                    count = studentCount || 0;
+                }
+
+                return {
+                    id: item.id,
+                    subjectId: item.subject_id,
+                    subjectName: item.subjects?.name || 'Unknown',
+                    classId: item.class_id,
+                    className: className || 'Unknown',
+                    section: section,
+                    studentCount: count
+                };
             }));
+
+            return subjectsWithCounts;
         },
         enabled: !!facultyId,
         staleTime: 2 * 60 * 1000,
@@ -170,41 +189,25 @@ export function useFacultyDashboard(facultyId?: string, institutionId?: string) 
         staleTime: 30 * 1000,
     });
 
-    // 6. Pending Leave Requests (For Faculty Assigned Classes)
     const { data: pendingReviews = 0, isLoading: isPendingReviewsLoading } = useQuery({
         queryKey: ['faculty-pending-leaves', facultyId],
         queryFn: async () => {
             if (!facultyId) return 0;
 
-            // Get faculty's assigned class
-            const { data: assignment } = await supabase
-                .from('faculty_subjects')
-                .select(`
-                    section,
-                    classes:class_id (name)
-                `)
-                .eq('faculty_profile_id', facultyId)
-                .eq('assignment_type', 'class_teacher')
-                .maybeSingle();
+            console.log('[Dashboard Leave Count Debug] Faculty ID:', facultyId);
+            console.log('[Dashboard Leave Count Debug] Using SIMPLIFIED query with assigned_class_teacher_id');
 
-            if (!(assignment?.classes as any)?.name) return 0;
-
-            // Get students in this class
-            const { data: students } = await supabase
-                .from('students')
-                .select('id')
-                .eq('class_name', (assignment.classes as any).name)
-                .eq('section', assignment.section || 'A');
-
-            if (!students?.length) return 0;
-            const studentIds = students.map(s => s.id);
-
-            // Count pending leaves for these students
-            const { count } = await supabase
+            // SIMPLIFIED QUERY: Direct count by assigned_class_teacher_id
+            const { count, error } = await supabase
                 .from('leave_requests')
                 .select('id', { count: 'exact', head: true })
-                .in('student_id', studentIds)
+                .eq('assigned_class_teacher_id', facultyId)
                 .eq('status', 'Pending');
+
+            if (error) {
+                console.error('[Dashboard Leave Count Debug] Error counting leaves:', error);
+            }
+            console.log('[Dashboard Leave Count Debug] Pending count:', count);
 
             return count || 0;
         },

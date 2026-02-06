@@ -1,0 +1,21 @@
+--- Step 1: Parent queries their students ---
+Parent student IDs: [
+  '57c0b9e6-2b81-41dc-a58f-2deb7ed0b6f3',
+  '330b9ab4-8421-4a02-b089-9190494b55c1',
+  'c6a0b195-92dd-4e48-9bb7-2a72134cd3fa',
+  '9e24ea75-4594-410b-9524-3927394bc7c2',
+  'b2a4f5af-4deb-46ef-b8b8-e1cca5f0ef4a',
+  '7777ec4f-d69e-463b-85e6-be3d8684de2d'
+]
+Parent found students data: 6
+--- Step 2: Check for Leave Requests of those students ---
+Total leaves for parent students: 3
+--- Step 3: Faculty queries their assignments ---
+Faculty has class teacher assignments: 1
+--- Step 4: Faculty queries their students ---
+Faculty found students: 4
+--- Step 5: Faculty queries Leave Requests ---
+Faculty found leaves: 3
+ - Leave ID: 0bc2a3eb-9da4-4450-96f7-2f311ac67300, Student ID: 9e24ea75-4594-410b-9524-3927394bc7c2, From: 2026-02-06, Status: Pending
+ - Leave ID: 11dd3820-2dce-4b94-8ef6-c246eac03047, Student ID: 9e24ea75-4594-410b-9524-3927394bc7c2, From: 2026-02-07, Status: Pending
+ - Leave ID: 6feed108-f775-46ed-a182-5cec5deada22, Student ID: 9e24ea75-4594-410b-9524-3927394bc7c2, From: 2026-02-07, Status: Pending

@@ -24,7 +24,7 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <div
-      className={cn('stat-card animate-fade-in p-4 sm:p-6', className)}
+      className={cn('stat-card animate-fade-in p-3.5 sm:p-6', className)}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-2">

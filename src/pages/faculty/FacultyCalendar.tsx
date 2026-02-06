@@ -221,17 +221,17 @@ export function FacultyCalendar() {
 
             <div className="space-y-8">
                 {/* Calendar Section */}
-                <div className="dashboard-card pt-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                            <CalendarIcon className="w-5 h-5 text-primary" />
+                <div className="dashboard-card p-4 lg:pt-6">
+                    <div className="flex items-center justify-between mb-4 lg:mb-6 px-2 lg:px-0">
+                        <h3 className="font-semibold text-base lg:text-lg flex items-center gap-2">
+                            <CalendarIcon className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
                             {currentDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
                         </h3>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={handlePrevMonth} disabled={isAnimating}>
+                        <div className="flex items-center gap-1 lg:gap-2">
+                            <Button variant="outline" size="sm" onClick={handlePrevMonth} disabled={isAnimating} className="h-9 w-9 p-0">
                                 <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <Button variant="outline" size="sm" onClick={handleNextMonth} disabled={isAnimating}>
+                            <Button variant="outline" size="sm" onClick={handleNextMonth} disabled={isAnimating} className="h-9 w-9 p-0">
                                 <ChevronRight className="w-4 h-4" />
                             </Button>
                         </div>
@@ -244,14 +244,14 @@ export function FacultyCalendar() {
                     ) : (
                         <div
                             key={`${currentDate.toString()}`}
-                            className={`grid grid-cols-7 gap-px bg-border overflow-hidden rounded-lg ${direction === 'next' ? 'animate-slide-next' : 'animate-slide-prev'}`}
+                            className={`grid grid-cols-7 gap-px bg-border overflow-hidden rounded-lg calendar-grid ${direction === 'next' ? 'animate-slide-next' : 'animate-slide-prev'}`}
                         >
                             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                                <div key={day} className="bg-muted p-2 text-center text-xs font-semibold text-muted-foreground">{day}</div>
+                                <div key={day} className="bg-muted p-1 lg:p-2 text-center text-[10px] lg:text-xs font-semibold text-muted-foreground">{day}</div>
                             ))}
 
                             {Array.from({ length: getFirstDayOfMonth(currentDate) }).map((_, i) => (
-                                <div key={`empty-${i}`} className="bg-background/50 min-h-[100px] border-t border-r last:border-r-0" />
+                                <div key={`empty-${i}`} className="bg-background/50 min-h-[60px] lg:min-h-[100px] border-t border-r last:border-r-0" />
                             ))}
 
                             {Array.from({ length: getDaysInMonth(currentDate) }).map((_, i) => {
@@ -278,11 +278,11 @@ export function FacultyCalendar() {
                                 });
 
                                 return (
-                                    <div key={`day-${day}`} className={`bg-background min-h-[100px] p-2 border-t border-r last:border-r-0 hover:bg-muted/30 transition-colors ${isToday ? 'bg-primary/5' : ''}`}>
+                                    <div key={`day-${day}`} className={`calendar-day bg-background min-h-[60px] lg:min-h-[100px] p-1 lg:p-2 border-t border-r last:border-r-0 hover:bg-muted/30 transition-colors ${isToday ? 'bg-primary/5' : ''}`}>
                                         <div className="flex justify-between items-start">
-                                            <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>{day}</span>
+                                            <span className={`text-xs lg:text-sm ${isToday ? 'font-bold text-primary' : ''}`}>{day}</span>
                                         </div>
-                                        <div className="space-y-1 mt-1">
+                                        <div className="space-y-0.5 lg:space-y-1 mt-0.5 lg:mt-1">
                                             {dayEvents.map((event, idx) => {
                                                 const colorClass = event.type === 'holiday'
                                                     ? 'bg-destructive/10 text-destructive border-destructive/20'
@@ -291,7 +291,7 @@ export function FacultyCalendar() {
                                                         : 'bg-primary/10 text-primary border-primary/20';
 
                                                 return (
-                                                    <div key={`${event.id}-${idx}`} className={`p-1 text-[10px] rounded truncate border ${colorClass}`} title={event.title}>
+                                                    <div key={`${event.id}-${idx}`} className={`calendar-event p-0.5 lg:p-1 text-[9px] lg:text-[10px] rounded truncate border ${colorClass}`} title={event.title}>
                                                         {event.title}
                                                     </div>
                                                 );

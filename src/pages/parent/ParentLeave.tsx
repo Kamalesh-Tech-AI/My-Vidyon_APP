@@ -6,15 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Send, History } from 'lucide-react';
+import { Calendar, Send, History, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/common/Badge';
 import { useTranslation } from '@/i18n/TranslationContext';
-
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { Loader2 } from 'lucide-react';
 import { useWebSocketContext } from '@/context/WebSocketContext';
 
 export function ParentLeave() {
@@ -26,15 +24,18 @@ export function ParentLeave() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [reason, setReason] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Fetch Parent's Children
-    const { data: myChildren, isLoading: childrenLoading } = useQuery({
+    const { data: students = [], isLoading: childrenLoading } = useQuery({
         queryKey: ['parent-children', user?.id],
         queryFn: async () => {
+            if (!user?.id) return [];
+
             const { data: parentData, error: parentError } = await supabase
                 .from('parents')
                 .select('id')
-                .eq('profile_id', user?.id)
+                .eq('profile_id', user.id)
                 .single();
 
             if (parentError) throw parentError;
@@ -45,45 +46,37 @@ export function ParentLeave() {
                 .eq('parent_id', parentData.id);
 
             if (linkError) throw linkError;
-
             if (!links || links.length === 0) return [];
 
             const studentIds = links.map(l => l.student_id);
 
-            const { data: students, error: studentError } = await supabase
+            const { data: studentRecords, error: studentError } = await supabase
                 .from('students')
-                .select('*') // Fallback to * to avoid column errors
+                .select('id, name, class_name, section')
                 .in('id', studentIds);
 
-            if (studentError) {
-                console.error('Error fetching students:', studentError);
-                throw studentError;
-            }
+            if (studentError) throw studentError;
 
-            console.log('Fetched students:', students);
-
-            return students.map(s => ({
+            return studentRecords.map(s => ({
                 id: s.id,
-                name: s.name,
+                name: s.name || 'Unknown',
                 grade: s.class_name || 'N/A',
-                classId: s.class_id, // This might be undefined if column doesn't exist
                 section: s.section
             }));
         },
         enabled: !!user?.id
     });
 
-    const students = myChildren || [];
-
     // Fetch Leave History
     const { data: leaveHistory = [], isLoading: historyLoading } = useQuery({
-        queryKey: ['parent-leave-history', user?.id],
+        queryKey: ['leave-history', user?.id],
         queryFn: async () => {
-            // Get parent ID first (could be optimized with a custom hook or context)
+            if (!user?.id) return [];
+
             const { data: parentData } = await supabase
                 .from('parents')
                 .select('id')
-                .eq('profile_id', user?.id)
+                .eq('profile_id', user.id)
                 .single();
 
             if (!parentData) return [];
@@ -91,13 +84,8 @@ export function ParentLeave() {
             const { data, error } = await supabase
                 .from('leave_requests')
                 .select(`
-                    id,
-                    from_date,
-                    to_date,
-                    reason,
-                    status,
-                    created_at,
-                    student:students (name)
+                    *,
+                    students:student_id (name)
                 `)
                 .eq('parent_id', parentData.id)
                 .order('created_at', { ascending: false });
@@ -111,26 +99,14 @@ export function ParentLeave() {
     // Real-time Subscription
     useEffect(() => {
         if (!user?.id) return;
-
-        // Subscribe to leave_requests changes for this parent
-        // Note: RLS should handle security, so we can subscribe to the table generally
-        // and let RLS filter, or filter by specific column if needed.
-        // For simplicity and to ensure we get updates, we'll subscribe and then invalidate.
-
         const unsubscribe = subscribeToTable('leave_requests', (payload) => {
-            console.log('Real-time leave update:', payload);
-            queryClient.invalidateQueries({ queryKey: ['parent-leave-history'] });
-
+            queryClient.invalidateQueries({ queryKey: ['leave-history'] });
             if (payload.eventType === 'UPDATE') {
                 toast.info(`Leave request status updated: ${payload.new.status}`);
             }
         });
-
-        return () => {
-            unsubscribe();
-        };
+        return () => { unsubscribe(); };
     }, [user?.id, subscribeToTable, queryClient]);
-
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -142,8 +118,8 @@ export function ParentLeave() {
         const selectedStudent = students.find(s => s.id === selectedChild);
         if (!selectedStudent) return;
 
+        setIsSubmitting(true);
         try {
-            // 1. Get Parent ID
             const { data: parentData } = await supabase
                 .from('parents')
                 .select('id')
@@ -152,7 +128,54 @@ export function ParentLeave() {
 
             if (!parentData) throw new Error('Parent record not found');
 
-            // 2. Insert Leave Request
+
+            // Fetch the assigned class teacher for this student
+            let assignedTeacherId = null;
+            console.log('[Parent Leave Submit] Student data:', {
+                id: selectedStudent.id,
+                name: selectedStudent.name,
+                grade: selectedStudent.grade,
+                section: selectedStudent.section
+            });
+
+            if (selectedStudent.grade && selectedStudent.section) {
+                console.log('[Parent Leave Submit] Looking for class:', selectedStudent.grade);
+
+                const { data: classData, error: classError } = await supabase
+                    .from('classes')
+                    .select('id, name')
+                    .eq('name', selectedStudent.grade)
+                    .maybeSingle();
+
+                console.log('[Parent Leave Submit] Class lookup result:', { classData, classError });
+
+                if (classData?.id) {
+                    console.log('[Parent Leave Submit] Looking for faculty with class_id:', classData.id, 'section:', selectedStudent.section);
+
+                    const { data: facultyData, error: facultyError } = await supabase
+                        .from('faculty_subjects')
+                        .select('faculty_profile_id, section, assignment_type')
+                        .eq('class_id', classData.id)
+                        .eq('section', selectedStudent.section)
+                        .eq('assignment_type', 'class_teacher')
+                        .maybeSingle();
+
+                    console.log('[Parent Leave Submit] Faculty lookup result:', { facultyData, facultyError });
+
+                    assignedTeacherId = facultyData?.faculty_profile_id || null;
+                } else {
+                    console.warn('[Parent Leave Submit] ⚠️  Class not found for:', selectedStudent.grade);
+                }
+            } else {
+                console.warn('[Parent Leave Submit] ⚠️  Missing grade or section:', {
+                    grade: selectedStudent.grade,
+                    section: selectedStudent.section
+                });
+            }
+
+            console.log('[Parent Leave Submit] ✅ Final Assigned Teacher ID:', assignedTeacherId);
+
+
             const { error: leaveError } = await supabase
                 .from('leave_requests')
                 .insert({
@@ -161,55 +184,43 @@ export function ParentLeave() {
                     from_date: startDate,
                     to_date: endDate,
                     reason: reason,
-                    status: 'Pending'
+                    status: 'Pending',
+                    assigned_class_teacher_id: assignedTeacherId
                 });
 
             if (leaveError) throw leaveError;
 
-            // 3. Find Class Teacher to Notify
-            if (selectedStudent.classId && selectedStudent.section) {
-                const { data: classTeacherData } = await supabase
-                    .from('faculty_subjects')
-                    .select('faculty_profile_id')
-                    .eq('class_id', selectedStudent.classId)
-                    .eq('section', selectedStudent.section)
-                    .eq('assignment_type', 'class_teacher')
-                    .single();
-
-                if (classTeacherData?.faculty_profile_id) {
-                    await supabase
-                        .from('notifications')
-                        .insert({
-                            user_id: classTeacherData.faculty_profile_id,
-                            title: 'New Leave Request',
-                            message: `Parent of ${selectedStudent.name} (${selectedStudent.grade}) has requested leave from ${startDate} to ${endDate}.`,
-                            type: 'leave',
-                            read: false
-                        });
-                }
+            // Notify Class Teacher (only if we found one)
+            if (assignedTeacherId) {
+                await supabase
+                    .from('notifications')
+                    .insert({
+                        user_id: assignedTeacherId,
+                        title: 'New Leave Request',
+                        message: `Parent of ${selectedStudent.name} (${selectedStudent.grade}) has requested leave from ${startDate} to ${endDate}.`,
+                        type: 'leave',
+                        read: false
+                    });
             }
 
             toast.success(`${t.parent.leave.submittedSuccess} ${selectedStudent.name}`);
-
-            // Reset form
             setSelectedChild('');
             setStartDate('');
             setEndDate('');
             setReason('');
-
-            // Force refresh immediately (optimistic)
-            queryClient.invalidateQueries({ queryKey: ['parent-leave-history'] });
-
+            queryClient.invalidateQueries({ queryKey: ['leave-history'] });
         } catch (error: any) {
-            console.error('Error submitting leave:', error);
+            console.error('Submission error:', error);
             toast.error(error.message || 'Failed to submit leave request');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const getStatusBadge = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'approved': return <Badge variant="success">{t.parent.leave.approved}</Badge>;
-            case 'rejected': return <Badge variant="destructive">{t.parent.leave.rejected || 'Rejected'}</Badge>;
+        switch (status) {
+            case 'Approved': return <Badge variant="success">{t.parent.leave.approved}</Badge>;
+            case 'Rejected': return <Badge variant="destructive">{t.parent.leave.rejected || 'Rejected'}</Badge>;
             default: return <Badge variant="warning">{t.parent.leave.pending}</Badge>;
         }
     };
@@ -222,7 +233,6 @@ export function ParentLeave() {
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Application Form */}
                 <div className="space-y-6">
                     <div className="dashboard-card">
                         <div className="flex items-center gap-2 mb-6 text-primary">
@@ -285,15 +295,14 @@ export function ParentLeave() {
                                 />
                             </div>
 
-                            <Button type="submit" className="w-full">
-                                <Send className="w-4 h-4 mr-2" />
+                            <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                                 {t.parent.leave.submitRequest}
                             </Button>
                         </form>
                     </div>
                 </div>
 
-                {/* History */}
                 <div className="space-y-6">
                     <div className="dashboard-card">
                         <div className="flex items-center gap-2 mb-6 text-muted-foreground">
@@ -315,7 +324,7 @@ export function ParentLeave() {
                                     <div key={req.id} className="p-4 rounded-lg bg-muted/30 border border-border">
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
-                                                <h4 className="font-medium">{req.student?.name || 'Unknown Student'}</h4>
+                                                <h4 className="font-medium">{req.students?.name || 'Unknown Student'}</h4>
                                                 <span className="text-sm text-muted-foreground">{req.reason}</span>
                                             </div>
                                             {getStatusBadge(req.status)}
@@ -329,7 +338,7 @@ export function ParentLeave() {
                         </div>
                     </div>
 
-                    <div className="p-4 bg-blue-50 text-blue-700 rounded-lg text-sm border border-blue-100">
+                    <div className="p-4 bg-primary/5 text-primary rounded-lg text-sm border border-primary/10">
                         <strong>{t.parent.leave.note}:</strong> {t.parent.leave.noteContent}
                     </div>
                 </div>
@@ -337,3 +346,5 @@ export function ParentLeave() {
         </ParentLayout>
     );
 }
+
+export default ParentLeave;

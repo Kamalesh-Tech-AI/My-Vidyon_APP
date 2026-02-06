@@ -55,48 +55,48 @@ export function FacultyStudentLeaves() {
         queryFn: async () => {
             if (!user?.id) return [];
 
-            // 1. Get Faculty's Assigned Class
-            const { data: staffDetails } = await supabase
-                .from('staff_details')
-                .select('class_assigned, section_assigned')
-                .eq('profile_id', user.id)
-                .single();
+            console.log('[Faculty Leave Debug] Faculty ID:', user.id);
+            console.log('[Faculty Leave Debug] Fetching leaves assigned to this faculty');
 
-            if (!staffDetails?.class_assigned) return [];
-
-            // 2. Get Students in that Class
-            const { data: students } = await supabase
-                .from('students')
-                .select('id, name, roll_no, class_name, section')
-                .eq('class_name', staffDetails.class_assigned)
-                .eq('section', staffDetails.section_assigned || 'A');
-
-            if (!students || students.length === 0) return [];
-
-            const studentIds = students.map(s => s.id);
-            const studentMap = new Map(students.map(s => [s.id, s]));
-
-            // 3. Get Leave Requests for those Students
+            // Query leave requests assigned to this faculty member
             const { data: leaves, error } = await supabase
                 .from('leave_requests')
-                .select('*')
-                .in('student_id', studentIds)
+                .select(`
+                    *,
+                    student_id (
+                        id,
+                        name,
+                        register_number,
+                        class_name,
+                        section
+                    )
+                `)
+                .eq('assigned_class_teacher_id', user.id)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            console.log('[Faculty Leave Debug] Leave requests fetched:', leaves?.length || 0);
+            if (leaves && leaves.length > 0) {
+                console.log('[Faculty Leave Debug] Sample leave request:', leaves[0]);
+                console.log('[Faculty Leave Debug] All leave statuses:', leaves.map(l => ({ id: l.id, status: l.status, student_id: l.student_id })));
+            }
 
-            return leaves.map(leave => {
-                const student = studentMap.get(leave.student_id);
+            if (error) {
+                console.error('[Faculty Leave Debug] Error fetching leaves:', error);
+                throw error;
+            }
+
+            return (leaves || []).map(leave => {
+                const student = leave.student_id as any;
                 return {
                     id: leave.id,
                     studentName: student?.name || 'Unknown',
-                    rollNo: student?.roll_no || 'N/A',
-                    class: `${student?.class_name}-${student?.section}`,
-                    reason: leave.reason, // Using reason as type/short desc
+                    rollNo: student?.register_number || 'N/A',
+                    class: `${student?.class_name || 'N/A'}-${student?.section || 'A'}`,
+                    reason: leave.reason,
                     startDate: format(new Date(leave.from_date), 'MMM dd, yyyy'),
                     endDate: format(new Date(leave.to_date), 'MMM dd, yyyy'),
-                    status: leave.status,
-                    description: leave.reason, // Using reason as full description too
+                    status: leave.status as any,
+                    description: leave.reason,
                     studentId: leave.student_id,
                     parentId: leave.parent_id
                 };
@@ -129,9 +129,7 @@ export function FacultyStudentLeaves() {
         try {
             const { error } = await supabase
                 .from('leave_requests')
-                .update({ status: status }) // Status is case-sensitive in DB constraint? Usually 'Pending', 'Approved', 'Rejected'
-                // UI checks for 'Pending', so let's try to match that casing or DB convention.
-                // Assuming DB accepts 'Approved'/'Rejected'.
+                .update({ status: status })
                 .eq('id', id);
 
             if (error) throw error;
@@ -179,9 +177,9 @@ export function FacultyStudentLeaves() {
     };
 
     const getStatusBadge = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'approved': return <Badge variant="success">Approved</Badge>;
-            case 'rejected': return <Badge variant="destructive">Rejected</Badge>;
+        switch (status) {
+            case 'Approved': return <Badge variant="success">Approved</Badge>;
+            case 'Rejected': return <Badge variant="destructive">Rejected</Badge>;
             default: return <Badge variant="warning">Pending</Badge>;
         }
     };

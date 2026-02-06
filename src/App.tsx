@@ -20,6 +20,7 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { LoginPage } from "./pages/auth/LoginPage";
+import { ProfileSwitcherPage } from "./pages/auth/ProfileSwitcherPage";
 
 // Student Pages
 import { StudentDashboard } from "./pages/student/StudentDashboard";
@@ -118,14 +119,32 @@ import { AccountantDashboard } from "./pages/accountant/AccountantDashboard";
 import { CanteenDashboard } from "./pages/canteen/CanteenDashboard";
 import { CanteenSettings } from "./pages/canteen/CanteenSettings";
 
+import { App as CapacitorApp } from '@capacitor/app';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 30, // 30 seconds
+      staleTime: 1000 * 60 * 2, // 2 minutes (prevents constant spinners)
+      gcTime: 1000 * 60 * 10, // 10 minutes
       refetchOnWindowFocus: true,
       retry: 1,
     },
   },
+});
+
+// Sync data when app returns from background
+CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+  if (isActive) {
+    console.log('🚀 App resumed - Refetching focused queries');
+
+    // Forcefully refetch all active queries to ensure data (attendance, subjects, etc.) 
+    // is fresh when the phone is turned back on.
+    queryClient.invalidateQueries();
+    queryClient.refetchQueries({ type: 'active', stale: true });
+
+    // Trigger focus refetch for visible queries
+    window.dispatchEvent(new FocusEvent('focus'));
+  }
 });
 
 const App = () => {
@@ -144,6 +163,7 @@ const App = () => {
                       {/* Public Routes */}
                       <Route path="/" element={<Index />} />
                       <Route path="/login" element={<LoginPage />} />
+                      <Route path="/profile-switcher" element={<ProtectedRoute><ProfileSwitcherPage /></ProtectedRoute>} />
 
                       {/* Student Routes */}
                       <Route path="/student" element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />

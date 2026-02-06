@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useLocation } from 'react-router-dom';
+import { AccountSwitcher } from '@/components/auth/AccountSwitcher';
+import { ArrowLeft, ArrowRightLeft } from 'lucide-react';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { LanguageSelector } from '@/components/common/LanguageSelector';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Loader2, CheckCircle2, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { Preferences } from '@capacitor/preferences';
 
 
 
@@ -43,8 +47,10 @@ const ADS_DATA = [
 ];
 
 export function LoginPage() {
-  const { login, isLoading: isAuthLoading, isAuthenticated, user } = useAuth();
+  const { login, isLoading: isAuthLoading, isAuthenticated, user, accounts } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isAddingNew, setIsAddingNew] = useState(location.state?.addingAccount || false);
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -236,21 +242,16 @@ export function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
+      console.log('[LOGIN] User authenticated, clearing loading state');
+      // Clear loading state since authentication was successful
+      setIsSubmitting(false);
+
       if (user.forcePasswordChange) {
         setIsForceChangeOpen(true);
-      } else {
-        // If already logged in, redirect to appropriate dashboard
-        const ROLE_ROUTES: Record<string, string> = {
-          student: '/student',
-          faculty: '/faculty',
-          institution: '/institution',
-          admin: '/admin',
-          parent: '/parent',
-        };
-        navigate(ROLE_ROUTES[user.role] || '/');
       }
+      // Note: Navigation is handled by AuthContext.tsx, not here
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -258,6 +259,47 @@ export function LoginPage() {
     }, 5000);
     return () => clearInterval(timer);
   }, []);
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    const loadSavedCredentials = async () => {
+      try {
+        const { value: savedEmail } = await Preferences.get({ key: 'saved_email' });
+        const { value: savedPassword } = await Preferences.get({ key: 'saved_password' });
+
+        // We always try to load if they exist, making it automatic
+        if (savedEmail && savedPassword) {
+          console.log('[LOGIN] Loading saved credentials');
+          setEmail(savedEmail);
+          setPassword(savedPassword);
+        }
+      } catch (error) {
+        console.error('[LOGIN] Error loading saved credentials:', error);
+      }
+    };
+
+    loadSavedCredentials();
+  }, []);
+
+  useEffect(() => {
+    const checkState = async () => {
+      if (location.state?.email) {
+        setEmail(location.state.email);
+        setIsAddingNew(true);
+
+        // Also try to restore password if coming from switcher
+        const credsKey = `creds_${location.state.email.toLowerCase().trim()}`;
+        const { value } = await Preferences.get({ key: credsKey });
+        if (value) {
+          try {
+            const { password: savedPassword } = JSON.parse(value);
+            setPassword(savedPassword);
+          } catch (e) { }
+        }
+      }
+    };
+    checkState();
+  }, [location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -270,7 +312,19 @@ export function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await login({ email, password });
+      // Per-Account Login Memory: Save credentials using email-specific key
+      if (email && password) {
+        const credsKey = `creds_${email.toLowerCase().trim()}`;
+        await Preferences.set({
+          key: credsKey,
+          value: JSON.stringify({ email, password, lastLogin: new Date().toISOString() })
+        });
+      }
+
+      await Preferences.set({ key: 'saved_email', value: email });
+      await Preferences.set({ key: 'remember_me', value: 'true' });
+
+      await login({ email, password }, isAddingNew);
     } catch (err: any) {
       setError(err.message || 'Invalid credentials');
     } finally {
@@ -279,260 +333,321 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+    <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-background pt-safe-top pb-safe">
       {/* Left Side: Login Form */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-6 lg:p-16 relative">
+      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center py-6 px-0 md:px-12 lg:p-16 relative">
         {/* Language Selector */}
-        <div className="absolute top-8 left-8 lg:left-auto lg:right-8">
+        <div className="absolute top-10 left-8 lg:left-auto lg:right-8">
           <LanguageSelector />
         </div>
 
-        <div className="w-full max-w-md animate-fade-in">
+        <div className="w-full max-w-none md:max-w-2xl lg:max-w-md animate-fade-in">
           {/* Mobile Logo Only */}
-          <div className="lg:hidden text-center mb-10">
+          <div className="lg:hidden text-center mb-16 px-6">
             <img
               src="/my-vidyon-logo.png"
               alt="Vidyon Logo"
-              className="w-[360px] max-w-full mx-auto object-contain"
+              className="w-[500px] max-w-[90vw] mx-auto object-contain transform scale-[2.2] sm:scale-[3.0] transition-transform drop-shadow-md"
               style={{ aspectRatio: '2.5/1' }}
             />
           </div>
 
-          <div className="mb-10 text-left lg:text-center">
+          <div className="mb-10 text-left lg:text-center px-6">
             <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
               {t.login.welcomeBack}
             </h1>
             <p className="text-muted-foreground">
-              {t.login.signInMessage}
+              {isAddingNew ? "Add a new account to your device" : t.login.signInMessage}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive animate-shake">
-                {error}
-              </div>
-            )}
+          {!isAddingNew && accounts.length > 0 ? (
+            <div className="space-y-8 animate-slide-up">
+              <AccountSwitcher
+                className="py-2"
+                onSelect={async (acc) => {
+                  if (acc) {
+                    setEmail(acc.email);
+                    setIsAddingNew(true);
 
-            <div className="space-y-2 text-left">
-              <label className="text-sm font-semibold ml-1 text-foreground/80">
-                {t.login.emailAddress}
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t.login.emailPlaceholder}
-                className="w-full px-4 py-3.5 rounded-xl border border-input bg-card/50 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    // Try to restore per-account password
+                    const credsKey = `creds_${acc.email.toLowerCase().trim()}`;
+                    const { value } = await Preferences.get({ key: credsKey });
+                    if (value) {
+                      try {
+                        const { password: savedPassword } = JSON.parse(value);
+                        setPassword(savedPassword);
+
+                        // --- AUTO LOGIN ---
+                        setIsSubmitting(true);
+                        toast.loading(`Signing in as ${acc.name}...`, { id: 'auto-login' });
+                        try {
+                          await login({ email: acc.email, password: savedPassword }, true);
+                          toast.success(`Welcome back, ${acc.name}`, { id: 'auto-login' });
+                        } catch (err: any) {
+                          setError(err.message || 'Invalid credentials');
+                          setIsSubmitting(false);
+                          toast.error("Auto-login failed. Please check your credentials.", { id: 'auto-login' });
+                        }
+                      } catch (e) {
+                        setPassword('');
+                        toast.dismiss('auto-login');
+                      }
+                    } else {
+                      setPassword('');
+                      toast.info(`Please sign in to ${acc.name}`);
+                    }
+                  } else {
+                    // "Add New Account" clicked
+                    setEmail('');
+                    setPassword('');
+                    setIsAddingNew(true);
+                  }
+                }}
               />
-            </div>
 
-            <div className="space-y-2 text-left">
-              <div className="flex justify-between items-center ml-1">
-                <label className="text-sm font-semibold text-foreground/80">
-                  {t.login.password}
-                </label>
-              </div>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t.login.passwordPlaceholder}
-                  className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-input bg-card/50 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 ml-1">
-              <input
-                type="checkbox"
-                id="remember"
-                className="w-4 h-4 rounded border-input text-primary focus:ring-primary/20"
-              />
-              <label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer select-none">
-                {t.login.rememberMe}
-              </label>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full py-6 bg-primary hover:bg-primary/90 text-primary-foreground text-lg font-bold rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-3 animate-spin" />
-                  {t.login.signingIn}
-                </>
-              ) : (
-                t.login.signIn
-              )}
-            </Button>
-          </form>
-
-
-
-          <div className="mt-10 text-center">
-            <p className="text-sm text-muted-foreground">
-              {t.login.noAccount}{' '}
-              <button
-                type="button"
-                onClick={() => setIsContactOpen(true)}
-                className="text-primary font-bold hover:underline"
-              >
-                {t.login.contactAdmin}
-              </button>
-            </p>
-          </div>
-
-          <Dialog open={isContactOpen} onOpenChange={setIsContactOpen}>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Contact Administrator</DialogTitle>
-                <DialogDescription>
-                  Need help? Send a message to the system administrator.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="instEmail">Institution's Email *</Label>
-                    <Input
-                      id="instEmail"
-                      placeholder="Admin/School Email"
-                      value={institutionEmail}
-                      onChange={(e) => setInstitutionEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="senderEmail">Your Email *</Label>
-                    <Input
-                      id="senderEmail"
-                      placeholder="Your registered email"
-                      value={senderEmail}
-                      onChange={(e) => setSenderEmail(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="senderName">Your Name</Label>
-                  <Input
-                    id="senderName"
-                    placeholder="Enter your full name"
-                    value={senderName}
-                    onChange={(e) => setSenderName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject *</Label>
-                  <Input
-                    id="subject"
-                    placeholder="e.g. Account Access Issue"
-                    value={contactSubject}
-                    onChange={(e) => setContactSubject(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="message">Message *</Label>
-                  <Textarea
-                    id="message"
-                    placeholder="Describe your issue in detail..."
-                    className="min-h-[100px]"
-                    value={contactMessage}
-                    onChange={(e) => setContactMessage(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Screenshot (Optional)</Label>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      type="button"
-                      className="w-full relative overflow-hidden h-10 gap-2"
-                      onClick={() => document.getElementById('screenshot-upload')?.click()}
-                    >
-                      <Upload className="w-4 h-4 text-muted-foreground" />
-                      {screenshotFile ? screenshotFile.name : "Upload Screenshot"}
-                      <input
-                        id="screenshot-upload"
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => setScreenshotFile(e.target.files?.[0] || null)}
-                      />
-                    </Button>
-                    {screenshotFile && (
-                      <Button variant="ghost" size="sm" onClick={() => setScreenshotFile(null)} className="h-10 text-destructive">
-                        Remove
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsContactOpen(false)}>Cancel</Button>
-                <Button onClick={handleContactSubmit} disabled={isSending}>
-                  {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Send Message
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={isForceChangeOpen} onOpenChange={(open) => !isUpdatingPassword && setIsForceChangeOpen(open)}>
-            <DialogContent className="sm:max-w-[400px]">
-              <DialogHeader>
-                <DialogTitle>Change Password</DialogTitle>
-                <DialogDescription>
-                  Your administrator requires you to change your password before proceeding.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
+              <div className="flex justify-center">
                 <Button
-                  onClick={handlePasswordChange}
-                  disabled={isUpdatingPassword}
-                  className="w-full"
+                  onClick={() => {
+                    setIsAddingNew(true);
+                    setEmail('');
+                    setPassword('');
+                  }}
+                  variant="ghost"
+                  className="text-primary font-bold gap-2 hover:bg-primary/5"
                 >
-                  {isUpdatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Update Password
+                  <ArrowRightLeft size={18} />
+                  Add Another Account
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </div>
+            </div>
+          ) : (
+            <>
+              {isAddingNew && accounts.length > 0 && (
+                <button
+                  onClick={() => setIsAddingNew(false)}
+                  className="mb-6 mx-6 flex items-center gap-2 text-sm font-semibold text-primary hover:underline group"
+                >
+                  <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                  Back to Profiles
+                </button>
+              )}
+              <form onSubmit={handleSubmit} className="space-y-6 px-6">
+                {error && (
+                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive animate-shake">
+                    {error}
+                  </div>
+                )}
 
-          <p className="mt-12 text-center text-xs text-muted-foreground/60">
-            {t.login.copyright}
-          </p>
+                <div className="space-y-2 text-left">
+                  <label className="text-sm font-semibold ml-1 text-foreground/80">
+                    {t.login.emailAddress}
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={t.login.emailPlaceholder}
+                    className="w-full px-4 py-3.5 rounded-xl border border-input bg-card/50 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                  />
+                </div>
+                <div className="space-y-2 text-left">
+                  <div className="flex justify-between items-center ml-1">
+                    <label className="text-sm font-semibold text-foreground/80">
+                      {t.login.password}
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={t.login.passwordPlaceholder}
+                      className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-input bg-card/50 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* REMOVED: Remember Me Checkbox - now automatic */}
+
+                <Button
+                  type="submit"
+                  className="w-full py-6 bg-primary hover:bg-primary/90 text-primary-foreground text-lg font-bold rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                      {t.login.signingIn}
+                    </>
+                  ) : (
+                    t.login.signIn
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-10 text-center px-6">
+                <p className="text-sm text-muted-foreground">
+                  {t.login.noAccount}{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsContactOpen(true)}
+                    className="text-primary font-bold hover:underline"
+                  >
+                    {t.login.contactAdmin}
+                  </button>
+                </p>
+              </div>
+
+              <Dialog open={isContactOpen} onOpenChange={setIsContactOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Contact Administrator</DialogTitle>
+                    <DialogDescription>
+                      Need help? Send a message to the system administrator.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="instEmail">Institution's Email *</Label>
+                        <Input
+                          id="instEmail"
+                          placeholder="Admin/School Email"
+                          value={institutionEmail}
+                          onChange={(e) => setInstitutionEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="senderEmail">Your Email *</Label>
+                        <Input
+                          id="senderEmail"
+                          placeholder="Your registered email"
+                          value={senderEmail}
+                          onChange={(e) => setSenderEmail(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="senderName">Your Name</Label>
+                      <Input
+                        id="senderName"
+                        placeholder="Enter your full name"
+                        value={senderName}
+                        onChange={(e) => setSenderName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="subject">Subject *</Label>
+                      <Input
+                        id="subject"
+                        placeholder="e.g. Account Access Issue"
+                        value={contactSubject}
+                        onChange={(e) => setContactSubject(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="message">Message *</Label>
+                      <Textarea
+                        id="message"
+                        placeholder="Describe your issue in detail..."
+                        className="min-h-[100px]"
+                        value={contactMessage}
+                        onChange={(e) => setContactMessage(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Screenshot (Optional)</Label>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="outline"
+                          type="button"
+                          className="w-full relative overflow-hidden h-10 gap-2"
+                          onClick={() => document.getElementById('screenshot-upload')?.click()}
+                        >
+                          <Upload className="w-4 h-4 text-muted-foreground" />
+                          {screenshotFile ? screenshotFile.name : "Upload Screenshot"}
+                          <input
+                            id="screenshot-upload"
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => setScreenshotFile(e.target.files?.[0] || null)}
+                          />
+                        </Button>
+                        {screenshotFile && (
+                          <Button variant="ghost" size="sm" onClick={() => setScreenshotFile(null)} className="h-10 text-destructive">
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsContactOpen(false)}>Cancel</Button>
+                    <Button onClick={handleContactSubmit} disabled={isSending}>
+                      {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Send Message
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isForceChangeOpen} onOpenChange={(open) => !isUpdatingPassword && setIsForceChangeOpen(open)}>
+                <DialogContent className="sm:max-w-[400px]">
+                  <DialogHeader>
+                    <DialogTitle>Change Password</DialogTitle>
+                    <DialogDescription>
+                      Your administrator requires you to change your password before proceeding.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        placeholder="Enter new password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={handlePasswordChange}
+                      disabled={isUpdatingPassword}
+                      className="w-full"
+                    >
+                      {isUpdatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Update Password
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <p className="mt-12 text-center text-xs text-muted-foreground/60">
+                {t.login.copyright}
+              </p>
+            </>
+          )}
         </div>
       </div>
 

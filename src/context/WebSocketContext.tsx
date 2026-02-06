@@ -3,10 +3,12 @@
  * Global real-time context using Supabase's built-in realtime functionality
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { realtimeService } from '@/services/realtime.service';
 import { toast } from 'sonner';
+import { App as CapacitorApp } from '@capacitor/app';
+import { useQueryClient } from '@tanstack/react-query';
 
 type RealtimeChannel =
     | 'leave_requests'
@@ -27,6 +29,7 @@ interface WebSocketContextType {
     subscribeToTable: (tableName: string, callback: (data: any) => void, filter?: { event?: 'INSERT' | 'UPDATE' | 'DELETE' | '*'; schema?: string; filter?: string }) => () => void;
     broadcast: (channel: string, event: string, data: any) => Promise<any>;
     connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
+    refreshConnection: () => Promise<void>;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
@@ -35,6 +38,31 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, user } = useAuth();
     const [isConnected, setIsConnected] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
+    const queryClient = useQueryClient();
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+
+    const refreshConnection = useCallback(async () => {
+        if (!isAuthenticated || !user) return;
+
+        console.log('🔄 Refreshing realtime connection and clearing stale data...');
+
+        // Invalidate all queries to ensure fresh data on resume
+        queryClient.invalidateQueries();
+
+        setConnectionStatus('connecting');
+        const connected = await realtimeService.connect();
+
+        setIsConnected(connected);
+        setConnectionStatus(connected ? 'connected' : 'error');
+
+        if (connected) {
+            console.log('✅ Realtime reconnected');
+        } else {
+            // Retry logic
+            if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = setTimeout(refreshConnection, 5000);
+        }
+    }, [isAuthenticated, user, queryClient]);
 
     /**
      * Connect to Supabase Realtime when authenticated
@@ -43,43 +71,38 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         if (!isAuthenticated || !user) {
             setConnectionStatus('disconnected');
             setIsConnected(false);
+            realtimeService.disconnect();
             return;
         }
 
-        let mounted = true;
+        refreshConnection();
 
-        const connect = async () => {
-            try {
-                setConnectionStatus('connecting');
-                const connected = await realtimeService.connect();
+        // 1. Handle Capacitor App State Changes (Background/Foreground)
+        const appStateListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+            if (isActive) {
+                console.log('📱 App resumed - Refreshing realtime and data');
+                refreshConnection();
+            } else {
+                console.log('💤 App backgrounded - Realtime may throttle');
+            }
+        });
 
-                if (mounted) {
-                    setIsConnected(connected);
-                    setConnectionStatus(connected ? 'connected' : 'error');
-                    if (connected) {
-                        console.log('✅ Supabase Realtime connected for user:', user.email);
-                        toast.success('Real-time updates enabled', {
-                            description: 'You will receive live notifications',
-                            duration: 3000,
-                        });
-                    }
-                }
-            } catch (error) {
-                console.error('❌ Realtime connection failed:', error);
-                if (mounted) {
-                    setIsConnected(false);
-                    setConnectionStatus('error');
-                }
+        // 2. Handle Browser/WebView Visibility Changes
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('👀 WebView visible - Refreshing realtime and data');
+                refreshConnection();
             }
         };
 
-        connect();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
-            mounted = false;
-            // Don't disconnect on unmount to maintain connection across route changes
+            appStateListener.then(l => l.remove());
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
         };
-    }, [isAuthenticated, user]);
+    }, [isAuthenticated, user, refreshConnection]);
 
     /**
      * Subscribe to a specific channel/table
@@ -131,6 +154,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
                 subscribeToTable,
                 broadcast,
                 connectionStatus,
+                refreshConnection,
             }}
         >
             {children}

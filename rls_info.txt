@@ -1,0 +1,7 @@
+--- Checking RLS Status ---
+Table parents policies: null
+Table students policies: null
+Table leave_requests policies: null
+Table faculty_subjects policies: null
+Table classes policies: null
+Table student_parents policies: null

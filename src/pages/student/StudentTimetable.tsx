@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Calendar, Clock, User } from 'lucide-react';
+import { Loader2, Calendar, Clock, User, Users, MapPin, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { Badge } from '@/components/common/Badge';
@@ -519,12 +519,13 @@ export function StudentTimetable() {
                 </TabsList>
 
                 <TabsContent value="timetable">
-                    <Card>
+                    {/* Desktop View */}
+                    <Card className="hidden md:block">
                         <CardContent className="p-0 overflow-x-auto">
                             <table className="w-full border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="border p-3 bg-muted/50 w-24 text-left font-bold lowercase">Day</th>
+                                        <th className="border p-3 bg-muted/50 w-24 text-left font-bold lowercase whitespace-nowrap">Day</th>
                                         {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
                                             const timings = calculatePeriodTimings(p);
                                             return (
@@ -550,7 +551,7 @@ export function StudentTimetable() {
                                 <tbody>
                                     {DAYS.slice(0, configData.days_per_week).map((day) => (
                                         <tr key={day} className="hover:bg-muted/5 transition-colors">
-                                            <td className="border p-3 font-semibold text-sm bg-muted/10">{day}</td>
+                                            <td className="border p-3 font-semibold text-sm bg-muted/10 whitespace-nowrap">{day}</td>
                                             {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
                                                 const slot = timetableSlots.find(
                                                     (s: any) => s.day_of_week === day && s.period_index === period
@@ -599,9 +600,77 @@ export function StudentTimetable() {
                         </CardContent>
                     </Card>
 
+                    {/* Mobile View */}
+                    <div className="block md:hidden space-y-4">
+                        {DAYS.slice(0, configData.days_per_week).map((day) => (
+                            <Card key={day} className="overflow-hidden border-none shadow-md bg-white">
+                                <div className="bg-primary/10 px-4 py-3 border-b flex justify-between items-center">
+                                    <h3 className="font-bold text-primary">{day}</h3>
+                                    <Badge variant="outline" className="bg-white/50 text-[10px] font-bold uppercase tracking-tight">
+                                        {day === (new Date().toLocaleString('en-US', { weekday: 'long' })) ? 'Today' : 'Schedule'}
+                                    </Badge>
+                                </div>
+                                <div className="divide-y divide-border/50">
+                                    {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
+                                        const slot = timetableSlots.find(
+                                            (s: any) => s.day_of_week === day && s.period_index === period
+                                        );
+                                        const timings = calculatePeriodTimings(period);
+
+                                        return (
+                                            <Fragment key={period}>
+                                                <div className={`p-4 flex gap-4 items-start ${slot ? 'bg-white' : 'bg-muted/5'}`}>
+                                                    <div className="flex flex-col items-center w-16 flex-shrink-0 pt-1">
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase leading-none tracking-tighter">Period {period}</span>
+                                                        <span className="text-[11px] font-medium mt-1 whitespace-nowrap">{timings.start}</span>
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        {slot ? (
+                                                            <div className="space-y-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="font-bold text-sm text-foreground truncate">{slot.subjects?.name}</p>
+                                                                    {slot.is_special && <Badge className="bg-orange-100 text-orange-700 text-[8px] h-4">Special</Badge>}
+                                                                </div>
+                                                                <div className="flex flex-col gap-1 mt-1">
+                                                                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                                                                        <User className="w-3 h-3 flex-shrink-0" />
+                                                                        <span className="truncate">{slot.profiles?.full_name}</span>
+                                                                    </div>
+                                                                    {slot.room_number && (
+                                                                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                                                            <span className="bg-muted px-1.5 py-0.5 rounded text-[9px] font-bold">ROOM {slot.room_number}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="h-full flex items-center">
+                                                                <span className="text-[11px] text-muted-foreground/30 font-medium italic">Free Period</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Breaks in Mobile View */}
+                                                {calculateAllTimings()
+                                                    .filter((s, idx, arr) => s.type !== 'period' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === period)
+                                                    .map((b, bi) => (
+                                                        <div key={bi} className={`px-4 py-2 ${b.type === 'lunch' ? 'bg-orange-50/30' : 'bg-blue-50/30'} flex items-center justify-center gap-2`}>
+                                                            <span className={`text-[10px] font-bold ${b.type === 'lunch' ? 'text-orange-400' : 'text-blue-400'} uppercase tracking-widest`}>{b.name}</span>
+                                                        </div>
+                                                    ))}
+                                            </Fragment>
+                                        );
+                                    })}
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+
                     {timetableSlots.length === 0 && (
-                        <Card>
-                            <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+                        <Card className="mt-4">
+                            <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground bg-white">
                                 <Calendar className="w-12 h-12 mb-4" />
                                 <h2 className="text-xl font-semibold mb-2">No Timetable Published</h2>
                                 <p>Your class teacher hasn't published the timetable yet.</p>
@@ -636,90 +705,159 @@ export function StudentTimetable() {
                                 const dayName = dayMapping[dayIndex];
 
                                 return (
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr>
-                                                <th className="border p-3 bg-muted/50 w-24 text-left font-bold">Day</th>
-                                                {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
-                                                    const timings = calculatePeriodTimings(p);
-                                                    return (
-                                                        <Fragment key={p}>
-                                                            <th className="border p-3 bg-muted/50 text-xs font-semibold text-left">
-                                                                <div className="font-bold">Period {p}</div>
-                                                                <div className="text-[10px] font-normal text-muted-foreground mt-0.5 whitespace-nowrap">
-                                                                    {timings.start}
-                                                                </div>
-                                                            </th>
-                                                            {calculateAllTimings()
-                                                                .filter((s, idx, arr) => s.type !== 'period' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === p)
-                                                                .map((b, bi) => (
-                                                                    <th key={bi} className={`border p-3 ${b.type === 'lunch' ? 'bg-orange-50/50 text-orange-600' : 'bg-blue-50/50 text-blue-600'} text-[10px] font-bold text-center uppercase tracking-widest w-16`}>
-                                                                        {b.name}
-                                                                    </th>
-                                                                ))}
-                                                        </Fragment>
-                                                    );
-                                                })}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr className="hover:bg-muted/5 transition-colors">
-                                                <td className="border p-3 font-semibold text-sm bg-muted/10">{dayName}</td>
-                                                {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
-                                                    // Find special slot for this period by matching time
-                                                    const timings = calculatePeriodTimings(period);
-                                                    const slot = selectedDateSlots.find((s: any) => {
-                                                        const [h, m] = s.start_time.split(':').map(Number);
-                                                        const hh = h % 12 || 12;
-                                                        const ampm = h >= 12 ? 'PM' : 'AM';
-                                                        const formatted = `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
-                                                        return formatted === timings.start;
-                                                    });
+                                    <>
+                                        {/* Desktop View */}
+                                        <table className="w-full border-collapse hidden md:table">
+                                            <thead>
+                                                <tr>
+                                                    <th className="border p-3 bg-muted/50 w-24 text-left font-bold whitespace-nowrap">Day</th>
+                                                    {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
+                                                        const timings = calculatePeriodTimings(p);
+                                                        return (
+                                                            <Fragment key={p}>
+                                                                <th className="border p-3 bg-muted/50 text-xs font-semibold text-left">
+                                                                    <div className="font-bold">Period {p}</div>
+                                                                    <div className="text-[10px] font-normal text-muted-foreground mt-0.5 whitespace-nowrap">
+                                                                        {timings.start}
+                                                                    </div>
+                                                                </th>
+                                                                {calculateAllTimings()
+                                                                    .filter((s, idx, arr) => s.type !== 'period' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === p)
+                                                                    .map((b, bi) => (
+                                                                        <th key={bi} className={`border p-3 ${b.type === 'lunch' ? 'bg-orange-50/50 text-orange-600' : 'bg-blue-50/50 text-blue-600'} text-[10px] font-bold text-center uppercase tracking-widest w-16`}>
+                                                                            {b.name}
+                                                                        </th>
+                                                                    ))}
+                                                            </Fragment>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr className="hover:bg-muted/5 transition-colors">
+                                                    <td className="border p-3 font-semibold text-sm bg-muted/10 whitespace-nowrap">{dayName}</td>
+                                                    {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
+                                                        // Find special slot for this period by matching time
+                                                        const timings = calculatePeriodTimings(period);
+                                                        const slot = selectedDateSlots.find((s: any) => {
+                                                            const [h, m] = s.start_time.split(':').map(Number);
+                                                            const hh = h % 12 || 12;
+                                                            const ampm = h >= 12 ? 'PM' : 'AM';
+                                                            const formatted = `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+                                                            return formatted === timings.start;
+                                                        });
 
-                                                    return (
-                                                        <Fragment key={period}>
-                                                            <td className="border p-2 min-w-[120px] h-20 align-top">
-                                                                {slot ? (
-                                                                    <div className="space-y-1 p-1 rounded-md h-full bg-orange-50 ring-1 ring-orange-200">
-                                                                        <Badge variant="default" className="w-full justify-start text-[10px] font-bold truncate border-0 bg-orange-100 text-orange-700 hover:bg-orange-200">
-                                                                            {slot.subjects?.name}
-                                                                        </Badge>
-                                                                        <div className="text-[10px] pl-1 font-medium flex items-center gap-1">
-                                                                            <User className="w-2.5 h-2.5 opacity-50" />
-                                                                            <span className="truncate">{slot.profiles?.full_name}</span>
+                                                        return (
+                                                            <Fragment key={period}>
+                                                                <td className="border p-2 min-w-[120px] h-20 align-top">
+                                                                    {slot ? (
+                                                                        <div className="space-y-1 p-1 rounded-md h-full bg-orange-50 ring-1 ring-orange-200">
+                                                                            <Badge variant="default" className="w-full justify-start text-[10px] font-bold truncate border-0 bg-orange-100 text-orange-700 hover:bg-orange-200">
+                                                                                {slot.subjects?.name}
+                                                                            </Badge>
+                                                                            <div className="text-[10px] pl-1 font-medium flex items-center gap-1">
+                                                                                <User className="w-2.5 h-2.5 opacity-50" />
+                                                                                <span className="truncate">{slot.profiles?.full_name}</span>
+                                                                            </div>
+                                                                            {slot.room_number && (
+                                                                                <div className="text-[9px] text-muted-foreground pl-1">
+                                                                                    Rm: {slot.room_number}
+                                                                                </div>
+                                                                            )}
+                                                                            {slot.title && (
+                                                                                <div className="text-[9px] text-orange-600 pl-1 font-semibold">
+                                                                                    {slot.title}
+                                                                                </div>
+                                                                            )}
                                                                         </div>
-                                                                        {slot.room_number && (
-                                                                            <div className="text-[9px] text-muted-foreground pl-1">
-                                                                                Rm: {slot.room_number}
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/10 text-[10px]">
+                                                                            -
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                {calculateAllTimings()
+                                                                    .filter((s, idx, arr) => s.type !== 'period' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === period)
+                                                                    .map((b, bi) => (
+                                                                        <td key={bi} className={`border p-2 ${b.type === 'lunch' ? 'bg-orange-50/20' : 'bg-blue-50/20'} align-middle text-center`}>
+                                                                            <div className={`[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold ${b.type === 'lunch' ? 'text-orange-400' : 'text-blue-400'} tracking-[0.2em] uppercase mx-auto`}>
+                                                                                {b.name}
                                                                             </div>
-                                                                        )}
-                                                                        {slot.title && (
-                                                                            <div className="text-[9px] text-orange-600 pl-1 font-semibold">
-                                                                                {slot.title}
+                                                                        </td>
+                                                                    ))}
+                                                            </Fragment>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        {/* Mobile View */}
+                                        <div className="block md:hidden divide-y divide-border/50">
+                                            {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
+                                                const timings = calculatePeriodTimings(period);
+                                                const slot = selectedDateSlots.find((s: any) => {
+                                                    const [h, m] = s.start_time.split(':').map(Number);
+                                                    const hh = h % 12 || 12;
+                                                    const ampm = h >= 12 ? 'PM' : 'AM';
+                                                    const formatted = `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+                                                    return formatted === timings.start;
+                                                });
+
+                                                return (
+                                                    <Fragment key={period}>
+                                                        <div className={`p-4 flex gap-4 items-start ${slot ? 'bg-orange-50/20' : 'bg-muted/5'}`}>
+                                                            <div className="flex flex-col items-center w-16 flex-shrink-0 pt-1">
+                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase leading-none tracking-tighter">Period {period}</span>
+                                                                <span className="text-[11px] font-medium mt-1 whitespace-nowrap">{timings.start}</span>
+                                                            </div>
+
+                                                            <div className="flex-1 min-w-0">
+                                                                {slot ? (
+                                                                    <div className="space-y-1">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <p className="font-bold text-sm text-foreground truncate">{slot.subjects?.name}</p>
+                                                                            <Badge className="bg-orange-100 text-orange-700 text-[8px] h-4">Special</Badge>
+                                                                        </div>
+                                                                        <div className="flex flex-col gap-1 mt-1">
+                                                                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                                                                                <User className="w-3 h-3 flex-shrink-0" />
+                                                                                <span className="truncate">{slot.profiles?.full_name}</span>
                                                                             </div>
-                                                                        )}
+                                                                            <div className="flex items-center gap-2">
+                                                                                {slot.room_number && (
+                                                                                    <span className="bg-muted px-1.5 py-0.5 rounded text-[9px] font-bold flex items-center gap-1">
+                                                                                        <MapPin className="w-2 h-2" />
+                                                                                        ROOM {slot.room_number}
+                                                                                    </span>
+                                                                                )}
+                                                                                {slot.title && (
+                                                                                    <span className="text-[10px] text-orange-600 italic font-medium">"{slot.title}"</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground/10 text-[10px]">
-                                                                        -
+                                                                    <div className="h-full flex items-center">
+                                                                        <span className="text-[11px] text-muted-foreground/20 font-medium italic">Regular Schedule</span>
                                                                     </div>
                                                                 )}
-                                                            </td>
-                                                            {calculateAllTimings()
-                                                                .filter((s, idx, arr) => s.type !== 'period' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === period)
-                                                                .map((b, bi) => (
-                                                                    <td key={bi} className={`border p-2 ${b.type === 'lunch' ? 'bg-orange-50/20' : 'bg-blue-50/20'} align-middle text-center`}>
-                                                                        <div className={`[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold ${b.type === 'lunch' ? 'text-orange-400' : 'text-blue-400'} tracking-[0.2em] uppercase mx-auto`}>
-                                                                            {b.name}
-                                                                        </div>
-                                                                    </td>
-                                                                ))}
-                                                        </Fragment>
-                                                    );
-                                                })}
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Breaks in Mobile View */}
+                                                        {calculateAllTimings()
+                                                            .filter((s, idx, arr) => s.type !== 'period' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === period)
+                                                            .map((b, bi) => (
+                                                                <div key={bi} className={`px-4 py-2 ${b.type === 'lunch' ? 'bg-orange-50/30' : 'bg-blue-50/30'} flex items-center justify-center gap-2`}>
+                                                                    <span className={`text-[10px] font-bold ${b.type === 'lunch' ? 'text-orange-400' : 'text-blue-400'} uppercase tracking-widest`}>{b.name}</span>
+                                                                </div>
+                                                            ))}
+                                                    </Fragment>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
                                 );
                             })()}
                         </CardContent>

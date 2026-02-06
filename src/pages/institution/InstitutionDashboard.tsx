@@ -349,14 +349,14 @@ export function InstitutionDashboard() {
         <div className="lg:col-span-2 dashboard-card p-4 sm:p-6">
           <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Enrollment Trend (Cumulative)</h3>
           <div className="chart-container-responsive">
-            <AreaChart data={stats?.enrollmentTrend || []} color="hsl(var(--institution))" height={250} />
+            <AreaChart data={stats?.enrollmentTrend || []} color="hsl(var(--institution))" height={undefined} />
           </div>
         </div>
         <div className="dashboard-card p-4 sm:p-6">
           <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Class Enrollment Distribution</h3>
-          <div className="chart-container-responsive h-[250px]">
+          <div className="chart-container-responsive">
             {stats?.classDistribution && stats.classDistribution.length > 0 ? (
-              <DonutChart data={stats.classDistribution} />
+              <DonutChart data={stats.classDistribution} height={undefined} />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No data</div>
             )}

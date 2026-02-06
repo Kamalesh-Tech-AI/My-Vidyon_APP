@@ -36,57 +36,57 @@ interface Notification {
 
 export function RealtimeNotificationBell() {
     const { subscribeToTable, isConnected } = useWebSocketContext();
-    const { user } = useAuth();
+    const { user, accounts } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
-    // Load initial notifications from database on mount
+    // Load initial notifications from database for ALL accounts on mount
     useEffect(() => {
-        const loadInitialNotifications = async () => {
-            if (!user?.id) return;
+        const loadAllNotifications = async () => {
+            if (accounts.length === 0) return;
 
             try {
+                // Fetch notifications for all logged-in accounts
+                const accountIds = accounts.map(a => a.id);
                 const { data, error } = await supabase
                     .from('notifications')
                     .select('*')
-                    .eq('user_id', user.id)
+                    .in('user_id', accountIds)
                     .order('created_at', { ascending: false })
-                    .limit(20);
+                    .limit(30);
 
                 if (error) {
-                    console.error('Error loading notifications:', error);
+                    console.error('Error loading consolidated notifications:', error);
                     return;
                 }
 
                 if (data && data.length > 0) {
-                    const formattedNotifications: Notification[] = data.map(n => ({
-                        id: n.id,
-                        title: n.title,
-                        message: n.message,
-                        type: (n.type === 'error' || n.type === 'warning' || n.type === 'success') ? n.type : 'info',
-                        timestamp: new Date(n.created_at).getTime(),
-                        read: n.read || false,
-                        table: 'notifications',
-                        actionUrl: n.action_url
-                    }));
+                    const formattedNotifications: Notification[] = data.map(n => {
+                        const account = accounts.find(a => a.id === n.user_id);
+                        const isOtherAccount = account && account.id !== user?.id;
 
-                    setNotifications(prev => {
-                        // Merge with existing, avoid duplicates
-                        const existingIds = new Set(prev.map(n => n.id));
-                        const newNotifs = formattedNotifications.filter(n => !existingIds.has(n.id));
-                        return [...newNotifs, ...prev].slice(0, 20);
+                        return {
+                            id: n.id,
+                            title: isOtherAccount ? `(${account.name}) ${n.title}` : n.title,
+                            message: n.message,
+                            type: (n.type === 'error' || n.type === 'warning' || n.type === 'success') ? n.type : 'info',
+                            timestamp: new Date(n.created_at).getTime(),
+                            read: n.read || false,
+                            table: 'notifications',
+                            actionUrl: n.action_url
+                        };
                     });
 
-                    const unreadFromDb = formattedNotifications.filter(n => !n.read).length;
-                    setUnreadCount(prev => prev + unreadFromDb);
+                    setNotifications(formattedNotifications);
+                    setUnreadCount(formattedNotifications.filter(n => !n.read).length);
                 }
             } catch (err) {
                 console.error('Unexpected error loading notifications:', err);
             }
         };
 
-        loadInitialNotifications();
-    }, [user?.id]);
+        loadAllNotifications();
+    }, [accounts, user?.id]);
 
     // Subscribe to leave requests (for institution/admin)
     useEffect(() => {
@@ -342,42 +342,48 @@ export function RealtimeNotificationBell() {
         return unsubscribe;
     }, [subscribeToTable, user]);
 
-    // Subscribe to General Notifications (Targeted at specific user)
+    // Subscribe to General Notifications for ALL logged-in accounts
     useEffect(() => {
-        if (!user) return;
+        if (accounts.length === 0) return;
 
-        // Listen for ANY insert into notifications table where user_id matches current user
-        // Note: Filters must be cleaner in real service, but RLS + subscribe usually works if policy allows select.
-        // However, Supabase Realtime doesn't filter by RLS automatically for the stream generally unless 'pg_changes' is used with filter.
-        // We will use filter: `user_id=eq.${user.id}`
+        const unsubscribes = accounts.map(account => {
+            return subscribeToTable('notifications', (payload) => {
+                console.log(`📬 Notification for ${account.name}:`, payload);
 
-        const unsubscribe = subscribeToTable('notifications', (payload) => {
-            console.log('📬 Personal Notification update:', payload);
+                if (payload.eventType === 'INSERT' && payload.new.user_id === account.id) {
+                    const isOtherAccount = account.id !== user?.id;
+                    const notification: Notification = {
+                        id: payload.new.id || Date.now().toString(),
+                        title: isOtherAccount ? `(${account.name}) ${payload.new.title}` : payload.new.title,
+                        message: payload.new.message,
+                        type: (payload.new.type === 'error' || payload.new.type === 'warning' || payload.new.type === 'success' || payload.new.type === 'attendance') ? payload.new.type : 'info',
+                        timestamp: Date.now(),
+                        read: false,
+                        table: 'notifications',
+                        eventType: 'INSERT',
+                        actionUrl: payload.new.action_url,
+                    };
 
-            if (payload.eventType === 'INSERT' && payload.new.user_id === user.id) {
-                const notification: Notification = {
-                    id: payload.new.id || Date.now().toString(),
-                    title: payload.new.title,
-                    message: payload.new.message,
-                    type: (payload.new.type === 'error' || payload.new.type === 'warning' || payload.new.type === 'success' || payload.new.type === 'attendance') ? payload.new.type : 'info',
-                    timestamp: Date.now(),
-                    read: false,
-                    table: 'notifications',
-                    eventType: 'INSERT',
-                    actionUrl: payload.new.action_url,
-                };
+                    setNotifications(prev => [notification, ...prev].slice(0, 30));
+                    setUnreadCount(prev => prev + 1);
 
-                setNotifications(prev => [notification, ...prev].slice(0, 20));
-                setUnreadCount(prev => prev + 1);
-
-                toast(notification.title, {
-                    description: notification.message,
-                });
-            }
+                    // Show toast with name for context
+                    toast(notification.title, {
+                        description: notification.message,
+                        action: isOtherAccount ? {
+                            label: 'Switch',
+                            onClick: () => {
+                                // Logic to switch account would go here, 
+                                // but we'll stick to displaying for now
+                            }
+                        } : undefined
+                    });
+                }
+            });
         });
 
-        return unsubscribe;
-    }, [subscribeToTable, user]);
+        return () => unsubscribes.forEach(unsub => unsub());
+    }, [subscribeToTable, accounts, user?.id]);
 
 
     const navigate = useNavigate();

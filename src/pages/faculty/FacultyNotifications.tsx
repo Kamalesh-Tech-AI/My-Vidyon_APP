@@ -10,7 +10,7 @@ export function FacultyNotifications() {
                 subtitle="View your alerts and academic calendar updates"
             />
 
-            <div className="max-w-4xl bg-white rounded-xl border border-border shadow-sm min-h-[600px] overflow-hidden">
+            <div className="max-w-4xl bg-white rounded-xl border border-border shadow-sm min-h-[600px] overflow-hidden mb-24">
                 <NotificationPanel />
             </div>
         </FacultyLayout>

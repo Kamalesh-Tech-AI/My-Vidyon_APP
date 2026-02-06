@@ -1,6 +1,6 @@
 -- Create custom types if they don't exist
 DO $$ BEGIN
-    CREATE TYPE user_role AS ENUM ('admin', 'institution', 'faculty', 'parent', 'student');
+    CREATE TYPE user_role AS ENUM ('admin', 'institution', 'faculty', 'parent', 'student', 'accountant', 'canteen_manager', 'driver');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -46,12 +46,26 @@ LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
+  _role_text TEXT;
   _role user_role;
 BEGIN
+  -- Get role from metadata
+  _role_text := new.raw_user_meta_data->>'role';
+  
+  -- Map 'teacher' to 'faculty' if needed
+  IF _role_text = 'teacher' THEN
+    _role_text := 'faculty';
+  END IF;
+
   -- Determine role with safe casting
   BEGIN
-    _role := (new.raw_user_meta_data->>'role')::user_role;
+    IF _role_text IS NOT NULL THEN
+      _role := _role_text::user_role;
+    ELSE
+      _role := 'student'::user_role;
+    END IF;
   EXCEPTION WHEN OTHERS THEN
+    -- If casting fails, log it and default to student (or check if it's a staff-like creation)
     _role := 'student'::user_role;
   END;
 
@@ -61,7 +75,7 @@ BEGIN
     new.id, 
     new.email, 
     COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)), 
-    COALESCE(_role, 'student'),
+    _role,
     new.raw_user_meta_data->>'institution_id'
   )
   ON CONFLICT (id) DO UPDATE SET

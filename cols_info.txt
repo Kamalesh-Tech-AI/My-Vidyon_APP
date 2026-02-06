@@ -1,0 +1,35 @@
+--- Students Columns ---
+[
+  'id',              'institution_id',
+  'name',            'register_number',
+  'class_name',      'section',
+  'dob',             'gender',
+  'parent_name',     'parent_contact',
+  'email',           'address',
+  'created_at',      'parent_email',
+  'parent_phone',    'image_url',
+  'phone',           'parent_id',
+  'parent_relation', 'blood_group',
+  'city',            'zip_code',
+  'academic_year',   'is_active',
+  'user_id',         'stop_id'
+]
+--- Faculty Subjects Columns ---
+[
+  'id',
+  'institution_id',
+  'faculty_profile_id',
+  'subject_id',
+  'class_id',
+  'section',
+  'created_at',
+  'assignment_type'
+]
+--- Leave Requests Columns ---
+[
+  'id',         'student_id',
+  'parent_id',  'from_date',
+  'to_date',    'reason',
+  'status',     'created_at',
+  'updated_at'
+]

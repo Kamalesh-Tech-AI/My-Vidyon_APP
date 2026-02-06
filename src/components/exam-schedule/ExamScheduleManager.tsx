@@ -617,7 +617,7 @@ student_id,
 
     // Show class and section selector
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-10 sm:px-0">
             {/* Fixed Class and Section Information */}
             <Card className="bg-white shadow-sm border-border">
                 <CardContent className="p-6">
@@ -631,33 +631,33 @@ student_id,
                             </p>
                         </div>
 
-                        <div className="flex flex-col md:flex-row items-center gap-4">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
                             <button
                                 onClick={() => setShowHistory(true)}
-                                className="flex items-center gap-3 bg-primary/5 text-primary px-6 py-3 rounded-2xl border border-primary/10 shadow-sm hover:bg-primary/10 hover:shadow-md transition-all group cursor-pointer"
+                                className="flex items-center justify-center sm:justify-start gap-3 bg-primary/5 text-primary px-4 py-3 sm:px-6 rounded-2xl border border-primary/10 shadow-sm hover:bg-primary/10 hover:shadow-md transition-all group cursor-pointer w-full sm:w-auto"
                             >
-                                <div className="p-2 bg-primary/10 rounded-full group-hover:bg-primary/20 transition-colors">
+                                <div className="p-2 bg-primary/10 rounded-full group-hover:bg-primary/20 transition-colors shrink-0">
                                     <History className="h-5 w-5" />
                                 </div>
-                                <div className="flex flex-col text-left">
-                                    <span className="text-[10px] uppercase tracking-wider font-black opacity-60 leading-tight">Exam Records</span>
-                                    <span className="text-sm font-extrabold leading-none">See History</span>
+                                <div className="flex flex-col text-left shrink-0">
+                                    <span className="text-[10px] uppercase tracking-wider font-black opacity-60 leading-tight whitespace-nowrap">Exam Records</span>
+                                    <span className="text-sm font-extrabold leading-none whitespace-nowrap">See History</span>
                                 </div>
                             </button>
 
                             {!selectedClassName || !selectedSection ? (
-                                <div className="flex items-center gap-3 bg-destructive/10 text-destructive px-5 py-2.5 rounded-xl border border-destructive/20 shadow-sm animate-pulse">
-                                    <Info className="h-5 w-5" />
+                                <div className="flex items-center justify-center sm:justify-start gap-3 bg-destructive/10 text-destructive px-5 py-2.5 rounded-xl border border-destructive/20 shadow-sm animate-pulse w-full sm:w-auto">
+                                    <Info className="h-5 w-5 shrink-0" />
                                     <span className="text-sm font-bold">No class assigned to you</span>
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-3 bg-primary/10 text-primary px-6 py-3 rounded-2xl border border-primary/20 shadow-sm hover:shadow-md transition-all group">
-                                    <div className="p-2 bg-primary/20 rounded-full group-hover:bg-primary/30 transition-colors">
+                                <div className="flex items-center justify-center sm:justify-start gap-3 bg-primary/10 text-primary px-4 py-3 sm:px-6 rounded-2xl border border-primary/20 shadow-sm hover:shadow-md transition-all group w-full sm:w-auto">
+                                    <div className="p-2 bg-primary/20 rounded-full group-hover:bg-primary/30 transition-colors shrink-0">
                                         <Info className="h-5 w-5" />
                                     </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase tracking-wider font-black opacity-60 leading-tight">Your Assigned Class</span>
-                                        <span className="text-sm font-extrabold leading-none">
+                                    <div className="flex flex-col items-start shrink-0">
+                                        <span className="text-[10px] uppercase tracking-wider font-black opacity-60 leading-tight whitespace-nowrap">Your Assigned Class</span>
+                                        <span className="text-sm font-extrabold leading-none whitespace-nowrap">
                                             {selectedClassName} <span className="mx-1 text-primary/40">•</span> Section {selectedSection}
                                         </span>
                                     </div>

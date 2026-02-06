@@ -7,6 +7,13 @@ export interface User {
   role: UserRole;
   avatar?: string;
   institutionId?: string;
+  institutionName?: string;
+  institutionCode?: string;
+  studentId?: string;
+  staffId?: string;
+  className?: string;
+  section?: string;
+  academicYear?: string;
   departmentId?: string;
   forcePasswordChange?: boolean;
   phone?: string;

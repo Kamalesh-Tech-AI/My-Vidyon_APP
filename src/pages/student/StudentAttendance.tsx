@@ -144,7 +144,7 @@ export function StudentAttendance() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
         <StatCard
           title="Overall Attendance"
           value={`${attendanceRate}%`}
@@ -171,27 +171,26 @@ export function StudentAttendance() {
           title="Presence Streak"
           value={streak > 0 ? `${streak} Days` : "0 Days"}
           icon={Clock}
-          iconColor="text-warning"
-          change="Consecutive Present"
+          iconColor="text-warning" change="Consecutive Present"
           changeType="positive"
         />
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 dashboard-card p-6">
-          <h3 className="font-semibold mb-4">Daily Attendance Log (Last 7 Entries)</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
+        <div className="lg:col-span-2 dashboard-card p-4 lg:p-6">
+          <h3 className="font-semibold mb-4 text-base lg:text-lg">Daily Attendance Log (Last 7 Entries)</h3>
           {chartData.length > 0 ? (
             <AreaChart data={chartData} color="hsl(var(--success))" height={280} />
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 opacity-50">
+            <div className="flex flex-col items-center justify-center py-12 lg:py-20 opacity-50">
               <Calendar className="w-10 h-10 mb-2" />
               <p className="text-sm italic">Not enough data for trend</p>
             </div>
           )}
         </div>
-        <div className="dashboard-card p-6">
-          <h3 className="font-semibold mb-4">Attendance Share</h3>
+        <div className="dashboard-card p-4 lg:p-6">
+          <h3 className="font-semibold mb-4 text-base lg:text-lg">Attendance Share</h3>
           <DonutChart data={[
             { name: 'Present/Late', value: presentCount },
             { name: 'Absent', value: absentCount }
@@ -200,9 +199,9 @@ export function StudentAttendance() {
       </div>
 
       {/* Recent Attendance */}
-      <div className="dashboard-card p-6">
-        <h3 className="font-semibold mb-4">Recent Attendance Records</h3>
-        <DataTable columns={columns} data={history} loading={isLoading} />
+      <div className="dashboard-card p-4 lg:p-6">
+        <h3 className="font-semibold mb-4 text-base lg:text-lg">Recent Attendance Records</h3>
+        <DataTable columns={columns} data={history} loading={isLoading} mobileCardView={true} />
       </div>
     </StudentLayout>
   );

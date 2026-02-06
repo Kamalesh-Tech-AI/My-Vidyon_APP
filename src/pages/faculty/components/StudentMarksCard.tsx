@@ -8,6 +8,7 @@ interface StudentMarksCardProps {
         id: string;
         name: string;
         register_number: string;
+        image_url?: string;
     };
     marksStatus?: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PUBLISHED';
     onEnterMarks: () => void;
@@ -46,9 +47,12 @@ export function StudentMarksCard({
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-muted overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors">
                         <img
-                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${student.name}`}
+                            src={student.image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${student.name}`}
                             alt={student.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                                (e.target as any).src = `https://api.dicebear.com/7.x/initials/svg?seed=${student.name}`;
+                            }}
                         />
                     </div>
                     <div>

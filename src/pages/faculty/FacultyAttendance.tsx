@@ -53,29 +53,50 @@ export function FacultyAttendance() {
         queryFn: async () => {
             if (!institutionId || !user?.id) return [];
 
-            // 1. Get Faculty's Assigned Class
-            const { data: staffDetails } = await supabase
-                .from('staff_details')
-                .select('class_assigned, section_assigned')
-                .eq('profile_id', user.id)
-                .single();
+            // 1. Get Faculty's Assigned Class(es) and Section(s) as Class Teacher
+            const { data: assignments, error: assignmentError } = await supabase
+                .from('faculty_subjects')
+                .select(`
+                    section,
+                    classes:class_id (
+                        name
+                    )
+                `)
+                .eq('faculty_profile_id', user.id)
+                .eq('assignment_type', 'class_teacher');
 
-            if (!staffDetails?.class_assigned) return [];
+            if (assignmentError) {
+                console.error('Assignment fetch error:', assignmentError);
+                return [];
+            }
 
-            // 2. Get Students in that Class
-            const { data: studentData, error: studentError } = await supabase
-                .from('students')
-                .select('*')
-                .eq('institution_id', institutionId)
-                .eq('class_name', staffDetails.class_assigned)
-                .eq('section', staffDetails.section_assigned || 'A')
-                .order('roll_no', { ascending: true });
+            if (!assignments || assignments.length === 0) return [];
 
-            if (studentError) throw studentError;
-            if (!studentData || studentData.length === 0) return [];
+            // 2. Accumulate students from all assigned class/section pairs
+            let allStudents: any[] = [];
+            for (const assignment of assignments) {
+                const className = (assignment.classes as any)?.name;
+                const section = assignment.section;
+
+                if (!className) continue;
+
+                const { data: curStudents } = await supabase
+                    .from('students')
+                    .select('*')
+                    .eq('institution_id', institutionId)
+                    .eq('class_name', className)
+                    .eq('section', section)
+                    .order('roll_no', { ascending: true });
+
+                if (curStudents) {
+                    allStudents = [...allStudents, ...curStudents];
+                }
+            }
+
+            if (allStudents.length === 0) return [];
 
             // 3. Get today's attendance for these students
-            const studentIds = studentData.map(s => s.id);
+            const studentIds = allStudents.map(s => s.id);
             const { data: attendanceData, error: attendanceError } = await supabase
                 .from('student_attendance')
                 .select('*')
@@ -86,18 +107,11 @@ export function FacultyAttendance() {
             if (attendanceError) throw attendanceError;
 
             // Map attendance to students
-            return studentData.map(student => {
+            return allStudents.map(student => {
                 const att = attendanceData?.find(a => a.student_id === student.id);
                 return {
                     ...student,
-                    status: att ? att.status : 'absent', // Default to absent if no record? Or 'pending'? 
-                    // Usually default is 'present' or 'absent' depending on policy.
-                    // Let's assume default is 'absent' per requirements or 'pending' if we want explicit marking.
-                    // User image showed "Pending" as status text when no record.
-                    // Let's map: No record -> 'pending' (UI shows Absent), Record -> 'present'/'absent'
-                    // Actually, let's stick to the previous logic: att ? att.status : 'absent'
-                    // but maybe handle 'pending' UI state if needed.
-                    // For now, simple:
+                    status: att ? att.status : 'absent',
                     attendanceId: att?.id,
                     isPending: !att
                 };

@@ -876,14 +876,14 @@ export function TimetableManagement() {
 
     return (
         <FacultyLayout>
-            <div className="space-y-6">
+            <div className="space-y-6 px-4 sm:px-0 pb-24">
                 <PageHeader
                     title="Timetable Management"
                     subtitle="View your schedule and manage your assigned class timetable"
                 />
 
                 <Tabs defaultValue="my-schedule" className="w-full">
-                    <TabsList className="grid w-full max-w-md grid-cols-3">
+                    <TabsList className="grid w-full max-w-full sm:max-w-xl grid-cols-3 h-auto p-1">
                         <TabsTrigger value="my-schedule">My Schedule</TabsTrigger>
                         <TabsTrigger value="class-timetable">
                             {classTeacherAssignment?.class_assigned ? `${classTeacherAssignment.class_assigned}${classTeacherAssignment.section_assigned ? ` - ${classTeacherAssignment.section_assigned}` : ''}` : 'Class Timetable'}
@@ -893,36 +893,37 @@ export function TimetableManagement() {
 
                     {/* My Personal Schedule */}
                     <TabsContent value="my-schedule" className="mt-4">
-                        <Card>
-                            <CardContent className="p-0 overflow-x-auto">
-                                <table className="w-full border-collapse min-w-[1000px]">
+                        {/* Desktop View */}
+                        <Card className="overflow-hidden hidden md:block">
+                            <CardContent className="p-0 table-responsive-wrapper">
+                                <table className="w-full border-collapse min-w-[800px]">
                                     <thead>
                                         <tr>
-                                            <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0 z-10">Day</th>
+                                            <th className="border p-4 bg-muted w-32 font-bold text-left sticky left-0 z-10 whitespace-nowrap">Day</th>
                                             {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
                                                 const timings = calculatePeriodTimings(p);
                                                 return (
                                                     <Fragment key={p}>
-                                                        <th className="border p-3 bg-muted/50 text-sm font-medium text-left">
+                                                        <th className="border p-3 bg-muted text-sm font-medium text-left">
                                                             <div className="font-bold">Period {p}</div>
                                                             <div className="text-[10px] font-normal text-muted-foreground mt-0.5 whitespace-nowrap">
                                                                 {timings.start} - {timings.end}
                                                             </div>
                                                         </th>
                                                         {getBreakAfterPeriod('short') === p && (
-                                                            <th className="border p-3 bg-blue-50/50 text-[10px] font-bold text-blue-600 text-center uppercase tracking-widest w-16">
+                                                            <th className="border p-3 bg-blue-50 text-[10px] font-bold text-blue-600 text-center uppercase tracking-widest w-16">
                                                                 {configData.short_break_name}
                                                             </th>
                                                         )}
                                                         {getBreakAfterPeriod('lunch') === p && (
-                                                            <th className="border p-3 bg-orange-50/50 text-[10px] font-bold text-orange-600 text-center uppercase tracking-widest w-16">
+                                                            <th className="border p-3 bg-orange-50 text-[10px] font-bold text-orange-600 text-center uppercase tracking-widest w-16">
                                                                 Lunch
                                                             </th>
                                                         )}
                                                         {timingsList
                                                             .filter((s, idx, arr) => s.type === 'extra' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === p)
                                                             .map((b, bi) => (
-                                                                <th key={bi} className="border p-3 bg-blue-50/50 text-[10px] font-bold text-blue-600 text-center uppercase tracking-widest w-16">
+                                                                <th key={bi} className="border p-3 bg-blue-50 text-[10px] font-bold text-blue-600 text-center uppercase tracking-widest w-16">
                                                                     {b.name}
                                                                 </th>
                                                             ))}
@@ -934,18 +935,18 @@ export function TimetableManagement() {
                                     <tbody>
                                         {DAYS.slice(0, configData.days_per_week).map((day) => (
                                             <tr key={day}>
-                                                <td className="border p-4 font-semibold bg-muted/10 sticky left-0 z-10">{day}</td>
+                                                <td className="border p-4 font-semibold bg-muted sticky left-0 z-10 whitespace-nowrap">{day}</td>
                                                 {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
                                                     const key = `${day}-${period}`;
                                                     const slot = myScheduleData[key];
                                                     return (
                                                         <Fragment key={period}>
-                                                            <td className="border p-2 min-w-[140px] h-[100px] align-top">
+                                                            <td className="border p-2 min-w-[140px] h-20 align-top bg-white">
                                                                 {slot?.subject_id ? (
-                                                                    <div className={`space-y-1 p-1 rounded-md ${slot.is_special ? 'bg-orange-50/50 ring-1 ring-orange-200' : ''}`}>
+                                                                    <div className={`space-y-1 p-1 rounded-md ${slot.is_special ? 'bg-orange-50 ring-1 ring-orange-200' : ''}`}>
                                                                         <Badge
                                                                             variant="default"
-                                                                            className={`w-full justify-start line-clamp-1 border-0 mb-1 ${slot.is_special ? 'bg-orange-200 text-orange-900 group-hover:bg-orange-300' : 'bg-primary/10 text-primary'}`}
+                                                                            className={`w-full justify-start line-clamp-1 border-0 mb-1 ${slot.is_special ? 'bg-orange-200 text-orange-900 group-hover:bg-orange-300' : 'bg-primary/20 text-primary'}`}
                                                                         >
                                                                             {slot.subjects?.name || 'Subject'}
                                                                             {slot.is_special && <span className="ml-1 text-[8px] opacity-70">(Special)</span>}
@@ -967,14 +968,14 @@ export function TimetableManagement() {
                                                                 )}
                                                             </td>
                                                             {period === getBreakAfterPeriod('short') && (
-                                                                <td className="border p-2 bg-blue-50/20 align-middle text-center">
+                                                                <td className="border p-2 bg-blue-50 align-middle text-center">
                                                                     <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-blue-400 tracking-[0.2em] uppercase mx-auto">
                                                                         {configData.short_break_name}
                                                                     </div>
                                                                 </td>
                                                             )}
                                                             {period === getBreakAfterPeriod('lunch') && (
-                                                                <td className="border p-2 bg-orange-50/20 align-middle text-center">
+                                                                <td className="border p-2 bg-orange-50 align-middle text-center">
                                                                     <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-orange-400 tracking-[0.2em] uppercase mx-auto">
                                                                         Lunch
                                                                     </div>
@@ -983,7 +984,7 @@ export function TimetableManagement() {
                                                             {timingsList
                                                                 .filter((s, idx, arr) => s.type === 'extra' && idx > 0 && arr[idx - 1].type === 'period' && arr[idx - 1].index === period)
                                                                 .map((b, bi) => (
-                                                                    <td key={bi} className="border p-2 bg-blue-50/20 align-middle text-center">
+                                                                    <td key={bi} className="border p-2 bg-blue-50 align-middle text-center">
                                                                         <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-blue-400 tracking-[0.2em] uppercase mx-auto">
                                                                             {b.name}
                                                                         </div>
@@ -998,13 +999,93 @@ export function TimetableManagement() {
                                 </table>
                             </CardContent>
                         </Card>
+
+                        {/* Mobile View */}
+                        <div className="block md:hidden space-y-4">
+                            {DAYS.slice(0, configData.days_per_week).map((day) => (
+                                <Card key={day} className="overflow-hidden border-none shadow-md bg-white">
+                                    <div className="bg-primary/10 px-4 py-3 border-b flex justify-between items-center">
+                                        <h3 className="font-bold text-primary">{day}</h3>
+                                        <Badge variant="outline" className="bg-white/50 text-[10px] font-bold">
+                                            {Object.keys(myScheduleData).filter(key => key.startsWith(day) && myScheduleData[key]?.subject_id).length} Classes
+                                        </Badge>
+                                    </div>
+                                    <div className="divide-y divide-border/50">
+                                        {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
+                                            const key = `${day}-${period}`;
+                                            const slot = myScheduleData[key];
+                                            const timings = calculatePeriodTimings(period);
+
+                                            return (
+                                                <Fragment key={period}>
+                                                    <div className={`p-4 flex gap-4 items-start ${slot?.subject_id ? 'bg-white' : 'bg-muted/30'}`}>
+                                                        <div className="flex flex-col items-center w-16 flex-shrink-0 pt-1">
+                                                            <span className="text-[10px] font-bold text-muted-foreground uppercase leading-none">P{period}</span>
+                                                            <span className="text-[11px] font-medium mt-1 whitespace-nowrap">{timings.start}</span>
+                                                        </div>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            {slot?.subject_id ? (
+                                                                <div className="space-y-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <p className="font-bold text-sm text-foreground truncate">{slot.subjects?.name}</p>
+                                                                        {slot.is_special && <Badge className="bg-orange-100 text-orange-700 text-[8px] h-4">Special</Badge>}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-medium">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <Users className="w-3 h-3" />
+                                                                            <span>{slot.classes?.name} {slot.section}</span>
+                                                                        </div>
+                                                                        {slot.room_number && (
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <MapPin className="w-3 h-3" />
+                                                                                <span>Room {slot.room_number}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    {slot.is_special && slot.title && (
+                                                                        <p className="text-[10px] text-orange-600 bg-orange-50 px-2 py-0.5 rounded italic font-medium mt-1">
+                                                                            {slot.title}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="h-full flex items-center">
+                                                                    <span className="text-xs text-muted-foreground/40 italic">Free Period</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Mobile Breaks */}
+                                                    {period === getBreakAfterPeriod('short') && (
+                                                        <div className="px-4 py-2 bg-blue-50/50 flex items-center justify-center gap-2">
+                                                            <div className="h-[1px] flex-1 bg-blue-200/50"></div>
+                                                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{configData.short_break_name}</span>
+                                                            <div className="h-[1px] flex-1 bg-blue-200/50"></div>
+                                                        </div>
+                                                    )}
+                                                    {period === getBreakAfterPeriod('lunch') && (
+                                                        <div className="px-4 py-2 bg-orange-50/50 flex items-center justify-center gap-2">
+                                                            <div className="h-[1px] flex-1 bg-orange-200/50"></div>
+                                                            <span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Lunch Break</span>
+                                                            <div className="h-[1px] flex-1 bg-orange-200/50"></div>
+                                                        </div>
+                                                    )}
+                                                </Fragment>
+                                            );
+                                        })}
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
                     </TabsContent>
 
                     {/* Class Timetable Tab */}
                     <TabsContent value="class-timetable" className="mt-4">
                         {!canManageClass ? (
-                            <Card>
-                                <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                            <Card className="overflow-hidden">
+                                <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground bg-white">
                                     <Calendar className="w-12 h-12 mb-4 opacity-20" />
                                     <h3 className="text-lg font-medium">Access Restricted</h3>
                                     <p className="max-w-sm mt-2 text-sm">
@@ -1013,11 +1094,11 @@ export function TimetableManagement() {
                                 </CardContent>
                             </Card>
                         ) : (
-                            <Card>
+                            <Card className="overflow-hidden">
                                 <CardContent className="p-0 overflow-hidden">
-                                    <div className="p-4 bg-muted/30 border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="p-4 bg-muted border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div className="flex items-center gap-2">
-                                            <Badge className="bg-primary/10 text-primary border-primary/20">
+                                            <Badge className="bg-primary/20 text-primary border-primary/20">
                                                 {classTeacherAssignment?.class_assigned || 'Class'} {classTeacherAssignment?.section_assigned || ''}
                                             </Badge>
                                             <p className="text-sm text-muted-foreground">
@@ -1036,9 +1117,9 @@ export function TimetableManagement() {
                                     </div>
 
                                     {isSpecialMode && (
-                                        <div className="p-4 bg-orange-50/50 border-b flex flex-col gap-4">
+                                        <div className="p-4 bg-orange-50 border-b flex flex-col gap-4">
                                             <div className="flex items-center justify-between">
-                                                <Badge variant="outline" className="bg-white text-orange-600 border-orange-200">
+                                                <Badge variant="outline" className="bg-white text-orange-600 border-orange-200 font-bold">
                                                     Special Class Mode Active
                                                 </Badge>
                                                 <Button
@@ -1079,28 +1160,29 @@ export function TimetableManagement() {
                                         </div>
                                     )}
 
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full border-collapse min-w-[1000px]">
+                                    {/* Desktop View */}
+                                    <div className="table-responsive-wrapper hidden md:block">
+                                        <table className="w-full border-collapse min-w-[800px]">
                                             <thead>
                                                 <tr>
-                                                    <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0 z-10">Day</th>
+                                                    <th className="border p-4 bg-muted w-32 font-bold text-left sticky left-0 z-10 whitespace-nowrap">Day</th>
                                                     {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
                                                         const timings = calculatePeriodTimings(p);
                                                         return (
                                                             <Fragment key={p}>
-                                                                <th className="border p-3 bg-muted/50 text-sm font-medium text-left">
+                                                                <th className="border p-3 bg-muted text-sm font-medium text-left">
                                                                     <div className="font-bold">Period {p}</div>
                                                                     <div className="text-[10px] font-normal text-muted-foreground mt-0.5 whitespace-nowrap">
                                                                         {timings.start} - {timings.end}
                                                                     </div>
                                                                 </th>
                                                                 {getBreakAfterPeriod('short') === p && (
-                                                                    <th className="border p-3 bg-blue-50/50 text-[10px] font-bold text-blue-600 text-center uppercase tracking-widest w-16">
+                                                                    <th className="border p-3 bg-blue-50 text-[10px] font-bold text-blue-600 text-center uppercase tracking-widest w-16">
                                                                         Short Break
                                                                     </th>
                                                                 )}
                                                                 {getBreakAfterPeriod('lunch') === p && (
-                                                                    <th className="border p-3 bg-orange-50/50 text-[10px] font-bold text-orange-600 text-center uppercase tracking-widest w-16">
+                                                                    <th className="border p-3 bg-orange-50 text-[10px] font-bold text-orange-600 text-center uppercase tracking-widest w-16">
                                                                         Lunch
                                                                     </th>
                                                                 )}
@@ -1112,7 +1194,7 @@ export function TimetableManagement() {
                                             <tbody>
                                                 {daysToShow.map((day) => (
                                                     <tr key={day}>
-                                                        <td className="border p-4 font-semibold bg-muted/10 sticky left-0 z-10">{day}</td>
+                                                        <td className="border p-4 font-semibold bg-muted sticky left-0 z-10 whitespace-nowrap">{day}</td>
                                                         {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
                                                             const key = `${day}-${period}`;
 
@@ -1141,16 +1223,16 @@ export function TimetableManagement() {
                                                             return (
                                                                 <Fragment key={period}>
                                                                     <td
-                                                                        className={`border p-2 min-w-[140px] h-[100px] align-top transition-colors cursor-pointer relative group ${isSpecialMode
-                                                                            ? (slot?.is_special ? 'bg-orange-50/50 hover:bg-orange-100' : 'hover:bg-orange-50')
-                                                                            : 'hover:bg-primary/5'
+                                                                        className={`border p-2 min-w-[140px] h-20 align-top transition-colors cursor-pointer relative group ${isSpecialMode
+                                                                            ? (slot?.is_special ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-orange-50')
+                                                                            : 'lg:hover:bg-muted active:bg-transparent tap-highlight-transparent'
                                                                             }`}
                                                                         onClick={() => isSpecialMode ? handleSpecialSlotClick(period) : handleSlotClick(day, period)}
                                                                     >
                                                                         {slot?.subject_id ? (
                                                                             <>
                                                                                 <div className="space-y-1 p-1">
-                                                                                    <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/10 text-primary border-0 mb-1">
+                                                                                    <Badge variant="default" className="w-full justify-start line-clamp-1 bg-primary/20 text-primary border-0 mb-1">
                                                                                         {slot.subjects?.name || 'Subject'}
                                                                                     </Badge>
                                                                                     <div className="text-xs font-medium pl-1">
@@ -1162,7 +1244,7 @@ export function TimetableManagement() {
                                                                                 </div>
                                                                                 <button
                                                                                     onClick={(e) => handleDeleteSlot(e, day, period)}
-                                                                                    className="absolute top-1 right-1 p-1 rounded-full bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                                                                                    className="absolute top-1 right-1 p-1 rounded-full bg-destructive/10 text-destructive opacity-0 lg:group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground focus:opacity-100"
                                                                                 >
                                                                                     <Trash2 className="w-3 h-3" />
                                                                                 </button>
@@ -1174,14 +1256,14 @@ export function TimetableManagement() {
                                                                         )}
                                                                     </td>
                                                                     {period === getBreakAfterPeriod('short') && (
-                                                                        <td className="border p-2 bg-blue-50/20 align-middle text-center">
+                                                                        <td className="border p-2 bg-blue-50 align-middle text-center">
                                                                             <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-blue-400 tracking-[0.2em] uppercase mx-auto">
                                                                                 {configData.short_break_name}
                                                                             </div>
                                                                         </td>
                                                                     )}
                                                                     {period === getBreakAfterPeriod('lunch') && (
-                                                                        <td className="border p-2 bg-orange-50/20 align-middle text-center">
+                                                                        <td className="border p-2 bg-orange-50 align-middle text-center">
                                                                             <div className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold text-orange-400 tracking-[0.2em] uppercase mx-auto">
                                                                                 Lunch
                                                                             </div>
@@ -1195,6 +1277,97 @@ export function TimetableManagement() {
                                                 }
                                             </tbody>
                                         </table>
+                                    </div>
+
+                                    {/* Mobile View */}
+                                    <div className="block md:hidden space-y-4">
+                                        {daysToShow.map((day) => (
+                                            <Card key={day} className="overflow-hidden border-none shadow-md bg-white">
+                                                <div className="bg-primary/10 px-4 py-3 border-b flex justify-between items-center">
+                                                    <h3 className="font-bold text-primary">{day}</h3>
+                                                    <Badge variant="outline" className="bg-white/50 text-[10px] font-bold uppercase tracking-tight">
+                                                        {day === (new Date().toLocaleString('en-US', { weekday: 'long' })) ? 'Today' : 'Schedule'}
+                                                    </Badge>
+                                                </div>
+                                                <div className="divide-y divide-border/50">
+                                                    {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
+                                                        const key = `${day}-${period}`;
+                                                        let slot = null;
+                                                        if (isSpecialMode) {
+                                                            const timings = calculatePeriodTimings(period);
+                                                            slot = specialSlots.find((s: any) => {
+                                                                const [h, m] = s.start_time.split(':').map(Number);
+                                                                const hh = h % 12 || 12;
+                                                                const ampm = h >= 12 ? 'PM' : 'AM';
+                                                                const formatted = `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+                                                                const isClassMatch = String(s.class_id) === String(classTeacherAssignment?.class_id);
+                                                                const isSectionMatch = s.section === classTeacherAssignment?.section_assigned;
+                                                                return formatted === timings.start && isClassMatch && isSectionMatch;
+                                                            });
+                                                            if (slot) slot = { ...slot, is_special: true };
+                                                        } else {
+                                                            slot = classTimetableData[key];
+                                                        }
+                                                        const timings = calculatePeriodTimings(period);
+
+                                                        return (
+                                                            <Fragment key={period}>
+                                                                <div
+                                                                    onClick={() => isSpecialMode ? handleSpecialSlotClick(period) : handleSlotClick(day, period)}
+                                                                    className={`p-4 flex gap-4 items-start active:bg-muted/50 focus:bg-muted/50 transition-colors cursor-pointer relative ${slot?.subject_id ? 'bg-white' : 'bg-muted/10'}`}
+                                                                >
+                                                                    <div className="flex flex-col items-center w-16 flex-shrink-0 pt-1">
+                                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase leading-none tracking-tighter">Period {period}</span>
+                                                                        <span className="text-[11px] font-medium mt-1 whitespace-nowrap">{timings.start}</span>
+                                                                    </div>
+
+                                                                    <div className="flex-1 min-w-0">
+                                                                        {slot?.subject_id ? (
+                                                                            <div className="space-y-1">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <p className="font-bold text-sm text-foreground truncate">{slot.subjects?.name}</p>
+                                                                                    {slot.is_special && <Badge className="bg-orange-100 text-orange-700 text-[8px] h-4">Special</Badge>}
+                                                                                </div>
+                                                                                <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-medium">
+                                                                                    <div className="flex items-center gap-1.5">
+                                                                                        <Users className="w-3 h-3" />
+                                                                                        <span className="truncate">{slot.profiles?.full_name || 'Faculty'}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <button
+                                                                                    onClick={(e) => handleDeleteSlot(e, day, period)}
+                                                                                    className="absolute bottom-4 right-4 p-2 rounded-full bg-destructive/10 text-destructive active:bg-destructive active:text-white"
+                                                                                >
+                                                                                    <Trash2 className="w-4 h-4" />
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="h-full flex items-center group">
+                                                                                <span className="text-[11px] text-muted-foreground/30 font-bold uppercase tracking-widest flex items-center gap-2">
+                                                                                    <Plus className="w-3 h-3" /> Assign Slot
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Breaks in Mobile View */}
+                                                                {period === getBreakAfterPeriod('short') && (
+                                                                    <div className="px-4 py-2 bg-blue-50/30 flex items-center justify-center gap-2">
+                                                                        <span className="text-[10px] font-bold text-blue-400/60 uppercase tracking-widest">{configData.short_break_name}</span>
+                                                                    </div>
+                                                                )}
+                                                                {period === getBreakAfterPeriod('lunch') && (
+                                                                    <div className="px-4 py-2 bg-orange-50/30 flex items-center justify-center gap-2">
+                                                                        <span className="text-[10px] font-bold text-orange-400/60 uppercase tracking-widest">Lunch Break</span>
+                                                                    </div>
+                                                                )}
+                                                            </Fragment>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </Card>
+                                        ))}
                                     </div>
                                 </CardContent>
                             </Card>

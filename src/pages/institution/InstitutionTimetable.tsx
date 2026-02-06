@@ -965,7 +965,7 @@ export function InstitutionTimetable() {
                                 <table className="w-full border-collapse min-w-[1000px]">
                                     <thead>
                                         <tr>
-                                            <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0">
+                                            <th className="border p-4 bg-muted/50 w-32 font-bold text-left sticky left-0 whitespace-nowrap">
                                                 {isSpecialMode ? "Special Class" : "Day"}
                                             </th>
                                             {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((p) => {
@@ -993,7 +993,7 @@ export function InstitutionTimetable() {
                                     <tbody>
                                         {(isSpecialMode ? [specialClassDate] : DAYS.slice(0, configData.days_per_week)).map((rowLabel) => (
                                             <tr key={rowLabel}>
-                                                <td className="border p-4 font-semibold bg-muted/10 sticky left-0">
+                                                <td className="border p-4 font-semibold bg-muted/10 sticky left-0 whitespace-nowrap">
                                                     {isSpecialMode ? "Scheduled Slots" : rowLabel}
                                                 </td>
                                                 {Array.from({ length: configData.periods_per_day }, (_, i) => i + 1).map((period) => {
@@ -1015,7 +1015,7 @@ export function InstitutionTimetable() {
                                                     return (
                                                         <Fragment key={period}>
                                                             <td
-                                                                className="border p-2 min-w-[140px] h-[100px] align-top hover:bg-primary/5 transition-colors cursor-pointer"
+                                                                className="border p-2 min-w-[140px] h-20 align-top hover:bg-primary/5 transition-colors cursor-pointer"
                                                                 onClick={() => handleSlotClick(isSpecialMode ? rowLabel : rowLabel, period)}
                                                             >
                                                                 {slot ? (

@@ -17,89 +17,85 @@ export function FacultyStudents() {
     const [searchQuery, setSearchQuery] = useState('');
     const queryClient = useQueryClient();
 
-    // 1. Fetch Faculty's Assigned Class
-    const { data: assignment } = useQuery({
-        queryKey: ['faculty-assignment', user?.id],
+    // 1. Fetch Faculty's Assigned Classes
+    const { data: assignments = [] } = useQuery({
+        queryKey: ['faculty-assignments', user?.id],
         queryFn: async () => {
-            if (!user?.id) return null;
-            const { data } = await supabase
+            if (!user?.id) return [];
+            const { data, error } = await supabase
                 .from('faculty_subjects')
                 .select(`
-                    id,
                     section,
                     classes:class_id (name)
                 `)
                 .eq('faculty_profile_id', user.id)
-                .eq('assignment_type', 'class_teacher')
-                .maybeSingle();
+                .eq('assignment_type', 'class_teacher');
 
-            if (data) {
-                return {
-                    class_assigned: (data.classes as any)?.name,
-                    section_assigned: data.section
-                };
+            if (error) {
+                console.error('Assignment fetch error:', error);
+                return [];
             }
-            // Fallback to staff_details if not found in faculty_subjects
-            const { data: staffData } = await supabase
-                .from('staff_details')
-                .select('class_assigned, section_assigned')
-                .eq('profile_id', user.id)
-                .maybeSingle();
 
-            return staffData;
+            return data.map(d => ({
+                class_assigned: (d.classes as any)?.name,
+                section_assigned: d.section
+            })).filter(a => a.class_assigned);
         },
         enabled: !!user?.id
     });
 
-    // 2. Fetch Students for that Class
+    // 2. Fetch Students for all Assigned Classes
     const { data: students = [], isLoading } = useQuery({
-        queryKey: ['faculty-students-list', assignment?.class_assigned, assignment?.section_assigned],
+        queryKey: ['faculty-students-list', assignments],
         queryFn: async () => {
-            if (!assignment?.class_assigned) return [];
+            if (assignments.length === 0) return [];
 
-            let query = supabase
-                .from('students')
-                .select('*')
-                .eq('class_name', assignment.class_assigned)
-                .order('name');
+            let allStudents: any[] = [];
+            for (const assignment of assignments) {
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('*')
+                    .eq('class_name', assignment.class_assigned)
+                    .eq('section', assignment.section_assigned)
+                    .order('name');
 
-            // Optionally filter by section if assigned
-            if (assignment.section_assigned) {
-                query = query.eq('section', assignment.section_assigned);
+                if (data) {
+                    allStudents = [...allStudents, ...data];
+                }
             }
-
-            const { data, error } = await query;
-            if (error) throw error;
-            return data;
+            return allStudents;
         },
-        enabled: !!assignment?.class_assigned
+        enabled: assignments.length > 0
     });
 
     // 3. Real-time Subscription
     useEffect(() => {
-        if (!assignment?.class_assigned) return;
+        if (assignments.length === 0) return;
 
-        const channel = supabase
-            .channel('faculty-students-list-live')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'students',
-                    filter: `class_name=eq.${assignment.class_assigned}`
-                },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: ['faculty-students-list'] });
-                    toast('Student list updated');
-                }
-            )
-            .subscribe();
+        // Subscribe to students in all assigned classes
+        const channels = assignments.map((a, index) => {
+            return supabase
+                .channel(`faculty-students-list-live-${index}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'students',
+                        filter: `class_name=eq.${a.class_assigned}`
+                    },
+                    () => {
+                        queryClient.invalidateQueries({ queryKey: ['faculty-students-list'] });
+                        toast('Student list updated');
+                    }
+                )
+                .subscribe();
+        });
 
         return () => {
-            supabase.removeChannel(channel);
+            channels.forEach(channel => supabase.removeChannel(channel));
         };
-    }, [assignment?.class_assigned, queryClient]);
+    }, [assignments, queryClient]);
 
 
     // Filter students based on search query
@@ -180,7 +176,7 @@ export function FacultyStudents() {
         <FacultyLayout>
             <PageHeader
                 title="Student Directory"
-                subtitle={`Viewing students for Class ${assignment?.class_assigned || '...'} ${assignment?.section_assigned ? '- ' + assignment.section_assigned : ''}`}
+                subtitle={`Viewing students for ${assignments.length > 0 ? assignments.map(a => `Class ${a.class_assigned} - ${a.section_assigned}`).join(', ') : 'Assigned Classes'}`}
             />
 
             <div className="dashboard-card mb-6">

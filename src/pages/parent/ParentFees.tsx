@@ -62,8 +62,8 @@ export function ParentFees() {
                 subtitle={t.parent.fees.subtitle}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="p-6 rounded-xl bg-white border border-border shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+                <div className="p-4 sm:p-6 rounded-xl bg-white border border-border shadow-sm">
                     <div className="flex items-center gap-4">
                         <div className="p-3 rounded-full bg-primary/10 text-primary">
                             <CreditCard className="w-6 h-6" />
@@ -74,7 +74,7 @@ export function ParentFees() {
                         </div>
                     </div>
                 </div>
-                <div className="p-6 rounded-xl bg-white border border-border shadow-sm">
+                <div className="p-4 sm:p-6 rounded-xl bg-white border border-border shadow-sm">
                     <div className="flex items-center gap-4">
                         <div className="p-3 rounded-full bg-success/10 text-success">
                             <CheckCircle className="w-6 h-6" />

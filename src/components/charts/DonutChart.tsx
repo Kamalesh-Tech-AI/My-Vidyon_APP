@@ -24,13 +24,13 @@ const COLORS = [
 
 export function DonutChart({
   data,
-  height = 300,
+  height = '100%',
   innerRadius = 60,
   outerRadius = 100,
   showLegend = true,
 }: DonutChartProps) {
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <ResponsiveContainer width="100%" height={height as any}>
       <PieChart>
         <Pie
           data={data}

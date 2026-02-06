@@ -366,7 +366,7 @@ export function FacultyMarks() {
                 // Fetch students in class
                 const { data: students, error: studentError } = await supabase
                     .from('students')
-                    .select('id, name, register_number')
+                    .select('id, name, register_number, image_url')
                     .eq('class_name', selectedClass)
                     .eq('section', selectedSection || 'A')
                     .eq('institution_id', user?.institutionId)
@@ -557,7 +557,7 @@ export function FacultyMarks() {
             if (!targetClass) return [];
             const { data, error } = await supabase
                 .from('students')
-                .select('*')
+                .select('*, image_url')
                 .eq('class_name', targetClass)
                 .eq('section', targetSection || 'A')
                 .eq('institution_id', user?.institutionId)
@@ -788,7 +788,7 @@ export function FacultyMarks() {
                 }
             />
 
-            <div className="space-y-6">
+            <div className="space-y-6 pb-24">
                 {/* Wizard or Class Teacher View */}
                 {viewMode === 'CLASS_TEACHER' ? (
                     <div className="dashboard-card overflow-hidden p-6">

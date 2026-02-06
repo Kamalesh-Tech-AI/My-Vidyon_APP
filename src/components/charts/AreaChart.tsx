@@ -20,11 +20,11 @@ export function AreaChart({
   dataKey = 'value',
   xAxisKey = 'name',
   color = 'hsl(var(--primary))',
-  height = 300,
+  height = '100%',
   showGrid = true,
 }: AreaChartProps) {
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <ResponsiveContainer width="100%" height={height as any}>
       <RechartsAreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">

@@ -98,7 +98,6 @@ Deno.serve(async (req: Request) => {
         }
 
         // 2. Upsert Profile
-        console.log("Upserting profile...");
         const profileData: any = {
             id: userId,
             email: email.toLowerCase(),
@@ -113,6 +112,13 @@ Deno.serve(async (req: Request) => {
         if (staff_id) profileData.staff_id = staff_id;
         if (department) profileData.department = department;
         if (date_of_birth) profileData.date_of_birth = date_of_birth;
+        if (image_url) {
+            profileData.profile_image_url = image_url;
+            profileData.avatar_url = image_url;
+        }
+
+        console.log(`Upserting profile for user ${userId} with role ${finalRole}...`);
+        console.log("Profile data to upsert:", JSON.stringify(profileData, null, 2));
 
         const { error: profileError } = await supabaseAdmin
             .from('profiles')
@@ -122,6 +128,7 @@ Deno.serve(async (req: Request) => {
             console.error("Profile upsert error:", profileError);
             throw new Error(`Profile update failed: ${profileError.message}`);
         }
+        console.log("Profile upserted successfully.");
 
         // 3. Role-specific table updates
         if (finalRole === 'student') {

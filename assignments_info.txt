@@ -1,0 +1,52 @@
+--- Checking Faculty Assignments for Class 9th Section A ---
+Class IDs for "9th": [
+  'c49d6889-db0e-442e-a6e3-815a0f415084',
+  'abe9ce76-02c3-4ef5-9d38-c7774313134e',
+  'bd9182cb-8fa7-409e-9015-b3e901df006e',
+  '9c52ef96-97c5-45f1-bb19-c448955ce322',
+  '2413141d-15bc-4cd0-856a-b57a5b654abb'
+]
+Assignments: [
+  {
+    "id": "595ac125-aba1-468f-b536-393d9ac29ba8",
+    "institution_id": "123456",
+    "faculty_profile_id": "45665ea7-d495-4d6e-aefb-7190ca032669",
+    "subject_id": null,
+    "class_id": "bd9182cb-8fa7-409e-9015-b3e901df006e",
+    "section": "A",
+    "created_at": "2026-01-24T07:18:01.450907+00:00",
+    "assignment_type": "class_teacher",
+    "profiles": {
+      "email": "hamu@gmail.com",
+      "full_name": "hamesh"
+    }
+  },
+  {
+    "id": "7a80bc4c-b498-4b4d-867d-f22f0bd34600",
+    "institution_id": "123456",
+    "faculty_profile_id": "45665ea7-d495-4d6e-aefb-7190ca032669",
+    "subject_id": "f719acf6-c59a-4c1f-8d6a-5fd262ce0a53",
+    "class_id": "bd9182cb-8fa7-409e-9015-b3e901df006e",
+    "section": "A",
+    "created_at": "2026-01-24T07:18:01.472764+00:00",
+    "assignment_type": "subject_staff",
+    "profiles": {
+      "email": "hamu@gmail.com",
+      "full_name": "hamesh"
+    }
+  },
+  {
+    "id": "76d7b9fd-fa32-42cd-b204-7c4e054b5c1b",
+    "institution_id": "MYVID2026",
+    "faculty_profile_id": "26dd3454-a5e2-4824-82b5-96e8940803f4",
+    "subject_id": null,
+    "class_id": "2413141d-15bc-4cd0-856a-b57a5b654abb",
+    "section": "A",
+    "created_at": "2026-01-25T10:07:42.898401+00:00",
+    "assignment_type": "class_teacher",
+    "profiles": {
+      "email": "kamalesh@myvidyon.com",
+      "full_name": "My Vidyon Admin"
+    }
+  }
+]

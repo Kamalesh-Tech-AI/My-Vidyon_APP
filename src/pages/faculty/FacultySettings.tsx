@@ -131,7 +131,7 @@ export function FacultySettings() {
                 subtitle={t.parent.settings?.subtitle || "Manage your faculty profile and teaching preferences"}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-24">
                 {/* Profile Card */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
@@ -176,7 +176,7 @@ export function FacultySettings() {
                                     </div>
                                 </>
                             )}
-                            <Button variant="outline" className="w-full text-destructive hover:bg-destructive/10 border-destructive/50" onClick={logout}>
+                            <Button variant="outline" className="w-full text-destructive hover:bg-destructive/10 border-destructive/50" onClick={() => logout()}>
                                 <LogOut className="w-4 h-4 mr-2" />
                                 {t.parent.settings?.logout || "Logout"}
                             </Button>

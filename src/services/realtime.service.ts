@@ -19,6 +19,11 @@ class RealtimeService {
     async connect() {
         try {
             console.log('🔌 Connecting to Supabase Realtime...');
+
+            // In Supabase v2, the connection is managed by the client automatically.
+            // We just ensure the websocket is active.
+            supabase.realtime.connect();
+
             this.isConnected = true;
             console.log('✅ Connected to Supabase Realtime');
             return true;
@@ -211,6 +216,7 @@ class RealtimeService {
         this.channels.clear();
         this.subscriptions.clear();
         this.isConnected = false;
+        supabase.realtime.disconnect();
         console.log('🔌 Disconnected from Supabase Realtime');
     }
 

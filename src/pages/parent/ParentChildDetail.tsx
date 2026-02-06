@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ParentLayout } from '@/layouts/ParentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,6 +31,8 @@ export function ParentChildDetail() {
     const { t } = useTranslation();
     const { studentId } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const initialTab = searchParams.get('tab') || 'overview';
 
     const [leaveRequest, setLeaveRequest] = useState({
         startDate: '',
@@ -71,15 +73,26 @@ export function ParentChildDetail() {
             const attendance_percentage = totalAttendance > 0 ? Math.round((presentCount / totalAttendance) * 100) : 0;
 
             // 3. Fetch Real Assignments
-            const { data: assignmentsData } = await supabase
-                .from('assignments')
-                .select(`
-                    *,
-                    submissions (status, grade)
-                `)
-                .eq('class_id', studentData.class_id)
-                .order('due_date', { ascending: false })
-                .limit(5);
+            let assignmentsData: any[] = [];
+            const { data: classData } = await supabase
+                .from('classes')
+                .select('id')
+                .eq('name', studentData.class_name)
+                .maybeSingle();
+
+            if (classData?.id) {
+                const { data: fetchedAssignments } = await supabase
+                    .from('assignments')
+                    .select(`
+                        *,
+                        submissions (status, grade)
+                    `)
+                    .eq('class_id', classData.id)
+                    .eq('section', studentData.section)
+                    .order('due_date', { ascending: false })
+                    .limit(5);
+                assignmentsData = fetchedAssignments || [];
+            }
 
             const assignments = (assignmentsData || []).map(a => ({
                 title: a.title,
@@ -112,9 +125,16 @@ export function ParentChildDetail() {
                 .eq('status', 'active')
                 .order('uploaded_at', { ascending: false });
 
+            // 6. Fetch Leave History
+            const { data: leavesData } = await supabase
+                .from('leave_requests')
+                .select('*')
+                .eq('student_id', studentId)
+                .order('created_at', { ascending: false });
+
             return {
                 ...studentData,
-                name: studentData.full_name || studentData.name,
+                name: studentData.name,
                 attendanceHistory: attendanceHistory.length > 0 ? attendanceHistory : [
                     { name: 'Mon', value: 0 }, { name: 'Tue', value: 0 }, { name: 'Wed', value: 0 },
                     { name: 'Thu', value: 0 }, { name: 'Fri', value: 0 }
@@ -126,7 +146,8 @@ export function ParentChildDetail() {
                 assignments: assignments.length > 0 ? assignments : [
                     { title: 'No assignments', subject: 'N/A', dueDate: '-', status: 'none' }
                 ],
-                certificates: certificatesData || []
+                certificates: certificatesData || [],
+                leaves: leavesData || []
             };
         },
         enabled: !!studentId
@@ -199,7 +220,7 @@ export function ParentChildDetail() {
                 actions={<Button variant="outline" className="w-full sm:w-auto min-h-[44px]" onClick={() => navigate('/parent')}>{t.parent.childDetail.backToDashboard}</Button>}
             />
 
-            <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+            <Tabs defaultValue={initialTab} className="space-y-4 sm:space-y-6">
                 <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
                     <TabsList className="w-max sm:w-auto">
                         <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 sm:px-4">{t.parent.childDetail.overview}</TabsTrigger>
@@ -300,76 +321,32 @@ export function ParentChildDetail() {
                     </div>
                 </TabsContent>
 
-                {/* LEAVE TAB */}
                 <TabsContent value="leave">
-                    <div className="dashboard-card p-4 sm:p-6 max-w-2xl mx-auto">
-                        <h3 className="font-semibold mb-2 text-sm sm:text-base">{t.parent.childDetail.submitLeaveRequest}</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6">
-                            {t.parent.childDetail.leaveDisclaimer}
-                        </p>
-
-                        <form onSubmit={handleLeaveSubmit} className="space-y-3 sm:space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="from">{t.parent.childDetail.fromDate}</Label>
-                                    <Input
-                                        id="from"
-                                        type="date"
-                                        required
-                                        value={leaveRequest.startDate}
-                                        onChange={(e) => setLeaveRequest({ ...leaveRequest, startDate: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="to">{t.parent.childDetail.toDate}</Label>
-                                    <Input
-                                        id="to"
-                                        type="date"
-                                        required
-                                        value={leaveRequest.endDate}
-                                        onChange={(e) => setLeaveRequest({ ...leaveRequest, endDate: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="reason">{t.parent.childDetail.reason}</Label>
-                                <textarea
-                                    id="reason"
-                                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    placeholder={t.parent.childDetail.reasonPlaceholder}
-                                    required
-                                    value={leaveRequest.reason}
-                                    onChange={(e) => setLeaveRequest({ ...leaveRequest, reason: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="pt-2">
-                                <Button type="submit" className="w-full sm:w-auto flex items-center gap-2 min-h-[44px]">
-                                    <Send className="w-4 h-4" />
-                                    {t.parent.childDetail.submitRequest}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div className="mt-6 sm:mt-8 dashboard-card p-4 sm:p-6">
+                    <div className="dashboard-card p-4 sm:p-6">
                         <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">{t.parent.childDetail.pastLeaveRequests}</h3>
                         <div className="space-y-2 sm:space-y-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-muted/30 rounded-lg border border-border">
-                                <div className="min-w-0">
-                                    <p className="font-medium text-xs sm:text-sm">Sick Leave (2 days)</p>
-                                    <p className="text-[10px] sm:text-xs text-muted-foreground">Nov 12 - Nov 13, 2025</p>
+                            {student.leaves.length > 0 ? (
+                                student.leaves.map((leave: any) => (
+                                    <div key={leave.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-muted/30 rounded-lg border border-border">
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-xs sm:text-sm">{leave.reason}</p>
+                                            <p className="text-[10px] sm:text-xs text-muted-foreground">
+                                                {new Date(leave.start_date || leave.from_date).toLocaleDateString()} - {new Date(leave.end_date || leave.to_date).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <Badge variant={
+                                            leave.status === 'Approved' ? 'success' :
+                                                leave.status === 'Rejected' ? 'destructive' : 'warning'
+                                        }>
+                                            {leave.status}
+                                        </Badge>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center p-8 text-muted-foreground text-sm">
+                                    No past leave requests found.
                                 </div>
-                                <Badge variant="success">{t.parent.leave.approved}</Badge>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-muted/30 rounded-lg border border-border">
-                                <div className="min-w-0">
-                                    <p className="font-medium text-xs sm:text-sm">Family Function (1 day)</p>
-                                    <p className="text-[10px] sm:text-xs text-muted-foreground">Oct 05, 2025</p>
-                                </div>
-                                <Badge variant="success">{t.parent.leave.approved}</Badge>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </TabsContent>
