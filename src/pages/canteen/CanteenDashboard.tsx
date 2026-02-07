@@ -146,9 +146,17 @@ export function CanteenDashboard() {
     }, [viewMode, selectedClass, selectedSection]);
 
     const handleStudentClick = async (studentId: string, morningStatus: string) => {
-        const newStatus = morningStatus === 'present'
-            ? (canteenEntries[studentId] === 'present' ? 'absent' : 'present')
-            : 'absent';
+        let newStatus = 'absent';
+        const currentCanteenStatus = canteenEntries[studentId] || 'absent';
+        const isMorningAllowed = morningStatus === 'present' || morningStatus === 'late';
+
+        if (isMorningAllowed) {
+            // Toggle between present and absent for morning-present students
+            newStatus = currentCanteenStatus === 'present' ? 'absent' : 'present';
+        } else {
+            // Toggle between unverified (Grey) and absent for morning-absent/pending students
+            newStatus = currentCanteenStatus === 'unverified' ? 'absent' : 'unverified';
+        }
 
         try {
             const { error } = await supabase
@@ -163,7 +171,14 @@ export function CanteenDashboard() {
             if (error) throw error;
 
             setCanteenEntries(prev => ({ ...prev, [studentId]: newStatus }));
-            toast.success(newStatus === 'present' ? 'Permitted in canteen' : 'Marked absent in canteen');
+
+            if (newStatus === 'present') {
+                toast.success('Permitted in canteen');
+            } else if (newStatus === 'unverified') {
+                toast.warning('Unverified entry marked');
+            } else {
+                toast.info('Marked absent in canteen');
+            }
         } catch (err: any) {
             toast.error(err.message);
         }
@@ -192,10 +207,15 @@ export function CanteenDashboard() {
     }, [students, searchTerm]);
 
     const stats = useMemo(() => {
-        const morningPresent = filteredStudents.filter(s => (attendance[s.id] || 'absent') === 'present').length;
-        const morningAbsent = filteredStudents.filter(s => (attendance[s.id] || 'absent') === 'absent').length;
+        const morningPresent = filteredStudents.filter(s => {
+            const status = (attendance[s.id] || '').toLowerCase();
+            return status === 'present' || status === 'late';
+        }).length;
+        const morningAbsent = filteredStudents.filter(s => (attendance[s.id] || '').toLowerCase() === 'absent').length;
+        const morningPending = filteredStudents.filter(s => !attendance[s.id]).length;
         const canteenPermitted = filteredStudents.filter(s => canteenEntries[s.id] === 'present').length;
-        return { morningPresent, morningAbsent, canteenPermitted, total: filteredStudents.length };
+        const canteenUnverified = filteredStudents.filter(s => canteenEntries[s.id] === 'unverified').length;
+        return { morningPresent, morningAbsent, morningPending, canteenPermitted, canteenUnverified, total: filteredStudents.length };
     }, [filteredStudents, attendance, canteenEntries]);
 
     return (
@@ -267,22 +287,26 @@ export function CanteenDashboard() {
             {viewMode === 'students' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-10 duration-500">
                     {/* Stats Overview */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <Card className="p-4 border-2">
-                            <div className="text-2xl font-bold text-foreground">{stats.total}</div>
-                            <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Total Students</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+                        <Card className="p-3 md:p-4 border-2">
+                            <div className="text-xl md:text-2xl font-bold text-foreground">{stats.total}</div>
+                            <div className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-wider mt-1">Total</div>
                         </Card>
-                        <Card className="p-4 border-2 border-green-200 bg-green-50/50">
-                            <div className="text-2xl font-bold text-green-600">{stats.morningPresent}</div>
-                            <div className="text-xs text-green-700 uppercase tracking-wider mt-1">Morning Present</div>
+                        <Card className="p-3 md:p-4 border-2 border-green-200 bg-green-50/50">
+                            <div className="text-xl md:text-2xl font-bold text-green-600">{stats.morningPresent}</div>
+                            <div className="text-[10px] md:text-xs text-green-700 uppercase tracking-wider mt-1">Present</div>
                         </Card>
-                        <Card className="p-4 border-2 border-red-200 bg-red-50/50">
-                            <div className="text-2xl font-bold text-red-600">{stats.morningAbsent}</div>
-                            <div className="text-xs text-red-700 uppercase tracking-wider mt-1">Morning Absent</div>
+                        <Card className="p-3 md:p-4 border-2 border-red-200 bg-red-50/50">
+                            <div className="text-xl md:text-2xl font-bold text-red-600">{stats.morningAbsent}</div>
+                            <div className="text-[10px] md:text-xs text-red-700 uppercase tracking-wider mt-1">Absent</div>
                         </Card>
-                        <Card className="p-4 border-2 border-blue-200 bg-blue-50/50">
-                            <div className="text-2xl font-bold text-blue-600">{stats.canteenPermitted}</div>
-                            <div className="text-xs text-blue-700 uppercase tracking-wider mt-1">Canteen Permitted</div>
+                        <Card className="p-3 md:p-4 border-2 border-blue-200 bg-blue-50/50">
+                            <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.canteenPermitted}</div>
+                            <div className="text-[10px] md:text-xs text-blue-700 uppercase tracking-wider mt-1">Permitted</div>
+                        </Card>
+                        <Card className="p-3 md:p-4 border-2 border-gray-300 bg-gray-50/50">
+                            <div className="text-xl md:text-2xl font-bold text-gray-600">{stats.canteenUnverified}</div>
+                            <div className="text-[10px] md:text-xs text-gray-700 uppercase tracking-wider mt-1">Unverified</div>
                         </Card>
                     </div>
 
@@ -320,30 +344,43 @@ export function CanteenDashboard() {
                         <>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 {filteredStudents.map((student) => {
-                                    const morningStatus = attendance[student.id] || 'absent';
-                                    const isMorningPresent = morningStatus === 'present';
-                                    const isCanteenPermitted = canteenEntries[student.id] === 'present';
+                                    const rawStatus = attendance[student.id] || 'pending';
+                                    const morningStatus = rawStatus.toLowerCase();
+                                    const isMorningAllowed = morningStatus === 'present' || morningStatus === 'late';
+                                    const isMorningAbsent = morningStatus === 'absent';
+                                    const canteenStatus = canteenEntries[student.id] || 'absent';
+                                    const isCanteenActive = canteenStatus === 'present' || canteenStatus === 'unverified';
 
                                     return (
                                         <Card
                                             key={student.id}
                                             className={cn(
-                                                "p-4 transition-all border-2 cursor-pointer hover:shadow-lg",
-                                                isMorningPresent
-                                                    ? isCanteenPermitted
+                                                "p-4 transition-all border-2 cursor-pointer hover:shadow-lg relative overflow-hidden",
+                                                isCanteenActive
+                                                    ? isMorningAllowed
                                                         ? "border-green-300 bg-green-50/30 hover:border-green-400"
+                                                        : "border-gray-400 bg-gray-100 hover:border-gray-500"
+                                                    : isMorningAbsent
+                                                        ? "border-red-200 bg-red-50/20 hover:border-red-300"
                                                         : "border-border hover:border-primary/30"
-                                                    : "border-red-200 bg-red-50/20 hover:border-red-300"
                                             )}
                                             onClick={() => handleStudentClick(student.id, morningStatus)}
                                         >
                                             <div className="flex items-start justify-between mb-3">
                                                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                    <div className="w-10 h-10 rounded-full bg-primary/10 border-2 border-primary/20 flex-shrink-0 flex items-center justify-center">
-                                                        <span className="text-xs font-bold text-primary uppercase">
-                                                            {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                                        </span>
-                                                    </div>
+                                                    {student.image_url ? (
+                                                        <img
+                                                            src={student.image_url}
+                                                            alt={student.name}
+                                                            className="w-12 h-12 rounded-full border-2 border-primary/20 object-cover flex-shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded-full bg-primary/10 border-2 border-primary/20 flex-shrink-0 flex items-center justify-center">
+                                                            <span className="text-xs font-black text-primary uppercase">
+                                                                {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     <div className="min-w-0 flex-1">
                                                         <h3 className="font-bold text-sm leading-tight truncate">{student.name}</h3>
                                                         <p className="text-xs text-muted-foreground font-medium">
@@ -355,27 +392,26 @@ export function CanteenDashboard() {
 
                                             <div className="flex items-center justify-between pt-3 border-t border-border/50">
                                                 <Badge
-                                                    variant={isMorningPresent ? "success" : "destructive"}
+                                                    variant={isMorningAllowed ? "success" : isMorningAbsent ? "destructive" : "outline"}
                                                     className="text-[10px] font-black uppercase"
                                                 >
-                                                    {isMorningPresent ? "Morning ✓" : "Morning ✗"}
+                                                    {isMorningAllowed ? (morningStatus === 'late' ? "Late ✓" : "Morning ✓") : isMorningAbsent ? "Morning ✗" : "Pending ?"}
                                                 </Badge>
 
                                                 <div className={cn(
-                                                    "w-12 h-12 rounded-full flex items-center justify-center transition-all",
-                                                    isMorningPresent
-                                                        ? isCanteenPermitted
-                                                            ? "bg-green-500 hover:bg-green-600"
-                                                            : "bg-gray-200 hover:bg-green-100"
-                                                        : "bg-red-500 hover:bg-red-600"
+                                                    "w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm",
+                                                    isCanteenActive
+                                                        ? isMorningAllowed
+                                                            ? "bg-green-500"
+                                                            : "bg-gray-700"
+                                                        : "bg-muted hover:bg-muted/80"
                                                 )}>
-                                                    {isMorningPresent ? (
-                                                        <CheckCircle2 className={cn(
-                                                            "w-7 h-7",
-                                                            isCanteenPermitted ? "text-white" : "text-gray-400"
-                                                        )} />
+                                                    {isCanteenActive ? (
+                                                        <CheckCircle2 className="w-6 h-6 text-white" />
+                                                    ) : isMorningAbsent ? (
+                                                        <XCircle className="w-6 h-6 text-red-500" />
                                                     ) : (
-                                                        <XCircle className="w-7 h-7 text-white" />
+                                                        <Loader2 className="w-5 h-5 text-muted-foreground" />
                                                     )}
                                                 </div>
                                             </div>
@@ -395,15 +431,31 @@ export function CanteenDashboard() {
 
                             {/* Legend */}
                             <div className="mt-4 p-4 bg-muted/30 rounded-xl border border-border">
-                                <h3 className="font-bold text-sm mb-3">How to use:</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                                    <div className="flex items-center gap-2">
-                                        <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                        <span><strong>Green Tick:</strong> Student present in morning. Click to permit in canteen.</span>
+                                <h3 className="font-bold text-sm mb-3">Attendance Legend:</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-medium">
+                                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg border shadow-sm">
+                                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                                            <CheckCircle2 className="w-5 h-5 text-white" />
+                                        </div>
+                                        <span><strong>Permitted:</strong> Scanned in morning & canteen (Green).</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <XCircle className="w-5 h-5 text-red-600" />
-                                        <span><strong>Red Cross:</strong> Student absent in morning. Click to mark absent in canteen.</span>
+                                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg border shadow-sm">
+                                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                                            <CheckCircle2 className="w-5 h-5 text-white" />
+                                        </div>
+                                        <span><strong>Unverified:</strong> Pre-scanned but entered canteen (Grey).</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg border shadow-sm">
+                                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                            <XCircle className="w-5 h-5 text-red-500" />
+                                        </div>
+                                        <span><strong>Absent:</strong> Verified absent in morning (Red).</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg border shadow-sm">
+                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                                            <Loader2 className="w-5 h-5 text-muted-foreground" />
+                                        </div>
+                                        <span><strong>Pending:</strong> Not yet verified (Neutral).</span>
                                     </div>
                                 </div>
                             </div>
