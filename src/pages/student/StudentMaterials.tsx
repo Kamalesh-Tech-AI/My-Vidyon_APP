@@ -3,10 +3,11 @@ import { StudentLayout } from '@/layouts/StudentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/TranslationContext';
-import { FileText, Download, Eye, Book, History, Loader2, Calendar } from 'lucide-react';
+import { FileText, Download, Eye, Book, History, Calendar } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { MaterialsSkeleton } from '@/components/skeletons/MaterialsSkeleton';
 import { toast } from 'sonner';
 
 export function StudentMaterials() {
@@ -130,7 +131,13 @@ export function StudentMaterials() {
             />
 
             {isLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>
+                <div className="animate-pulse m-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="h-48 bg-gray-200 rounded"></div>
+                        ))}
+                    </div>
+                </div>
             ) : (
                 <Tabs defaultValue="materials" className="w-full">
                     <TabsList className="mb-6">

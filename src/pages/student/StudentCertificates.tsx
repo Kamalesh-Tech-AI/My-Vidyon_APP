@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
 import { useAuth } from '@/context/AuthContext';
+import { CertificatesSkeleton } from '@/components/skeletons/CertificatesSkeleton';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { Download, FileText, Calendar, User, Loader2, Award } from 'lucide-react';
+import { Download, FileText, Calendar, User, Award } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Certificate {
@@ -120,14 +121,7 @@ export function StudentCertificates() {
     };
 
     if (isLoading) {
-        return (
-            <StudentLayout>
-                <PageHeader title="My Certificates" subtitle="View and download your certificates" />
-                <div className="flex justify-center p-10">
-                    <Loader2 className="animate-spin w-8 h-8" />
-                </div>
-            </StudentLayout>
-        );
+        return <CertificatesSkeleton />;
     }
 
     return (

@@ -3,8 +3,9 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/TranslationContext';
-import { CreditCard, CheckCircle, Clock, AlertCircle, Download, Calendar, Loader2 } from 'lucide-react';
+import { CreditCard, CheckCircle, Clock, AlertCircle, Download, Calendar } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { FeesSkeleton } from '@/components/skeletons/FeesSkeleton';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { format, parseISO } from 'date-fns';
@@ -60,12 +61,7 @@ export function StudentFees() {
     const pendingFees = totalFees - paidFees;
 
     if (isLoading) {
-        return (
-            <StudentLayout>
-                <PageHeader title={t.nav.fees} subtitle="Loading fee details..." />
-                <div className="flex justify-center p-12"><Loader2 className="animate-spin w-8 h-8 text-primary" /></div>
-            </StudentLayout>
-        );
+        return <FeesSkeleton />;
     }
 
     return (

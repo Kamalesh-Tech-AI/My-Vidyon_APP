@@ -2,13 +2,14 @@ import { useState, useEffect, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Calendar, Clock, User, Users, MapPin, Plus } from 'lucide-react';
+import { Calendar, Clock, User, Users, MapPin, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { Badge } from '@/components/common/Badge';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StudentExamScheduleView } from '@/components/exam-schedule/StudentExamScheduleView';
+import { TimetableSkeleton } from '@/components/skeletons/TimetableSkeleton';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -480,14 +481,7 @@ export function StudentTimetable() {
     }
 
     if (isLoading || !studentInfo) {
-        return (
-            <StudentLayout>
-                <PageHeader title="My Timetable" subtitle="View your weekly class schedule" />
-                <div className="flex justify-center p-10">
-                    <Loader2 className="animate-spin w-8 h-8" />
-                </div>
-            </StudentLayout>
-        );
+        return <TimetableSkeleton />;
     }
 
     return (
@@ -684,7 +678,13 @@ export function StudentTimetable() {
                     <Card>
                         <CardContent className="p-0 overflow-x-auto">
                             {isLoadingSpecial ? (
-                                <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>
+                                <div className="flex justify-center py-10">
+                                    <div className="animate-pulse space-y-3 w-full p-6">
+                                        {[1, 2, 3].map((i) => (
+                                            <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                                        ))}
+                                    </div>
+                                </div>
                             ) : (() => {
                                 // Filter special slots for selected date
                                 const selectedDateSlots = specialSlots.filter((s: any) => s.event_date === selectedDate);

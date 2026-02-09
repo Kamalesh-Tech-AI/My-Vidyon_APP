@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from '@/context/AuthContext';
+import { GradesSkeleton } from '@/components/skeletons/GradesSkeleton';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
@@ -158,17 +159,7 @@ export function StudentGrades() {
     const isLoading = profileLoading || resultsLoading;
 
     if (isLoading) {
-        return (
-            <StudentLayout>
-                <PageHeader title="Exam Results" subtitle="Loading your grades..." />
-                <div className="flex justify-center p-12">
-                    <div className="flex flex-col items-center gap-4">
-                        <Loader2 className="animate-spin w-10 h-10 text-primary" />
-                        <p className="text-muted-foreground animate-pulse text-sm">Fetching published results...</p>
-                    </div>
-                </div>
-            </StudentLayout>
-        );
+        return <GradesSkeleton />;
     }
 
     return (

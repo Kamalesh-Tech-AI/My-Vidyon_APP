@@ -93,6 +93,7 @@ import { ParentDashboard } from "./pages/parent/ParentDashboard";
 import { ParentChildDetail } from "./pages/parent/ParentChildDetail";
 import { ParentNotifications } from "./pages/parent/ParentNotifications";
 import { ParentFees } from "./pages/parent/ParentFees";
+import { ParentFeeReceipt } from "./pages/parent/ParentFeeReceipt";
 import { ParentLeave } from "./pages/parent/ParentLeave";
 import { ParentSettings } from "./pages/parent/ParentSettings";
 import { ParentCalendar } from "./pages/parent/ParentCalendar";
@@ -246,6 +247,7 @@ const App = () => {
                       <Route path="/parent/child/:studentId" element={<ProtectedRoute allowedRoles={['parent']}><ParentChildDetail /></ProtectedRoute>} />
                       <Route path="/parent/notifications" element={<ProtectedRoute allowedRoles={['parent']}><ParentNotifications /></ProtectedRoute>} />
                       <Route path="/parent/fees" element={<ProtectedRoute allowedRoles={['parent']}><ParentFees /></ProtectedRoute>} />
+                      <Route path="/parent/fees/receipt/:invoiceId" element={<ProtectedRoute allowedRoles={['parent']}><ParentFeeReceipt /></ProtectedRoute>} />
                       <Route path="/parent/leave" element={<ProtectedRoute allowedRoles={['parent']}><ParentLeave /></ProtectedRoute>} />
                       <Route path="/parent/settings" element={<ProtectedRoute allowedRoles={['parent']}><ParentSettings /></ProtectedRoute>} />
                       <Route path="/parent/calendar" element={<ProtectedRoute allowedRoles={['parent']}><ParentCalendar /></ProtectedRoute>} />

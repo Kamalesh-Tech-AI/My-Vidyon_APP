@@ -17,8 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useState } from 'react';
-import { Upload, Loader2, FileX } from 'lucide-react';
+import { Upload, FileX } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { AssignmentsSkeleton } from '@/components/skeletons/AssignmentsSkeleton';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, isAfter, parseISO } from 'date-fns';
 
@@ -177,12 +178,7 @@ export function StudentAssignments() {
   };
 
   if (profileLoading || assignmentsLoading) {
-    return (
-      <StudentLayout>
-        <PageHeader title={t.nav.assignments} subtitle="Loading your assignments..." />
-        <div className="flex justify-center p-12"><Loader2 className="animate-spin w-8 h-8 text-primary" /></div>
-      </StudentLayout>
-    );
+    return <AssignmentsSkeleton />;
   }
 
   const assignments = assignmentsData || { pending: [], submitted: [], graded: [], overdue: [] };

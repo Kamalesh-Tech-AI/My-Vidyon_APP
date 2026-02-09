@@ -3,7 +3,7 @@ import { StudentLayout } from '@/layouts/StudentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/common/Badge';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, Clock, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from '@/context/AuthContext';
+import { CalendarSkeleton } from '@/components/skeletons/CalendarSkeleton';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -229,8 +230,12 @@ export function StudentCalendar() {
                     </div>
 
                     {loading ? (
-                        <div className="h-[400px] flex items-center justify-center">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <div className="animate-pulse p-6">
+                            <div className="grid grid-cols-7 gap-2 mb-4">
+                                {Array.from({ length: 35 }).map((_, i) => (
+                                    <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                                ))}
+                            </div>
                         </div>
                     ) : (
                         <div

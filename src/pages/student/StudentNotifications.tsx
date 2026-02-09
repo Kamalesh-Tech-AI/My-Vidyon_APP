@@ -3,9 +3,10 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { NotificationCard } from '@/components/cards/NotificationCard';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/TranslationContext';
-import { Bell, Filter, Loader2 } from 'lucide-react';
+import { Bell, Filter } from 'lucide-react';
 import { useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
+import { NotificationsSkeleton } from '@/components/skeletons/NotificationsSkeleton';
 
 export function StudentNotifications() {
     const { t } = useTranslation();
@@ -55,9 +56,7 @@ export function StudentNotifications() {
 
             {/* Content */}
             {loading ? (
-                <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
+                <NotificationsSkeleton />
             ) : (
                 <>
                     {/* Notifications Grid */}
