@@ -142,7 +142,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
                 .from('parents')
                 .select('id')
                 .eq('profile_id', parentId)
-                .single();
+                .maybeSingle();
 
             // B. Fetch via Join Table (student_parents)
             let studentIds: string[] = [];
@@ -165,9 +165,25 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
                 studentIds = Array.from(new Set([...studentIds, ...directIds]));
             }
 
+            // D. Fallback: Lookup by parent email (highly reliable if other links missing)
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (authUser?.email) {
+                const { data: emailStudents } = await supabase
+                    .from('students')
+                    .select('id')
+                    .ilike('parent_email', authUser.email.trim());
+
+                if (emailStudents) {
+                    const emailIds = emailStudents.map(s => s.id);
+                    studentIds = Array.from(new Set([...studentIds, ...emailIds]));
+                }
+            }
+
+            console.log(`[DEBUG] Parent ${parentId} found ${studentIds.length} children. Child IDs:`, studentIds);
+
             if (studentIds.length === 0) return [];
 
-            // D. Get final details
+            // E. Get final details
             const { data, error } = await supabase
                 .from('students')
                 .select('*')
@@ -177,7 +193,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
 
             return (data || []).map((child: any) => ({
                 id: child.id,
-                name: child.full_name || child.name || 'Unknown Student',
+                name: child.name || 'Unknown Student',
                 class: child.class_name || 'N/A',
                 section: child.section || 'A',
                 rollNumber: child.register_number || child.roll_number || 'N/A',
@@ -286,45 +302,24 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         queryFn: async () => {
             if (childIds.length === 0) return [];
 
-            // Try student_leave_requests first (new table)
+            // Primary table is leave_requests (student_leave_requests does not exist in some builds)
             const { data, error } = await supabase
-                .from('student_leave_requests')
+                .from('leave_requests')
                 .select(`
                     *,
-                    students:student_id (full_name, name)
+                    students:student_id (name)
                 `)
                 .in('student_id', childIds)
                 .order('created_at', { ascending: false })
                 .limit(10);
 
-            if (error) {
-                console.warn('Error fetching from student_leave_requests, trying leave_requests fallback:', error);
-
-                // Fallback to old table if needed
-                const { data: oldData, error: oldError } = await supabase
-                    .from('leave_requests')
-                    .select(`*, students:student_id (full_name, name)`)
-                    .in('student_id', childIds)
-                    .order('created_at', { ascending: false })
-                    .limit(10);
-
-                if (oldError) throw oldError;
-
-                return (oldData || []).map((request: any) => ({
-                    id: request.id,
-                    childName: request.students?.full_name || request.students?.name || 'Unknown',
-                    startDate: request.start_date || request.from_date,
-                    endDate: request.end_date || request.to_date,
-                    reason: request.reason,
-                    status: (request.status || 'pending').toLowerCase(),
-                })) as LeaveRequest[];
-            }
+            if (error) throw error;
 
             return (data || []).map((request: any) => ({
                 id: request.id,
-                childName: request.students?.full_name || request.students?.name || 'Unknown',
-                startDate: request.start_date,
-                endDate: request.end_date,
+                childName: request.students?.name || 'Unknown',
+                startDate: request.start_date || request.from_date,
+                endDate: request.end_date || request.to_date,
                 reason: request.reason,
                 status: (request.status || 'pending').toLowerCase(),
             })) as LeaveRequest[];
@@ -342,7 +337,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
                 .from('student_fees')
                 .select(`
                     *,
-                    students:student_id (id, full_name, name)
+                    students:student_id (id, name)
                 `)
                 .in('student_id', childIds)
                 .order('created_at', { ascending: false });

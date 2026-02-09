@@ -195,6 +195,9 @@ export const en = {
             downloadingReceipt: "Downloading receipt",
             dueDate: "Due Date",
             status: "Status",
+            processingPayment: "Processing payment simulation...",
+            paymentSuccess: "Payment simulated successfully!",
+            processing: "Processing...",
         },
         leave: {
             title: "Leave Application",
