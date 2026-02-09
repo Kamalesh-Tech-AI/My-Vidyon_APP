@@ -45,7 +45,7 @@ interface LeaveRequest {
  * - Attendance for all children
  * - Grades for all children
  * - Leave requests
- * - Fee payment status
+ * - Fee payment status and raw records
  * - Real-time updates for all metrics
  */
 export function useParentDashboard(parentId?: string, institutionId?: string) {
@@ -132,7 +132,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
     });
 
     // 1. Fetch Children (Robust Lookup)
-    const { data: children = [] } = useQuery({
+    const { data: children = [], isLoading: childrenLoading } = useQuery({
         queryKey: ['parent-children', parentId],
         queryFn: async () => {
             if (!parentId) return [];
@@ -280,8 +280,8 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         staleTime: 2 * 60 * 1000,
     });
 
-    // 3. Fetch Leave Requests (Unified Lookup)
-    const { data: leaveRequests = [] } = useQuery({
+    // 4. Fetch Leave Requests (Unified Lookup)
+    const { data: leaveRequests = [], isLoading: leaveLoading } = useQuery({
         queryKey: ['parent-leave-requests', childIds],
         queryFn: async () => {
             if (childIds.length === 0) return [];
@@ -333,36 +333,32 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         staleTime: 2 * 60 * 1000,
     });
 
-    // 4. Fetch Total Pending Fees
-    const { data: feeData } = useQuery({
-        queryKey: ['parent-fees', childIds],
+    // 5. Fetch Fee Records
+    const { data: feeRecords = [], isLoading: feesLoading } = useQuery({
+        queryKey: ['parent-fee-records', childIds],
         queryFn: async () => {
-            if (childIds.length === 0) return { total: 0, paid: 0, pending: 0 };
-
+            if (childIds.length === 0) return [];
             const { data, error } = await supabase
-                .from('student_fees') // Correct table
-                .select('*')
-                .in('student_id', childIds);
+                .from('student_fees')
+                .select(`
+                    *,
+                    students:student_id (id, full_name, name)
+                `)
+                .in('student_id', childIds)
+                .order('created_at', { ascending: false });
 
             if (error) throw error;
-
-            const total = data?.reduce((sum, fee) => sum + (fee.amount || 0), 0) || 0;
-            const paid = data?.filter(f => f.status === 'paid').reduce((sum, fee) => sum + (fee.amount || 0), 0) || 0; // Or define logic for 'paid' amount column usage. 
-            // The schema has paid_amount column. Better to use that if partial payments supported.
-            // But for now, let's assume status 'paid' implies full amount or sum up paid_amount.
-            // Let's use paid_amount if available.
-            const paidReal = data?.reduce((sum, fee) => sum + (fee.paid_amount || 0), 0) || 0;
-
-            return {
-                total,
-                paid: paidReal,
-                pending: total - paidReal,
-            };
+            return data || [];
         },
         enabled: childIds.length > 0,
         staleTime: 5 * 60 * 1000,
     });
 
+    const feeData = {
+        total: feeRecords.reduce((sum: number, fee: any) => sum + (fee.amount_due || 0), 0),
+        paid: feeRecords.reduce((sum: number, fee: any) => sum + (fee.amount_paid || 0), 0),
+        pending: feeRecords.reduce((sum: number, fee: any) => sum + ((fee.amount_due || 0) - (fee.amount_paid || 0)), 0),
+    };
 
     // 6. Fetch Upcoming Events
     const { data: upcomingEventsCount = 0 } = useQuery({
@@ -385,7 +381,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         staleTime: 5 * 60 * 1000,
     });
 
-    // 6. Calculate Dashboard Stats
+    // 7. Calculate Dashboard Stats
     const stats: ParentDashboardStats = {
         totalChildren: children.length,
         pendingLeaveRequests: leaveRequests.filter(r => r.status === 'pending').length,
@@ -393,8 +389,10 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         totalPendingFees: feeData?.pending || 0,
     };
 
-    // 7. Real-time Subscriptions (Migrated to SSE)
+    // 8. Real-time Subscriptions (Migrated to SSE)
     useERPRealtime(institutionId);
+
+    const isLoading = childrenLoading || feesLoading || leaveLoading;
 
     return {
         stats,
@@ -403,6 +401,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
         leaveRequests,
         specialClasses,
         feeData,
-        isLoading: false,
+        feeRecords,
+        isLoading,
     };
 }

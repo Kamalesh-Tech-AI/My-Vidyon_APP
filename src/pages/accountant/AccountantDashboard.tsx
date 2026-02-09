@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { InstitutionLayout } from '@/layouts/InstitutionLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatCard } from '@/components/common/StatCard';
-import { IndianRupee, TrendingUp, Users, AlertCircle, ArrowUpRight, Wifi, WifiOff } from 'lucide-react';
+import { IndianRupee, TrendingUp, Users, AlertCircle, ArrowUpRight, Wifi, WifiOff, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useNavigate } from 'react-router-dom';
@@ -169,6 +169,9 @@ export function AccountantDashboard() {
                         <span className="text-xs text-muted-foreground hidden sm:inline">
                             Updated: {lastUpdate.toLocaleTimeString()}
                         </span>
+                        <Button variant="outline" className="gap-2" onClick={() => navigate('/accountant/fees?action=manual-bill')}>
+                            <Plus className="w-4 h-4" /> Quick Bill
+                        </Button>
                         <Button onClick={() => navigate('/accountant/fees')}>Manage Fees</Button>
                     </div>
                 }

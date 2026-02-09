@@ -83,11 +83,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           // Fallback: Parallel queries for role detection if profile role is missing
           console.log('[AUTH] Role missing from profile, running fallback queries...');
-          const [instRes, studentRes, parentRes, staffRes] = await Promise.all([
+          const [instRes, studentRes, parentRes, staffRes, accountantRes] = await Promise.all([
             supabase.from('institutions').select('institution_id').eq('admin_email', email).maybeSingle(),
             supabase.from('students').select('institution_id, is_active, phone, address').eq('email', email).maybeSingle(),
             supabase.from('parents').select('institution_id, is_active, phone').eq('email', email).maybeSingle(),
-            supabase.from('staff_details').select('institution_id, role').eq('profile_id', userId).maybeSingle()
+            supabase.from('staff_details').select('institution_id, role').eq('profile_id', userId).maybeSingle(),
+            supabase.from('accountants').select('institution_id').eq('profile_id', userId).maybeSingle()
           ]);
 
           // Check Institution Admin
@@ -122,6 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             institutionId = staffRes.data.institution_id;
           }
 
+          // Check Accountant
+          if (!detectedRole && accountantRes.data) {
+            detectedRole = 'accountant';
+            institutionId = accountantRes.data.institution_id;
+          }
+
           if (!detectedRole) {
             // Last resort: check profiles again but more loosely
             if (institutionId) {
@@ -133,13 +140,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           // --- SYNC LOGIC: Update profiles table if data was missing ---
-          if (profile && (!profile.role || !profile.institution_id || !profile.full_name)) {
+          if (detectedRole && institutionId) {
             console.log('[AUTH] Syncing profile table with detected data...');
-            await supabase.from('profiles').update({
+            const syncData = {
+              id: userId,
+              email: email,
               role: detectedRole,
               institution_id: institutionId,
-              full_name: profile.full_name || email.split('@')[0]
-            }).eq('id', userId);
+              full_name: profile?.full_name || email.split('@')[0]
+            };
+
+            // Use upsert to handle both missing rows and missing data in existing rows
+            const { error: syncError } = await supabase.from('profiles').upsert(syncData, { onConflict: 'id' });
+            if (syncError) {
+              console.warn('[AUTH] Profile sync failed:', syncError.message);
+            }
           }
         }
 

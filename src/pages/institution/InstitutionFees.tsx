@@ -7,32 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import {
-    IndianRupee,
-    FileText,
-    ChevronRight,
-    Users,
-    ArrowLeft,
-    Check,
-    Info,
-    Send,
-    Layers,
-    GraduationCap,
-    School,
-    ArrowRight,
-    MapPin,
-    Plus,
-    Loader2
-} from 'lucide-react';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-    DialogFooter
-} from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -42,18 +16,26 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Trash2 } from 'lucide-react'; // Import Trash2
-
-
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter
+} from "@/components/ui/dialog";
 
 interface FeeComponent {
     id: string;
     title: string;
     amount: string;
 }
-import { useAuth } from '@/context/AuthContext';
-import { useInstitution } from '@/context/InstitutionContext';
+import { Trash2, Plus, Search, Filter, Download, CreditCard, Clock, CheckCircle, ChevronRight, Check, Loader2, School, Send, Mail, Phone, MapPin, Printer, IndianRupee, FileText, Users, ArrowLeft, Info, Layers, GraduationCap, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { InvoiceView } from '@/components/common/InvoiceView';
+import { useInstitution } from '@/context/InstitutionContext';
 import { toast } from 'sonner';
 
 export function InstitutionFees() {
@@ -117,7 +99,10 @@ export function InstitutionFees() {
 
     // Popup State
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
-    const [openDialog, setOpenDialog] = useState<'none' | 'fees' | 'bio' | 'track' | 'create_structure' | 'receipt'>('none');
+    const [openDialog, setOpenDialog] = useState<'none' | 'fees' | 'bio' | 'track' | 'create_structure' | 'receipt' | 'manual_bill'>('none');
+
+    // Branding State
+    const [institutionInfo, setInstitutionInfo] = useState<any>(null);
 
     // Create Fee Structure State (Enhanced)
     const [structureName, setStructureName] = useState('');
@@ -135,6 +120,11 @@ export function InstitutionFees() {
     const [studentsInClass, setStudentsInClass] = useState<any[]>([]);
     const [selectedSectionForFee, setSelectedSectionForFee] = useState<string>('');
     const [availableSectionsForFee, setAvailableSectionsForFee] = useState<string[]>([]);
+
+    // Manual Billing State
+    const [manualFeeComponents, setManualFeeComponents] = useState<FeeComponent[]>([{ id: '1', title: 'Miscellaneous Fee', amount: '0' }]);
+    const [manualBillDueDate, setManualBillDueDate] = useState('');
+    const [isManualBilling, setIsManualBilling] = useState(false);
 
     // Fetch unique classes from students table
     useEffect(() => {
@@ -179,6 +169,25 @@ export function InstitutionFees() {
         };
 
         fetchUniqueClasses();
+    }, [user?.institutionId]);
+
+    // Fetch Institution Information
+    useEffect(() => {
+        const fetchInstitutionInfo = async () => {
+            if (!user?.institutionId) return;
+            try {
+                const { data, error } = await supabase
+                    .from('institutions')
+                    .select('name, logo_url, address, city, state, email, phone')
+                    .eq('id', user.institutionId)
+                    .maybeSingle();
+                if (error) throw error;
+                setInstitutionInfo(data);
+            } catch (err) {
+                console.error('Error fetching institution info:', err);
+            }
+        };
+        fetchInstitutionInfo();
     }, [user?.institutionId]);
 
 
@@ -435,6 +444,106 @@ export function InstitutionFees() {
     const handleSectionSelect = (sec: string) => {
         setSelectedSection(sec);
         setFilterStatus('All');
+    };
+
+    const handleManualBill = (student: any) => {
+        setSelectedStudent(student);
+        setManualFeeComponents([{ id: '1', title: 'Miscellaneous Fee', amount: '0' }]);
+        setManualBillDueDate(new Date().toISOString().split('T')[0]);
+        setOpenDialog('manual_bill');
+    };
+
+    const handleSaveManualBill = async () => {
+        if (!selectedStudent || !user?.institutionId) return;
+
+        const totalAmount = manualFeeComponents.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+        if (totalAmount <= 0) {
+            toast.error("Please add at least one fee component with an amount");
+            return;
+        }
+
+        setIsManualBilling(true);
+        try {
+            // 1. Insert fee record (institution_id column typically expects TEXT code "VIDYON001" in this app)
+            const { error: feeError } = await supabase.from('student_fees').insert([{
+                student_id: selectedStudent.id,
+                institution_id: user.institutionId, // Revert to direct usage
+                amount_due: totalAmount,
+                amount_paid: 0,
+                due_date: manualBillDueDate ? new Date(manualBillDueDate).toISOString() : null,
+                status: 'pending',
+                description: JSON.stringify(manualFeeComponents)
+            }]);
+
+            if (feeError) throw feeError;
+
+            // --- NOTIFICATION TRIGGER: Notify parent(s) ---
+            try {
+                // 1. Get student and all associated parents (direct + join table)
+                const { data: studentInfo } = await supabase
+                    .from('students')
+                    .select(`
+                        name, 
+                        parent_id, 
+                        institution_id,
+                        student_parents (parent_id, parents:parent_id (profile_id))
+                    `)
+                    .eq('id', selectedStudent.id)
+                    .single();
+
+                if (studentInfo) {
+                    // Collect all unique parent profile IDs
+                    const parentProfileIds = new Set<string>();
+
+                    // Add direct parent if exists
+                    if (studentInfo.parent_id) parentProfileIds.add(studentInfo.parent_id);
+
+                    // Add parents from join table
+                    (studentInfo.student_parents as any[])?.forEach(sp => {
+                        if (sp.parents?.profile_id) parentProfileIds.add(sp.parents.profile_id);
+                    });
+
+                    if (parentProfileIds.size > 0) {
+                        // 2. Resolve institution UUID for notification (notifications table typically uses UUID)
+                        const { data: instData } = await supabase
+                            .from('institutions')
+                            .select('id')
+                            .or(`institution_id.eq.${user.institutionId},id.eq.${user.institutionId}`)
+                            .maybeSingle();
+
+                        // 3. Insert notification for each parent
+                        const instIdToUse = instData?.id || user.institutionId; // Fallback to user.institutionId if UUID not found
+                        const billDetails = manualFeeComponents.map(c => `${c.title}: ₹${c.amount}`).join(', ');
+                        const notificationEntries = Array.from(parentProfileIds).map(pid => ({
+                            user_id: pid,
+                            institution_id: instIdToUse,
+                            title: 'New Fee Bill Generated',
+                            message: `A new manual bill of ₹${totalAmount.toLocaleString()} has been generated for ${studentInfo.name}. Details: ${billDetails}`,
+                            type: 'fees', // Match app icon mapping
+                            metadata: {
+                                student_id: selectedStudent.id,
+                                amount: totalAmount,
+                                type: 'manual_bill'
+                            }
+                        }));
+
+                        await supabase.from('notifications').insert(notificationEntries);
+                        console.log(`[NOTIFICATION] Sent to ${parentProfileIds.size} parent(s) successfully`);
+                    }
+                }
+            } catch (notifyErr) {
+                console.warn('[NOTIFICATION] Failed to send notification:', notifyErr);
+                // Don't fail the whole process if notification fails
+            }
+
+            toast.success("Manual bill generated successfully!");
+            setOpenDialog('none');
+            fetchStudents(); // Refresh data
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setIsManualBilling(false);
+        }
     };
 
     const handleViewStudents = () => {
@@ -898,6 +1007,14 @@ export function InstitutionFees() {
                                                         >
                                                             <Send className="w-3.5 h-3.5" />
                                                         </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="h-9 gap-1 text-[10px] sm:text-xs font-semibold border-orange-200 text-orange-600 hover:bg-orange-50"
+                                                            onClick={() => handleManualBill(student)}
+                                                        >
+                                                            <Plus className="w-3 h-3" /> Bill
+                                                        </Button>
                                                     </>
                                                 )}
                                             </div>
@@ -1353,55 +1470,114 @@ export function InstitutionFees() {
                 </DialogContent>
             </Dialog>
 
-            {/* Receipt Dialog */}
-            <Dialog open={openDialog === 'receipt'} onOpenChange={(open) => !open && setOpenDialog('none')}>
-                <DialogContent className="max-w-md bg-white text-black p-0 overflow-hidden rounded-2xl">
+            {/* Manual Billing Dialog */}
+            <Dialog open={openDialog === 'manual_bill'} onOpenChange={(open) => !open && setOpenDialog('none')}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Generate Manual Bill</DialogTitle>
+                        <DialogDescription>Create a custom fee for {selectedStudent?.name}</DialogDescription>
+                    </DialogHeader>
                     {selectedStudent && (
-                        <div className="relative">
-                            {/* Watermark */}
-                            <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none select-none overflow-hidden">
-                                <div className="text-4xl font-bold -rotate-45 whitespace-nowrap">created@myvidyon created@myvidyon</div>
+                        <div className="space-y-6 py-4">
+                            <div className="flex items-center gap-4 p-4 bg-muted/20 rounded-xl">
+                                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                    {selectedStudent.name[0]}
+                                </div>
+                                <div>
+                                    <h4 className="font-bold">{selectedStudent.name}</h4>
+                                    <p className="text-xs text-muted-foreground">{selectedClass} - {selectedSection} • Roll: {selectedStudent.rollNo}</p>
+                                </div>
                             </div>
 
-                            <div className="p-8 relative z-10 bg-white/90">
-                                <div className="text-center border-b border-dashed border-gray-300 pb-6 mb-6">
-                                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <School className="w-8 h-8 text-primary" />
-                                    </div>
-                                    <h2 className="text-2xl font-bold tracking-tight">Fee Receipt</h2>
-                                    <p className="text-sm text-gray-500 mt-1">Receipt #{Math.floor(Math.random() * 100000)}</p>
-                                    <p className="text-xs text-gray-400 mt-1">{new Date().toLocaleDateString()}</p>
-                                </div>
-
-                                <div className="space-y-4 mb-8">
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Student Name</span>
-                                        <span className="font-bold">{selectedStudent.name}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Roll Number</span>
-                                        <span className="font-bold">{selectedStudent.rollNo}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Class</span>
-                                        <span className="font-bold">{selectedClass} - {selectedSection}</span>
-                                    </div>
-                                    <div className="my-4 border-t border-gray-100"></div>
-                                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-                                        <span className="text-sm font-medium">Amount Paid</span>
-                                        <span className="text-xl font-bold text-success">₹{selectedStudent.fees.paid.toLocaleString('en-IN')}</span>
-                                    </div>
-                                </div>
-
-                                <div className="text-center">
-                                    <Button className="w-full h-12 text-lg gap-2" onClick={handleDownloadReceipt}>
-                                        <Send className="w-4 h-4" /> Send Receipt
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-base font-semibold">Fee Components</Label>
+                                    <Button onClick={() => setManualFeeComponents([...manualFeeComponents, { id: Date.now().toString(), title: '', amount: '' }])} variant="outline" size="sm" className="gap-2">
+                                        <Plus className="w-4 h-4" /> Add Line
                                     </Button>
-                                    <p className="text-[10px] text-gray-400 mt-4">Automated computerized receipt. No signature required.</p>
-                                    <p className="text-[10px] text-gray-300 mt-1">created@myvidyon</p>
+                                </div>
+
+                                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                                    {manualFeeComponents.map((comp) => (
+                                        <div key={comp.id} className="flex gap-3 items-end">
+                                            <div className="flex-1 space-y-1">
+                                                <Label className="text-[10px] uppercase text-muted-foreground">Description</Label>
+                                                <Input
+                                                    placeholder="e.g. Science Lab Fee"
+                                                    value={comp.title}
+                                                    onChange={(e) => setManualFeeComponents(manualFeeComponents.map(c => c.id === comp.id ? { ...c, title: e.target.value } : c))}
+                                                />
+                                            </div>
+                                            <div className="w-32 space-y-1">
+                                                <Label className="text-[10px] uppercase text-muted-foreground">Amount (₹)</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0.00"
+                                                    value={comp.amount}
+                                                    onChange={(e) => setManualFeeComponents(manualFeeComponents.map(c => c.id === comp.id ? { ...c, amount: e.target.value } : c))}
+                                                />
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-destructive h-10 w-10"
+                                                onClick={() => setManualFeeComponents(manualFeeComponents.filter(c => c.id !== comp.id))}
+                                                disabled={manualFeeComponents.length === 1}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                                <div className="space-y-2">
+                                    <Label>Due Date</Label>
+                                    <Input
+                                        type="date"
+                                        value={manualBillDueDate}
+                                        onChange={(e) => setManualBillDueDate(e.target.value)}
+                                    />
+                                </div>
+                                <div className="bg-primary/5 rounded-xl p-4 flex flex-col justify-center items-end">
+                                    <span className="text-xs text-muted-foreground uppercase font-semibold">Total Bill Amount</span>
+                                    <span className="text-2xl font-bold text-primary">₹{manualFeeComponents.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0).toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setOpenDialog('none')}>Cancel</Button>
+                        <Button onClick={handleSaveManualBill} disabled={isManualBilling} className="min-w-[120px]">
+                            {isManualBilling ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                            Generate Bill
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Invoice View Dialog (Upgraded Receipt) */}
+            <Dialog open={openDialog === 'receipt'} onOpenChange={(open) => !open && setOpenDialog('none')}>
+                <DialogContent className="max-w-2xl bg-white text-black p-0 overflow-hidden rounded-2xl border-none shadow-2xl">
+                    {selectedStudent && (
+                        <InvoiceView
+                            student={selectedStudent}
+                            institution={{
+                                name: institutionInfo?.name || 'VidyOn Institution',
+                                logo_url: institutionInfo?.logo_url,
+                                address: institutionInfo?.address,
+                                city: institutionInfo?.city,
+                                email: institutionInfo?.email,
+                                phone: institutionInfo?.phone
+                            }}
+                            classInfo={{
+                                className: selectedClass,
+                                section: selectedSection
+                            }}
+                            onDownload={handleDownloadReceipt}
+                            onClose={() => setOpenDialog('none')}
+                        />
                     )}
                 </DialogContent>
             </Dialog>
