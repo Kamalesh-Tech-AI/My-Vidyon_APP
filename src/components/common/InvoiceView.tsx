@@ -100,11 +100,11 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full max-h-[95vh]">
+        <div className="flex flex-col h-full lg:max-h-[85vh]">
             {/* Invoice Content */}
             <div ref={invoiceRef} className="flex-1 overflow-y-auto bg-white">
                 {/* Header / Branding - Responsive */}
-                <div className="bg-slate-900 text-white p-4 sm:p-6 md:p-8">
+                <div className="bg-slate-900 text-white p-4 sm:p-6 md:p-10">
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                         <div className="flex gap-3 sm:gap-4 items-center">
                             {institution?.logo_url ? (
@@ -132,9 +132,9 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({
                     </div>
                 </div>
 
-                <div className="p-4 sm:p-6 md:p-8">
+                <div className="p-4 sm:p-6 md:p-10 space-y-4 sm:space-y-6 md:space-y-8">
                     {/* Bill To - Responsive Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8 mb-6 sm:mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6 sm:mb-8">
                         <div>
                             <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-2 sm:mb-3">Bill To Student</h4>
                             <div className="space-y-1">
@@ -147,17 +147,17 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({
                         <div className="bg-slate-50 rounded-xl p-4 sm:p-5 border border-slate-100 shadow-sm">
                             <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-2 sm:mb-3 text-right">Payment Summary</h4>
                             <div className="space-y-2">
-                                <div className="flex justify-between text-xs sm:text-sm gap-2">
-                                    <span className="text-slate-600">Total</span>
+                                <div className="flex justify-between items-center text-xs sm:text-sm gap-2">
+                                    <span className="text-slate-600 whitespace-nowrap">Total</span>
                                     <span className="font-bold break-all text-right">₹{student.fees.total.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between text-xs sm:text-sm gap-2">
-                                    <span className="text-slate-600">Amount Paid</span>
+                                <div className="flex justify-between items-center text-xs sm:text-sm gap-2">
+                                    <span className="text-slate-600 whitespace-nowrap">Amount Paid</span>
                                     <span className="font-bold text-green-600 break-all text-right">₹{student.fees.paid.toLocaleString()}</span>
                                 </div>
                                 <div className="border-t border-slate-200 my-2"></div>
-                                <div className="flex justify-between text-sm sm:text-base gap-2">
-                                    <span className="font-bold">Outstanding</span>
+                                <div className="flex justify-between items-center text-sm sm:text-base gap-2">
+                                    <span className="font-bold whitespace-nowrap">Outstanding</span>
                                     <span className="font-bold text-red-600 break-all text-right">₹{student.fees.pending.toLocaleString()}</span>
                                 </div>
                             </div>
@@ -168,9 +168,9 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({
                     <div className="mb-6 sm:mb-8 space-y-3">
                         <h4 className="text-xs uppercase font-bold text-slate-400 tracking-widest mb-3">Fee Breakdown</h4>
                         {student.fees.structure && student.fees.structure.map((f: any, idx: number) => (
-                            <div key={idx} className="p-4 rounded-lg border border-slate-100 bg-white hover:bg-slate-50/50 transition-colors">
-                                <div className="font-semibold text-sm mb-3 text-slate-900">{f.category || f.title}</div>
-                                <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div key={idx} className="p-4 md:p-6 rounded-lg border border-slate-100 bg-white hover:bg-slate-50/50 transition-colors">
+                                <div className="font-semibold text-sm md:text-base mb-3 text-slate-900">{f.category || f.title}</div>
+                                <div className="grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
                                     <div>
                                         <div className="text-slate-500 mb-1">Amount Due</div>
                                         <div className="font-bold">₹{f.amount.toLocaleString()}</div>

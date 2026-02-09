@@ -324,7 +324,7 @@ export function ParentFees() {
             </ParentLayout>
 
             <Dialog open={isInvoiceOpen} onOpenChange={setIsInvoiceOpen}>
-                <DialogContent className="!fixed !inset-0 !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 sm:!max-w-2xl sm:!h-auto sm:!inset-auto sm:!w-auto sm:!left-[50%] sm:!top-[50%] sm:!-translate-x-1/2 sm:!-translate-y-1/2 bg-white text-black p-0 overflow-hidden !rounded-none sm:!rounded-2xl border-none shadow-2xl">
+                <DialogContent className="!fixed !inset-0 !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 !rounded-none lg:!max-w-4xl xl:!max-w-5xl lg:!h-auto lg:!inset-auto lg:!w-auto lg:!left-[50%] lg:!top-[50%] lg:!-translate-x-1/2 lg:!-translate-y-1/2 lg:!rounded-2xl bg-white text-black p-0 overflow-hidden border-none shadow-2xl">
                     {selectedBill && (
                         <InvoiceView
                             student={selectedBill.student}
