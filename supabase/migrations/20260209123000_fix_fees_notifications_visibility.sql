@@ -55,17 +55,32 @@ TO authenticated
 USING (
     EXISTS (
         -- Option A: Direct parent_id link in students table
-        SELECT 1 FROM public.students
-        WHERE students.id = student_fees.student_id
-        AND students.parent_id = auth.uid()
+        -- This usually stores the profile_id (auth.uid())
+        SELECT 1 FROM public.students s
+        WHERE s.id = student_fees.student_id
+        AND s.parent_id = auth.uid()
     )
     OR
     EXISTS (
         -- Option B: Via student_parents join table
+        -- Mapping profile_id -> parents.profile_id -> parents.id -> student_parents.parent_id
         SELECT 1 FROM public.student_parents sp
         JOIN public.parents p ON p.id = sp.parent_id
         WHERE sp.student_id = student_fees.student_id
         AND p.profile_id = auth.uid()
+    )
+    OR
+    EXISTS (
+        -- Option C: email fallback
+        -- If the parent profile email matches the student's parent_email
+        SELECT 1 FROM public.students s
+        WHERE s.id = student_fees.student_id
+        AND s.parent_email ILIKE (auth.jwt() ->> 'email')
+    )
+    -- Also allow if the user is the student themselves (redundant but safe)
+    OR student_id IN (
+        SELECT id FROM public.students
+        WHERE email ILIKE (auth.jwt() ->> 'email')
     )
 );
 

@@ -1,0 +1,10 @@
+﻿src/pages/parent/ParentFees.tsx(2,30): error TS2307: Cannot find module '@/layouts/ParentLayout' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(3,28): error TS2307: Cannot find module '@/components/common/PageHeader' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(4,23): error TS2307: Cannot find module '@/components/common/Badge' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(5,24): error TS2307: Cannot find module '@/components/ui/button' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(8,32): error TS2307: Cannot find module '@/i18n/TranslationContext' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(9,25): error TS2307: Cannot find module '@/context/AuthContext' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(10,36): error TS2307: Cannot find module '@/hooks/useParentDashboard' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(11,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(12,29): error TS2307: Cannot find module '@/components/common/InvoiceView' or its corresponding type declarations.
+src/pages/parent/ParentFees.tsx(13,39): error TS2307: Cannot find module '@/components/ui/dialog' or its corresponding type declarations.

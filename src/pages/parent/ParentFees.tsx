@@ -3,204 +3,271 @@ import { ParentLayout } from '@/layouts/ParentLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/ui/button';
-import { IndianRupee, CreditCard, CheckCircle, Receipt } from 'lucide-react';
+import { IndianRupee, CreditCard, CheckCircle, Receipt, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/TranslationContext';
-import { useNavigate } from 'react-router-dom';
-import { FeeReceiptData } from '@/components/parent/FeeReceipt';
-
-const feesData = [
-    {
-        id: 1,
-        student: 'Alex Johnson',
-        type: 'Annual Tuition Fee',
-        amount: '₹ 45,000',
-        dueDate: 'Apr 10, 2025',
-        status: 'paid',
-        paymentDate: 'Apr 05, 2025',
-        invoice: 'INV-2025-001',
-        transactionId: 'TXN-2025-001-ABC'
-    },
-    {
-        id: 2,
-        student: 'Alex Johnson',
-        type: 'Transport Fee (Q1)',
-        amount: '₹ 8,000',
-        dueDate: 'Apr 10, 2025',
-        status: 'paid',
-        paymentDate: 'Apr 05, 2025',
-        invoice: 'INV-2025-002',
-        transactionId: 'TXN-2025-002-DEF'
-    },
-    {
-        id: 3,
-        student: 'Alex Johnson',
-        type: 'Term 2 Tuition Fee',
-        amount: '₹ 45,000',
-        dueDate: 'Oct 10, 2025',
-        status: 'pending',
-        invoice: 'INV-2025-056'
-    },
-    {
-        id: 4,
-        student: 'Emily Johnson',
-        type: 'Annual Tuition Fee',
-        amount: '₹ 35,000',
-        dueDate: 'Apr 10, 2025',
-        status: 'paid',
-        paymentDate: 'Apr 02, 2025',
-        invoice: 'INV-2025-003',
-        transactionId: 'TXN-2025-003-GHI'
-    }
-];
+import { useAuth } from '@/context/AuthContext';
+import { useParentDashboard } from '@/hooks/useParentDashboard';
+import { supabase } from '@/lib/supabase';
+import { InvoiceView } from '@/components/common/InvoiceView';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function ParentFees() {
     const { t } = useTranslation();
-    const navigate = useNavigate();
+    const { user } = useAuth();
+    const { feeData, feeRecords, isLoading } = useParentDashboard(user?.id, user?.institutionId);
+    const [selectedBill, setSelectedBill] = React.useState<any>(null);
+    const [isInvoiceOpen, setIsInvoiceOpen] = React.useState(false);
+    const [isPaying, setIsPaying] = React.useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    const handleViewReceipt = (item: typeof feesData[0]) => {
-        // Prepare receipt data
-        const receiptData: FeeReceiptData = {
-            id: item.id,
-            student: item.student,
-            type: item.type,
-            amount: item.amount,
-            dueDate: item.dueDate,
-            status: item.status,
-            paymentDate: item.paymentDate,
-            invoice: item.invoice,
-            transactionId: item.transactionId,
-            institutionName: 'Vidyon School',
-            institutionAddress: '123 Education Street, City, State - 123456',
-            institutionPhone: '+91 1234567890',
-            institutionEmail: 'info@vidyon.edu'
+    const { data: institutionInfo } = useQuery({
+        queryKey: ['institution-branding', user?.institutionId],
+        queryFn: async () => {
+            if (!user?.institutionId) return null;
+            const { data, error } = await supabase
+                .from('institutions')
+                .select('*')
+                .eq('institution_id', user.institutionId)
+                .single();
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!user?.institutionId,
+    });
+
+    const handleViewReceipt = (bill: any) => {
+        // Map student fee record to InvoiceView requirements
+        const studentObj = {
+            name: bill.students?.name || 'Student',
+            rollNo: 'N/A',
+            address: bill.students?.address,
+            fees: {
+                total: bill.amount_due,
+                paid: bill.amount_paid,
+                pending: bill.amount_due - bill.amount_paid,
+                structure: []
+            }
         };
 
-        // Store data in sessionStorage
-        sessionStorage.setItem(`receipt_${item.invoice}`, JSON.stringify(receiptData));
+        // If it's a manual bill, parse components
+        try {
+            const desc = JSON.parse(bill.description);
+            if (Array.isArray(desc)) {
+                studentObj.fees.structure = desc.map(d => ({
+                    category: d.title,
+                    amount: parseFloat(d.amount),
+                    paid: bill.status === 'paid' ? parseFloat(d.amount) : 0
+                }));
+            }
+        } catch (e) {
+            studentObj.fees.structure = [{
+                category: bill.description || 'General Fee',
+                amount: bill.amount_due,
+                paid: bill.amount_paid
+            }];
+        }
 
-        // Navigate to receipt page in same tab (so skeleton loading shows)
-        navigate(`/parent/fees/receipt/${item.invoice}`);
+        setSelectedBill({
+            student: studentObj,
+            classInfo: {
+                className: bill.students?.class_name || 'N/A',
+                section: bill.students?.section || 'N/A'
+            }
+        });
+        setIsInvoiceOpen(true);
     };
 
+    const handleDownloadReceipt = () => {
+        toast.success(t.parent.fees.downloadingReceipt);
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    };
+
+    const handlePayNow = async (bill: any) => {
+        try {
+            setIsPaying(bill.id);
+            toast.loading(t.parent.fees.processingPayment || 'Processing simulation...', { id: 'payment-loading' });
+
+            // SIMULATED PAYMENT: Update database directly
+            const { error } = await supabase
+                .from('student_fees')
+                .update({
+                    status: 'paid',
+                    amount_paid: bill.amount_due
+                })
+                .eq('id', bill.id);
+
+            if (error) throw error;
+
+            toast.success(t.parent.fees.paymentSuccess || 'Payment simulated successfully!', { id: 'payment-loading' });
+
+            // Invalidate queries to refresh UI
+            queryClient.invalidateQueries({ queryKey: ['parent-fee-records'] });
+            queryClient.invalidateQueries({ queryKey: ['parent-fee-summary'] });
+
+        } catch (error: any) {
+            console.error('[PAYMENT] Simulation failed:', error);
+            toast.error('Payment simulation failed: ' + error.message, { id: 'payment-loading' });
+        } finally {
+            setIsPaying(null);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <ParentLayout>
+                <div className="flex items-center justify-center min-h-[400px]">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+            </ParentLayout>
+        );
+    }
+
     return (
-        <ParentLayout>
-            <PageHeader
-                title={t.nav.fees}
-                subtitle="View and manage fee payments"
-            />
+        <>
+            <ParentLayout>
+                <PageHeader
+                    title={t.parent.fees.title}
+                    subtitle={t.parent.fees.subtitle}
+                />
 
-            <div className="m-4 space-y-6">
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="dashboard-card">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-primary/10 rounded-lg">
-                                <IndianRupee className="w-6 h-6 text-primary" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                    <div className="p-4 sm:p-6 rounded-xl bg-white border border-border shadow-sm">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="p-2 sm:p-3 rounded-full bg-primary/10 text-primary flex-shrink-0">
+                                <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Total Fees</p>
-                                <p className="text-2xl font-bold">₹ 1,33,000</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="dashboard-card">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-green-100 rounded-lg">
-                                <CheckCircle className="w-6 h-6 text-green-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Paid</p>
-                                <p className="text-2xl font-bold text-green-600">₹ 88,000</p>
+                            <div className="min-w-0">
+                                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t.parent.fees.totalDue}</p>
+                                <h3 className="text-xl sm:text-2xl font-bold">₹ {(feeData?.pending || 0).toLocaleString()}</h3>
                             </div>
                         </div>
                     </div>
-
-                    <div className="dashboard-card">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-orange-100 rounded-lg">
-                                <CreditCard className="w-6 h-6 text-orange-600" />
+                    <div className="p-4 sm:p-6 rounded-xl bg-white border border-border shadow-sm">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="p-2 sm:p-3 rounded-full bg-success/10 text-success flex-shrink-0">
+                                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Pending</p>
-                                <p className="text-2xl font-bold text-orange-600">₹ 45,000</p>
+                            <div className="min-w-0">
+                                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t.parent.fees.paidThisYear}</p>
+                                <h3 className="text-xl sm:text-2xl font-bold">₹ {(feeData?.paid || 0).toLocaleString()}</h3>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Fee Records */}
-                <div className="dashboard-card">
-                    <h3 className="text-lg font-semibold mb-4">Fee Records</h3>
-                    <div className="space-y-3">
-                        {feesData.map((item) => (
-                            <div
-                                key={item.id}
-                                className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-4"
-                            >
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-medium">{item.type}</h4>
-                                        {item.status === 'paid' ? (
-                                            <Badge variant="success">Paid</Badge>
-                                        ) : (
-                                            <Badge variant="warning">Pending</Badge>
-                                        )}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {item.student} • Due: {item.dueDate}
-                                    </p>
-                                    {item.paymentDate && (
-                                        <p className="text-sm text-muted-foreground">
-                                            Paid on: {item.paymentDate}
-                                        </p>
-                                    )}
-                                </div>
+                {/* Fee Records Table */}
+                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="p-4 sm:p-6 border-b border-border">
+                        <h3 className="font-semibold text-base sm:text-lg">{t.parent.fees.feeRecords}</h3>
+                    </div>
 
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                        <p className="text-xl font-bold">{item.amount}</p>
-                                        {item.invoice && (
-                                            <p className="text-xs text-muted-foreground">
-                                                {item.invoice}
-                                            </p>
-                                        )}
-                                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-muted/50 border-b border-border">
+                                    <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.student}</th>
+                                    <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.feeType}</th>
+                                    <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.amount}</th>
+                                    <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.dueDate}</th>
+                                    <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.status}</th>
+                                    <th className="text-left py-3 px-4 font-medium text-muted-foreground text-sm">{t.parent.fees.action}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {feeRecords.length > 0 ? (
+                                    feeRecords.map((item: any) => {
+                                        let feeType = 'Tuition Fee';
+                                        try {
+                                            const desc = JSON.parse(item.description);
+                                            if (Array.isArray(desc) && desc.length > 0) {
+                                                feeType = desc.map(d => d.title).join(', ');
+                                            }
+                                        } catch (e) {
+                                            feeType = item.description || 'General Fee';
+                                        }
 
-                                    {item.status === 'paid' && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleViewReceipt(item)}
-                                        >
-                                            <Receipt className="w-4 h-4 mr-2" />
-                                            Receipt
-                                        </Button>
-                                    )}
-
-                                    {item.status === 'pending' && (
-                                        <Button size="sm">
-                                            Pay Now
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                                        return (
+                                            <tr key={item.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                                                <td className="py-3 px-4 text-sm font-medium">{item.students?.name || 'N/A'}</td>
+                                                <td className="py-3 px-4 text-sm max-w-[200px] truncate">{feeType}</td>
+                                                <td className="py-3 px-4 text-sm font-semibold">₹ {item.amount_due.toLocaleString()}</td>
+                                                <td className="py-3 px-4 text-sm text-muted-foreground">
+                                                    {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'N/A'}
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <Badge
+                                                        variant={item.status === 'paid' ? 'success' : item.status === 'partial' ? 'warning' : 'destructive'}
+                                                        className="capitalize"
+                                                    >
+                                                        {item.status}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    {item.status === 'paid' ? (
+                                                        <Button variant="ghost" size="sm" onClick={() => handleViewReceipt(item)}>
+                                                            <Download className="w-4 h-4 mr-2" />
+                                                            {t.parent.fees.receipt}
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            disabled={isPaying === item.id}
+                                                            onClick={() => handlePayNow(item)}
+                                                            className="bg-primary text-white"
+                                                        >
+                                                            {isPaying === item.id ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                                    {t.parent.fees.processing || 'Processing...'}
+                                                                </div>
+                                                            ) : (
+                                                                t.parent.fees.payNow
+                                                            )}
+                                                        </Button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={6} className="py-10 text-center text-muted-foreground italic">
+                                            No fee records found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </ParentLayout>
 
-                {/* Payment Instructions */}
-                <div className="dashboard-card bg-primary/5 border-primary/20">
-                    <h3 className="text-lg font-semibold mb-2">Payment Instructions</h3>
-                    <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                        <li>Payments can be made online or at the school office</li>
-                        <li>Late payment charges may apply after the due date</li>
-                        <li>Keep your transaction ID for future reference</li>
-                        <li>Download receipts for your records</li>
-                    </ul>
-                </div>
-            </div>
-        </ParentLayout>
+            <Dialog open={isInvoiceOpen} onOpenChange={setIsInvoiceOpen}>
+                <DialogContent className="max-w-2xl bg-white text-black p-0 overflow-hidden rounded-2xl border-none shadow-2xl">
+                    {selectedBill && (
+                        <InvoiceView
+                            student={selectedBill.student}
+                            institution={{
+                                name: institutionInfo?.name || 'VidyOn Institution',
+                                logo_url: institutionInfo?.logo_url,
+                                address: institutionInfo?.address,
+                                city: institutionInfo?.city,
+                                email: institutionInfo?.email,
+                                phone: institutionInfo?.phone
+                            }}
+                            classInfo={selectedBill.classInfo}
+                            onDownload={handleDownloadReceipt}
+                            onClose={() => setIsInvoiceOpen(false)}
+                            isParentView={true}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

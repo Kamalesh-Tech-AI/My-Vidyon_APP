@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 1. Fetch profile with institution data in one query
         const { data: profile } = await supabase
           .from('profiles')
-          .select('id, email, full_name, role, institution_id, is_active, phone, avatar_url, profile_image_url')
+          .select('id, email, full_name, role, institution_id, status, phone')
           .eq('id', userId)
           .maybeSingle();
 
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Check if profile is active
-        if (profile?.is_active === false) {
+        if (profile?.status === 'inactive') {
           console.error('🚫 [AUTH] BLOCKING LOGIN - Profile is disabled');
           throw new Error('USER_DISABLED');
         }
@@ -85,8 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('[AUTH] Role missing from profile, running fallback queries...');
           const [instRes, studentRes, parentRes, staffRes, accountantRes] = await Promise.all([
             supabase.from('institutions').select('institution_id').eq('admin_email', email).maybeSingle(),
-            supabase.from('students').select('institution_id, is_active, phone, address').eq('email', email).maybeSingle(),
-            supabase.from('parents').select('institution_id, is_active, phone').eq('email', email).maybeSingle(),
+            supabase.from('students').select('institution_id, address').eq('email', email).maybeSingle(),
+            supabase.from('parents').select('institution_id, phone').eq('email', email).maybeSingle(),
             supabase.from('staff_details').select('institution_id, role').eq('profile_id', userId).maybeSingle(),
             supabase.from('accountants').select('institution_id').eq('profile_id', userId).maybeSingle()
           ]);
@@ -99,23 +99,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // Check Student
           if (!detectedRole && studentRes.data) {
-            if (studentRes.data.is_active === false) {
-              console.error('🚫 [AUTH] BLOCKING LOGIN - Student account is disabled');
-              throw new Error('USER_DISABLED');
-            }
             detectedRole = 'student';
             institutionId = studentRes.data.institution_id;
           }
 
           // Check Parent
           if (!detectedRole && parentRes.data) {
-            if (parentRes.data.is_active === false) {
-              console.error('🚫 [AUTH] BLOCKING LOGIN - Parent account is disabled');
-              throw new Error('USER_DISABLED');
-            }
             detectedRole = 'parent';
             institutionId = parentRes.data.institution_id;
           }
+
+          // --- PARENT AUTO-SYNC & LINKING ---
+          if (detectedRole === 'parent' && institutionId) {
+            console.log('[AUTH] Syncing parent record and seeking children...');
+            try {
+              // 1. Ensure parent record exists in public.parents mapped to profile_id
+              const { data: parentRecord, error: parentError } = await supabase
+                .from('parents')
+                .upsert({
+                  profile_id: userId,
+                  email: email,
+                  institution_id: institutionId,
+                  name: profile?.full_name || email.split('@')[0]
+                }, { onConflict: 'profile_id' })
+                .select()
+                .single();
+
+              if (!parentError && parentRecord) {
+                // 2. Try to link students who have this parent's email as parent_email 
+                // but aren't linked in student_parents yet
+                const { data: unlinkedChildren } = await supabase
+                  .from('students')
+                  .select('id')
+                  .ilike('parent_email', email.trim());
+
+                if (unlinkedChildren && unlinkedChildren.length > 0) {
+                  const linkEntries = unlinkedChildren.map(child => ({
+                    student_id: child.id,
+                    parent_id: parentRecord.id
+                  }));
+
+                  // Upsert to avoid duplicate key errors if already linked
+                  await supabase.from('student_parents').upsert(linkEntries, { onConflict: 'student_id,parent_id' });
+                  console.log(`[AUTH] Auto-linked ${unlinkedChildren.length} children to parent ${email}`);
+                }
+              }
+            } catch (err) {
+              console.warn('[AUTH] Parent sync-linking failed:', err);
+            }
+          }
+          // ---------------------------------
 
           // Check Staff/Faculty (StaffDetails might have different role field)
           if (!detectedRole && staffRes.data) {
@@ -223,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: email,
           name: profile?.full_name || email.split('@')[0],
           role: detectedRole,
-          avatar: profile?.avatar_url || profile?.profile_image_url || extraDetails.imageUrl || staffImage,
+          avatar: extraDetails.imageUrl || staffImage,
           institutionId: institutionId,
           institutionName,
           institutionCode,
