@@ -166,7 +166,7 @@ const App = () => {
                       {/* Public Routes */}
                       <Route path="/" element={<Index />} />
                       <Route path="/login" element={<LoginPage />} />
-                      <Route path="/profile-switcher" element={<ProtectedRoute><ProfileSwitcherPage /></ProtectedRoute>} />
+                      <Route path="/profile-switcher" element={<ProfileSwitcherPage />} />
 
                       {/* Student Routes */}
                       <Route path="/student" element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />

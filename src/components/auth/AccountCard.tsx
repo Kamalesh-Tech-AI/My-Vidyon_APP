@@ -13,10 +13,10 @@ interface AccountCardProps {
 export function AccountCard({ user, isActive, onSwitch, className }: AccountCardProps) {
     return (
         <div
-            onClick={() => !isActive && onSwitch(user.id)}
+            onClick={() => onSwitch(user.id)}
             className={cn(
-                "relative w-full max-w-none md:max-w-[320px] min-h-[380px] md:min-h-[400px] h-auto p-5 md:p-6 rounded-none sm:rounded-3xl cursor-pointer transition-all duration-500 overflow-hidden group mx-0 md:mx-0",
-                "border-y sm:border shadow-xl",
+                "relative w-full max-w-none md:max-w-[320px] min-h-[380px] md:min-h-[400px] h-auto p-5 md:p-6 rounded-3xl cursor-pointer transition-all duration-500 overflow-hidden group mx-0 md:mx-0",
+                "border shadow-xl",
                 isActive
                     ? "bg-gradient-to-br from-primary/90 to-primary border-primary/20 scale-100"
                     : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 scale-100 hover:bg-slate-50 dark:hover:bg-slate-800/50",

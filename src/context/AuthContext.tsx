@@ -341,6 +341,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const accounts = await getAccountsList();
         const activeId = await getActiveAccountId();
 
+        // Check if user explicitly logged out
+        const { value: loggedOutFlag } = await Preferences.get({ key: 'myvidyon-logged-out' });
+        const hasLoggedOut = loggedOutFlag === 'true';
+
         if (activeId) {
           setActiveAccount(activeId);
         }
@@ -353,7 +357,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        if (session) {
+        // If user has logged out, show profile switcher instead of auto-signin
+        if (hasLoggedOut) {
+          console.log('[AUTH] User logged out - showing profile switcher');
+          setState({
+            user: null,
+            accounts,
+            activeAccountId: null,
+            isAuthenticated: false,
+            isLoading: false
+          });
+
+          // Navigate to login page if we have accounts (LoginPage has AccountSwitcher embedded)
+          if (accounts.length > 0 && (window.location.pathname === '/' || window.location.pathname === '/login')) {
+            navigate('/login');
+          }
+        } else if (session) {
+          // Auto-signin if user hasn't logged out
           console.log('[AUTH] Found existing session, restoring user...');
           try {
             const user = await fetchUserProfile(session.user.id, session.user.email!);
@@ -548,6 +568,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (credentials: LoginCredentials, isAdding?: boolean) => {
     console.log(`[AUTH] Login started for: ${credentials.email} (Adding: ${isAdding})`);
+
+    // Clear logout flag when logging in
+    await Preferences.remove({ key: 'myvidyon-logged-out' });
+
     setState(prev => ({ ...prev, isLoading: true }));
 
     isProcessingAuth.current = true;
@@ -672,6 +696,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }));
       }
 
+      // Set logout flag to prevent auto-signin on next app start
+      await Preferences.set({ key: 'myvidyon-logged-out', value: 'true' });
+
       toast.success('Logged out successfully', { id: loadingToast });
       navigate('/login');
     } catch (error: any) {
@@ -714,17 +741,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchAccount = useCallback(async (userId: string) => {
     try {
+      console.log('[AUTH] ===== SWITCH ACCOUNT STARTED =====');
+      console.log('[AUTH] Target userId:', userId);
+
+      // Clear logout flag when switching accounts
+      await Preferences.remove({ key: 'myvidyon-logged-out' });
+
       setState(prev => ({ ...prev, isLoading: true }));
       await setActiveAccountId(userId);
+      console.log('[AUTH] Active account ID set to:', userId);
 
       // --- CRITICAL: Force session refresh from storage to clear memory cache ---
       const savedSessionStr = await capacitorStorage.getItem('myvidyon-auth-session');
+      console.log('[AUTH] Session from storage:', savedSessionStr ? 'FOUND' : 'NOT FOUND');
       if (savedSessionStr) {
         console.log('[AUTH] Forcing session reload from storage for:', userId);
         const session = JSON.parse(savedSessionStr);
+        console.log('[AUTH] Session user ID:', session?.user?.id);
         const { error: setSessionError } = await supabase.auth.setSession(session);
         if (setSessionError) {
           console.error('[AUTH] setSession error:', setSessionError);
+        } else {
+          console.log('[AUTH] Session set successfully');
         }
       }
 
@@ -732,10 +770,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
 
       console.log(`[AUTH] Switching to user ${userId}, session found:`, !!session);
+      console.log('[AUTH] Session user ID from getSession:', session?.user?.id);
 
       if (session) {
+        console.log('[AUTH] Fetching user profile...');
         const user = await fetchUserProfile(session.user.id, session.user.email!);
         if (user) {
+          console.log('[AUTH] User profile fetched successfully:', user.name);
           setState(prev => ({
             ...prev,
             user,
@@ -745,7 +786,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }));
           navigate(ROLE_ROUTES[user.role]);
           toast.success(`Switched to ${user.name}`);
+
+          // Initialize push notifications
+          try {
+            await initializePushNotifications(user.id);
+          } catch (error) {
+            console.error('[AUTH] Push notification init failed:', error);
+          }
+          console.log('[AUTH] ===== SWITCH ACCOUNT SUCCESS =====');
           return;
+        } else {
+          console.error('[AUTH] User profile fetch returned null');
         }
       } else {
         // If session not found in the specific slot, try checking the 'default' slot
@@ -771,13 +822,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }));
             navigate(ROLE_ROUTES[user.role]);
             toast.success(`Switched to ${user.name}`);
+
+            // Initialize push notifications
+            try {
+              await initializePushNotifications(user.id);
+            } catch (error) {
+              console.error('[AUTH] Push notification init failed:', error);
+            }
+            console.log('[AUTH] ===== SWITCH ACCOUNT SUCCESS (from default) =====');
             return;
           }
         }
       }
+      console.error('[AUTH] ===== SWITCH ACCOUNT FAILED =====');
       throw new Error("Unable to restore session for this account");
     } catch (error) {
       console.error('[AUTH] Switch error:', error);
+      console.error('[AUTH] ===== SWITCH ACCOUNT ERROR =====');
       // Suppress toast - the switcher will handle the fallback to login form
       // toast.error("Failed to switch account");
       setState(prev => ({ ...prev, isLoading: false }));

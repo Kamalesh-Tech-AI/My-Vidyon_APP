@@ -1,13 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AccountSwitcher } from '@/components/auth/AccountSwitcher';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { ExitConfirmDialog } from '@/components/auth/ExitConfirmDialog';
+import { App as CapacitorApp } from '@capacitor/app';
 
 export function ProfileSwitcherPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const [showExitDialog, setShowExitDialog] = useState(false);
+
+    const handleBackClick = () => {
+        setShowExitDialog(true);
+    };
+
+    const handleExitConfirm = async () => {
+        try {
+            await CapacitorApp.exitApp();
+        } catch (error) {
+            console.error('Error exiting app:', error);
+            // Fallback for web
+            window.close();
+        }
+    };
 
     return (
         <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 flex flex-col overflow-x-hidden">
@@ -16,7 +33,7 @@ export function ProfileSwitcherPage() {
                 <div className="p-4 md:p-6 flex items-center justify-between container mx-auto">
                     <Button
                         variant="ghost"
-                        onClick={() => navigate(-1)}
+                        onClick={handleBackClick}
                         className="rounded-full w-12 h-12 p-0 hover:bg-slate-200 dark:hover:bg-slate-800"
                     >
                         <ArrowLeft className="w-6 h-6" />
@@ -60,6 +77,13 @@ export function ProfileSwitcherPage() {
                     &copy; 2025 Vidyon Academy Management Systems. <br className="md:hidden" /> All rights reserved.
                 </p>
             </div>
+
+            {/* Exit Confirmation Dialog */}
+            <ExitConfirmDialog
+                open={showExitDialog}
+                onOpenChange={setShowExitDialog}
+                onConfirm={handleExitConfirm}
+            />
         </div>
     );
 }

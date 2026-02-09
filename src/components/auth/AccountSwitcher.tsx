@@ -79,32 +79,31 @@ export function AccountSwitcher({ className, onSelect }: AccountSwitcherProps) {
                 </Button>
             </div>
 
-            <div className="relative">
+            <div className="relative px-6 md:px-0">
                 <div className="overflow-visible pb-12" ref={emblaRef}>
-                    <div className="flex gap-0 md:gap-6">
+                    <div className="flex gap-6 md:gap-8">
                         {accounts.map((acc) => (
                             <div
                                 key={acc.id}
-                                className="flex-[0_0_100%] min-w-0 sm:flex-[0_0_70%] md:flex-[0_0_300px] lg:flex-[0_0_320px]"
+                                className="flex-[0_0_calc(100%-4rem)] min-w-0 sm:flex-[0_0_70%] md:flex-[0_0_300px] lg:flex-[0_0_320px]"
                             >
                                 <AccountCard
                                     user={acc}
                                     isActive={acc.id === activeAccountId}
                                     onSwitch={handleAccountClick}
-                                    className="md:rounded-3xl"
                                 />
                             </div>
                         ))}
 
                         {/* Add New Account Card */}
                         <div
-                            className="flex-[0_0_100%] min-w-0 sm:flex-[0_0_70%] md:flex-[0_0_300px] lg:flex-[0_0_320px]"
+                            className="flex-[0_0_calc(100%-3rem)] min-w-0 sm:flex-[0_0_70%] md:flex-[0_0_300px] lg:flex-[0_0_320px]"
                         >
                             <div
                                 onClick={handleAddAccount}
                                 className={cn(
                                     "flex flex-col items-center justify-center min-h-[380px] md:min-h-[400px] h-auto rounded-3xl border-2 border-dashed border-primary/20 bg-white/50 dark:bg-slate-900/50 hover:bg-white/70 transition-colors cursor-pointer group",
-                                    "p-6 text-center mx-10 md:mx-0 shadow-sm"
+                                    "p-6 text-center shadow-sm"
                                 )}
                             >
                                 <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-primary group-hover:text-white transition-all duration-300">
