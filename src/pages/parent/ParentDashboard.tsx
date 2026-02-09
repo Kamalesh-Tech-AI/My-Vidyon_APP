@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/i18n/TranslationContext';
 import { useParentDashboard } from '@/hooks/useParentDashboard';
-import { Phone, Shield, School, User, Calendar, CreditCard, AlertCircle, Clock } from 'lucide-react';
+import { Phone, Shield, School, User, Calendar, CreditCard, AlertCircle, Clock, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/common/Badge';
 
@@ -74,11 +74,11 @@ export function ParentDashboard() {
                         </div>
                         <span className="shortcut-label">Security</span>
                     </button>
-                    <button className="shortcut-card" onClick={() => navigate('/parent/settings')}>
+                    <button className="shortcut-card" onClick={() => navigate('/parent/exam-schedule')}>
                         <div className="shortcut-icon-wrapper bg-indigo-100 text-indigo-600">
-                            <School className="w-6 h-6" />
+                            <BookOpen className="w-6 h-6" />
                         </div>
-                        <span className="shortcut-label">School Info</span>
+                        <span className="shortcut-label">Exam Schedule</span>
                     </button>
                     <button className="shortcut-card" onClick={() => scrollToSection('emergency-section')}>
                         <div className="shortcut-icon-wrapper bg-yellow-100 text-yellow-600">

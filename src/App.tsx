@@ -97,6 +97,8 @@ import { ParentFeeReceipt } from "./pages/parent/ParentFeeReceipt";
 import { ParentLeave } from "./pages/parent/ParentLeave";
 import { ParentSettings } from "./pages/parent/ParentSettings";
 import { ParentCalendar } from "./pages/parent/ParentCalendar";
+import { ParentExamSchedule } from "./pages/parent/ParentExamSchedule";
+import { ParentChildExamSchedule } from "./pages/parent/ParentChildExamSchedule";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
@@ -251,6 +253,8 @@ const App = () => {
                       <Route path="/parent/leave" element={<ProtectedRoute allowedRoles={['parent']}><ParentLeave /></ProtectedRoute>} />
                       <Route path="/parent/settings" element={<ProtectedRoute allowedRoles={['parent']}><ParentSettings /></ProtectedRoute>} />
                       <Route path="/parent/calendar" element={<ProtectedRoute allowedRoles={['parent']}><ParentCalendar /></ProtectedRoute>} />
+                      <Route path="/parent/exam-schedule" element={<ProtectedRoute allowedRoles={['parent']}><ParentExamSchedule /></ProtectedRoute>} />
+                      <Route path="/parent/exam-schedule/:childId" element={<ProtectedRoute allowedRoles={['parent']}><ParentChildExamSchedule /></ProtectedRoute>} />
 
                       {/* Admin Routes */}
                       {/* SaaS Admin Routes */}

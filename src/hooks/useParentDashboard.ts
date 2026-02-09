@@ -12,6 +12,7 @@ interface Child {
     section: string;
     rollNumber: string;
     classId: string;
+    profilePicture?: string;
 }
 
 interface ParentDashboardStats {
@@ -182,6 +183,7 @@ export function useParentDashboard(parentId?: string, institutionId?: string) {
                 section: child.section || 'A',
                 rollNumber: child.register_number || child.roll_number || 'N/A',
                 classId: child.class_id,
+                profilePicture: child.profile_picture || child.profile_image_url,
             })) as Child[];
         },
         enabled: !!parentId,
