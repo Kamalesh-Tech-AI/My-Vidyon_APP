@@ -166,7 +166,83 @@ export function ParentFees() {
                         <h3 className="font-semibold text-base sm:text-lg">{t.parent.fees.feeRecords}</h3>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    {/* Mobile Card View */}
+                    <div className="block lg:hidden">
+                        {feeRecords.length > 0 ? (
+                            feeRecords.map((item: any) => {
+                                let feeType = 'Tuition Fee';
+                                try {
+                                    const desc = JSON.parse(item.description);
+                                    if (Array.isArray(desc) && desc.length > 0) {
+                                        feeType = desc.map(d => d.title).join(', ');
+                                    }
+                                } catch (e) {
+                                    feeType = item.description || 'General Fee';
+                                }
+
+                                return (
+                                    <div key={item.id} className="p-4 border-b border-border hover:bg-muted/30 transition-colors">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold text-sm mb-1 truncate">{item.students?.name || 'N/A'}</p>
+                                                <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{feeType}</p>
+                                            </div>
+                                            <Badge
+                                                variant={item.status === 'paid' ? 'success' : item.status === 'partial' ? 'warning' : 'destructive'}
+                                                className="capitalize ml-2 flex-shrink-0"
+                                            >
+                                                {item.status}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">Amount</p>
+                                                <p className="font-bold text-base">₹ {item.amount_due.toLocaleString()}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-muted-foreground">Due Date</p>
+                                                <p className="text-sm">{item.due_date ? new Date(item.due_date).toLocaleDateString() : 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                        {item.status === 'paid' ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleViewReceipt(item)}
+                                                className="w-full min-h-[44px] flex items-center justify-center gap-2"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                                {t.parent.fees.receipt}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                disabled={isPaying === item.id}
+                                                onClick={() => handlePayNow(item)}
+                                                className="w-full min-h-[44px] bg-primary text-white"
+                                            >
+                                                {isPaying === item.id ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                        {t.parent.fees.processing || 'Processing...'}
+                                                    </div>
+                                                ) : (
+                                                    t.parent.fees.payNow
+                                                )}
+                                            </Button>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="p-8 text-center text-muted-foreground italic">
+                                No fee records found.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden lg:block overflow-x-auto">
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-muted/50 border-b border-border">
@@ -248,7 +324,7 @@ export function ParentFees() {
             </ParentLayout>
 
             <Dialog open={isInvoiceOpen} onOpenChange={setIsInvoiceOpen}>
-                <DialogContent className="max-w-2xl bg-white text-black p-0 overflow-hidden rounded-2xl border-none shadow-2xl">
+                <DialogContent className="!fixed !inset-0 !h-screen !w-screen !max-w-none !translate-x-0 !translate-y-0 sm:!max-w-2xl sm:!h-auto sm:!inset-auto sm:!w-auto sm:!left-[50%] sm:!top-[50%] sm:!-translate-x-1/2 sm:!-translate-y-1/2 bg-white text-black p-0 overflow-hidden !rounded-none sm:!rounded-2xl border-none shadow-2xl">
                     {selectedBill && (
                         <InvoiceView
                             student={selectedBill.student}
@@ -261,7 +337,6 @@ export function ParentFees() {
                                 phone: institutionInfo?.phone
                             }}
                             classInfo={selectedBill.classInfo}
-                            onDownload={handleDownloadReceipt}
                             onClose={() => setIsInvoiceOpen(false)}
                             isParentView={true}
                         />
