@@ -12,8 +12,20 @@ import {
     Users,
     GraduationCap,
     ChevronRight,
-    ArrowLeft
+    ArrowLeft,
+    CheckCircle
 } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useInstitution } from '@/context/InstitutionContext';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -34,6 +46,8 @@ export function CanteenDashboard() {
     const [loading, setLoading] = useState(false);
     const [dbClasses, setDbClasses] = useState<string[]>([]);
     const [dbSections, setDbSections] = useState<string[]>([]);
+    const [isSessionClosed, setIsSessionClosed] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const institutionId = user?.institutionId;
     const today = new Date().toISOString().split('T')[0];
@@ -91,6 +105,27 @@ export function CanteenDashboard() {
         fetchSections();
     }, [institutionId, selectedClass]);
 
+    // Fetch session status for today
+    useEffect(() => {
+        const fetchSessionStatus = async () => {
+            if (!institutionId) return;
+            try {
+                const { data, error } = await supabase
+                    .from('canteen_sessions')
+                    .select('is_closed')
+                    .eq('institution_id', institutionId)
+                    .eq('session_date', today)
+                    .maybeSingle();
+
+                if (error) throw error;
+                if (data) setIsSessionClosed(data.is_closed);
+            } catch (err: any) {
+                console.error('Error fetching session status:', err);
+            }
+        };
+        fetchSessionStatus();
+    }, [institutionId, today]);
+
     const fetchStudents = async () => {
         if (!selectedClass || !selectedSection || !institutionId) return;
         setLoading(true);
@@ -146,6 +181,11 @@ export function CanteenDashboard() {
     }, [viewMode, selectedClass, selectedSection]);
 
     const handleStudentClick = async (studentId: string, morningStatus: string) => {
+        if (isSessionClosed) {
+            toast.error('Attendance is closed for today');
+            return;
+        }
+
         let newStatus = 'absent';
         const currentCanteenStatus = canteenEntries[studentId] || 'absent';
         const isMorningAllowed = morningStatus === 'present' || morningStatus === 'late';
@@ -181,6 +221,32 @@ export function CanteenDashboard() {
             }
         } catch (err: any) {
             toast.error(err.message);
+        }
+    };
+
+    const handleSubmitAttendance = async () => {
+        if (!institutionId) return;
+        setIsSubmitting(true);
+
+        try {
+            const { error } = await supabase
+                .from('canteen_sessions')
+                .upsert({
+                    institution_id: institutionId,
+                    session_date: today,
+                    is_closed: true,
+                    closed_at: new Date().toISOString(),
+                    closed_by: user?.id
+                }, { onConflict: 'institution_id, session_date' });
+
+            if (error) throw error;
+
+            setIsSessionClosed(true);
+            toast.success('Canteen attendance closed for today');
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -223,16 +289,59 @@ export function CanteenDashboard() {
             <div className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="animate-in fade-in slide-in-from-left-4 duration-500">
                     <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Canteen Management</h1>
-                    <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                        <Calendar className="w-4 h-4" /> {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
+                    <div className="flex items-center gap-3 mt-1">
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Calendar className="w-4 h-4" /> {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                        {isSessionClosed && (
+                            <Badge variant="success" className="bg-green-500/10 text-green-600 border-green-200 gap-1.5 py-0.5 px-3">
+                                <CheckCircle className="w-3 h-3" /> SESSION CLOSED
+                            </Badge>
+                        )}
+                    </div>
                 </div>
-                {viewMode !== 'classes' && (
-                    <Button variant="ghost" onClick={goBack} className="self-start sm:self-center gap-2 h-10 md:h-12 px-4 md:px-6 rounded-xl border border-border bg-card hover:bg-muted transition-all shadow-sm">
-                        <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-                        <span className="text-sm md:text-base">Back</span>
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    {!isSessionClosed && stats.total > 0 && viewMode === 'students' && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button className="bg-primary hover:bg-primary/90 text-white gap-2 h-10 md:h-12 px-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+                                    <CheckCircle className="w-5 h-5" />
+                                    <span>Submit & Close Day</span>
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-2xl border-2">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-xl font-bold">Close Attendance for Today?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-muted-foreground">
+                                        This will finalize all records for {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}.
+                                        Once closed, you will not be able to modify any attendance data for today.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter className="gap-3 sm:gap-0">
+                                    <AlertDialogCancel className="rounded-xl h-12">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={handleSubmitAttendance}
+                                        className="bg-primary hover:bg-primary/90 rounded-xl h-12"
+                                        disabled={isSubmitting}
+                                    >
+                                        {isSubmitting ? (
+                                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        ) : (
+                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                        )}
+                                        Finalize & Close
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
+                    {viewMode !== 'classes' && (
+                        <Button variant="ghost" onClick={goBack} className="self-start sm:self-center gap-2 h-10 md:h-12 px-4 md:px-6 rounded-xl border border-border bg-card hover:bg-muted transition-all shadow-sm">
+                            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
+                            <span className="text-sm md:text-base">Back</span>
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {viewMode === 'classes' && (
@@ -240,105 +349,74 @@ export function CanteenDashboard() {
                     {dbClasses.map((cls) => (
                         <Card
                             key={cls}
-                            className="p-4 md:p-6 cursor-pointer hover:shadow-xl hover:border-primary/50 hover:scale-102 transition-all bg-card/50 backdrop-blur-sm border-2 flex flex-col items-center justify-center text-center gap-3 md:gap-4 group"
                             onClick={() => handleClassClick(cls)}
+                            className="p-4 md:p-6 cursor-pointer hover:shadow-xl hover:border-primary/50 hover:scale-102 transition-all bg-card/50 backdrop-blur-sm border-2 flex flex-col items-center justify-center text-center gap-3 md:gap-4 group"
                         >
-                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors duration-300">
-                                <GraduationCap className="w-6 h-6 md:w-8 md:h-8" />
+                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                                <GraduationCap className="w-6 h-6 md:w-8 md:h-8 text-primary" />
                             </div>
                             <div>
-                                <h3 className="text-lg md:text-xl font-bold">{cls}</h3>
-                                <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-widest font-semibold opacity-60">Grade</p>
+                                <h3 className="text-lg md:text-xl font-black text-foreground">Class {cls}</h3>
+                                <p className="text-xs md:text-sm text-muted-foreground font-medium mt-1">Select section</p>
                             </div>
-                            <div className="mt-1 md:mt-2 w-full pt-3 md:pt-4 border-t border-border/50 flex items-center justify-center text-primary font-bold text-[10px] md:text-xs gap-1 group-hover:translate-x-1 transition-transform">
-                                VIEW SECTIONS <ChevronRight className="w-3 h-3" />
-                            </div>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                         </Card>
                     ))}
                 </div>
             )}
 
             {viewMode === 'sections' && (
-                <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-300">
-                    <div className="text-center mb-8">
-                        <Badge variant="outline" className="mb-2 px-4 py-1 text-sm font-bold uppercase tracking-wider">{selectedClass}</Badge>
-                        <h2 className="text-3xl font-bold">Select Section</h2>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                        {dbSections.map((sec) => (
-                            <Card
-                                key={sec}
-                                className="p-4 md:p-8 cursor-pointer hover:shadow-lg hover:border-primary border-2 transition-all bg-card flex items-center justify-between group"
-                                onClick={() => handleSectionClick(sec)}
-                            >
-                                <div className="flex items-center gap-3 md:gap-4">
-                                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-muted flex items-center justify-center text-base md:text-lg font-black group-hover:bg-primary group-hover:text-white transition-colors">
-                                        {sec}
-                                    </div>
-                                    <span className="text-lg md:text-xl font-bold">Section {sec}</span>
-                                </div>
-                                <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                            </Card>
-                        ))}
-                    </div>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                    {dbSections.map((sec) => (
+                        <Card
+                            key={sec}
+                            onClick={() => handleSectionClick(sec)}
+                            className="p-4 md:p-6 cursor-pointer hover:shadow-xl hover:border-primary/50 hover:scale-102 transition-all bg-card/50 backdrop-blur-sm border-2 flex flex-col items-center justify-center text-center gap-3 md:gap-4 group"
+                        >
+                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
+                                <Users className="w-6 h-6 md:w-8 md:h-8 text-secondary" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg md:text-xl font-black text-foreground">Section {sec}</h3>
+                                <p className="text-xs md:text-sm text-muted-foreground font-medium mt-1">Class {selectedClass}</p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-secondary transition-colors" />
+                        </Card>
+                    ))}
                 </div>
             )}
 
             {viewMode === 'students' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-10 duration-500">
-                    {/* Stats Overview */}
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
-                        <Card className="p-3 md:p-4 border-2">
-                            <div className="text-xl md:text-2xl font-bold text-foreground">{stats.total}</div>
-                            <div className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-wider mt-1">Total</div>
-                        </Card>
-                        <Card className="p-3 md:p-4 border-2 border-green-200 bg-green-50/50">
-                            <div className="text-xl md:text-2xl font-bold text-green-600">{stats.morningPresent}</div>
-                            <div className="text-[10px] md:text-xs text-green-700 uppercase tracking-wider mt-1">Present</div>
-                        </Card>
-                        <Card className="p-3 md:p-4 border-2 border-red-200 bg-red-50/50">
-                            <div className="text-xl md:text-2xl font-bold text-red-600">{stats.morningAbsent}</div>
-                            <div className="text-[10px] md:text-xs text-red-700 uppercase tracking-wider mt-1">Absent</div>
-                        </Card>
-                        <Card className="p-3 md:p-4 border-2 border-blue-200 bg-blue-50/50">
-                            <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.canteenPermitted}</div>
-                            <div className="text-[10px] md:text-xs text-blue-700 uppercase tracking-wider mt-1">Permitted</div>
-                        </Card>
-                        <Card className="p-3 md:p-4 border-2 border-gray-300 bg-gray-50/50">
-                            <div className="text-xl md:text-2xl font-bold text-gray-600">{stats.canteenUnverified}</div>
-                            <div className="text-[10px] md:text-xs text-gray-700 uppercase tracking-wider mt-1">Unverified</div>
-                        </Card>
-                    </div>
-
-                    {/* Class/Section Header + Search */}
-                    <div className="bg-card border-2 rounded-2xl p-4 md:p-6 shadow-sm">
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                            <div className="flex items-center gap-3 md:gap-4">
-                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
-                                    <Users className="w-5 h-5 md:w-6 md:h-6" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl md:text-2xl font-black">{selectedClass} - {selectedSection}</h2>
-                                    <p className="text-xs md:text-sm text-muted-foreground">Class Strength: {students.length} Students</p>
-                                </div>
+                <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between sticky top-0 z-10 py-2 bg-background/95 backdrop-blur-sm">
+                        <div className="relative w-full md:w-96">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search students..."
+                                className="pl-10 h-11 rounded-xl border-2 focus:ring-primary/20"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex flex-wrap gap-2 md:gap-4">
+                            <div className="px-4 py-2 bg-green-50 rounded-xl border border-green-100 flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-green-500" />
+                                <span className="text-sm font-bold text-green-700">Permitted: {stats.canteenPermitted}</span>
                             </div>
-                            <div className="relative w-full lg:w-80">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by name or roll no..."
-                                    className="pl-10 h-10 md:h-11 rounded-xl w-full"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
+                            <div className="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100 flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-gray-500" />
+                                <span className="text-sm font-bold text-gray-700">Unverified: {stats.canteenUnverified}</span>
+                            </div>
+                            <div className="px-4 py-2 bg-primary/5 rounded-xl border border-primary/10 flex items-center gap-3">
+                                <span className="text-sm font-bold text-primary">Total: {stats.total}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Students Grid */}
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
-                            <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                            <p className="text-muted-foreground font-medium">Loading students...</p>
+                            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                            <p className="text-muted-foreground font-medium">Loading student data...</p>
                         </div>
                     ) : (
                         <>
@@ -362,7 +440,8 @@ export function CanteenDashboard() {
                                                         : "border-gray-400 bg-gray-100 hover:border-gray-500"
                                                     : isMorningAbsent
                                                         ? "border-red-200 bg-red-50/20 hover:border-red-300"
-                                                        : "border-border hover:border-primary/30"
+                                                        : "border-border hover:border-primary/30",
+                                                isSessionClosed && "opacity-80 grayscale-[0.2]"
                                             )}
                                             onClick={() => handleStudentClick(student.id, morningStatus)}
                                         >

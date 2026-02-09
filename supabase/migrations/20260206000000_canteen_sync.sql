@@ -166,3 +166,30 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS tr_canteen_photo_sync ON public.canteen_attendance;
 CREATE TRIGGER tr_canteen_photo_sync BEFORE INSERT OR UPDATE ON public.canteen_attendance
 FOR EACH ROW EXECUTE FUNCTION tr_sync_canteen_photo();
+
+-- 8. Table to track canteen sessions (closed status)
+CREATE TABLE IF NOT EXISTS public.canteen_sessions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    institution_id TEXT NOT NULL,
+    session_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    is_closed BOOLEAN NOT NULL DEFAULT false,
+    closed_at TIMESTAMP WITH TIME ZONE,
+    closed_by UUID REFERENCES auth.users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    UNIQUE(institution_id, session_date)
+);
+
+-- Enable RLS
+ALTER TABLE public.canteen_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Policies for canteen_sessions
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'canteen_sessions' AND policyname = 'Allow public view') THEN
+        CREATE POLICY "Allow public view" ON public.canteen_sessions FOR SELECT USING (true);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'canteen_sessions' AND policyname = 'Allow service role manage') THEN
+        CREATE POLICY "Allow service role manage" ON public.canteen_sessions FOR ALL USING (true) WITH CHECK (true);
+    END IF;
+END $$;
