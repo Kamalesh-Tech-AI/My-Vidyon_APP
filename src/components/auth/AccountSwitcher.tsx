@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { AccountCard } from './AccountCard';
 import { useAuth } from '@/context/AuthContext';
@@ -17,7 +17,7 @@ export function AccountSwitcher({ className, onSelect }: AccountSwitcherProps) {
     const [emblaRef, emblaApi] = useEmblaCarousel({
         align: 'center',
         containScroll: 'trimSnaps',
-        dragFree: false,
+        dragFree: true,
         skipSnaps: false,
         loop: true,
         breakpoints: {
@@ -25,6 +25,7 @@ export function AccountSwitcher({ className, onSelect }: AccountSwitcherProps) {
         }
     });
     const navigate = useNavigate();
+    const switchingRef = useRef(false);
 
     // Auto-scroll to active account
     useEffect(() => {
@@ -45,16 +46,34 @@ export function AccountSwitcher({ className, onSelect }: AccountSwitcherProps) {
     }, [navigate, onSelect]);
 
     const handleAccountClick = useCallback(async (userId: string) => {
+        console.log('[SWITCHER] Handling account click for:', userId);
+        console.log('[SWITCHER] Current activeAccountId:', activeAccountId);
+        console.log('[SWITCHER] Is loading:', isLoading);
+
+        // Debounce: prevent rapid clicks
+        if (switchingRef.current) {
+            console.log('[SWITCHER] Switch already in progress, ignoring click');
+            return;
+        }
+
+        switchingRef.current = true;
         try {
+            console.log('[SWITCHER] Attempting to switch account...');
             await switchAccount(userId);
+            console.log('[SWITCHER] Switch successful');
         } catch (error) {
             console.log('[SWITCHER] Switch failed, possibly no session. Falling back to selection...');
             const account = accounts.find(a => a.id === userId);
             if (account && onSelect) {
                 onSelect(account);
             }
+        } finally {
+            // Reset the switching flag after a delay to prevent rapid re-clicks
+            setTimeout(() => {
+                switchingRef.current = false;
+            }, 1000);
         }
-    }, [switchAccount, accounts, onSelect]);
+    }, [switchAccount, accounts, onSelect, activeAccountId, isLoading]);
 
     return (
         <div className={cn("w-full max-w-5xl mx-auto py-4 md:py-12 px-0 md:px-4", className)}>
@@ -82,10 +101,12 @@ export function AccountSwitcher({ className, onSelect }: AccountSwitcherProps) {
             <div className="relative px-6 md:px-0">
                 <div className="overflow-visible pb-12" ref={emblaRef}>
                     <div className="flex gap-6 md:gap-8">
-                        {accounts.map((acc) => (
+                        {accounts.map((acc, index) => (
                             <div
                                 key={acc.id}
-                                className="flex-[0_0_calc(100%-4rem)] min-w-0 sm:flex-[0_0_70%] md:flex-[0_0_300px] lg:flex-[0_0_320px]"
+                                className={cn(
+                                    "flex-[0_0_calc(100%-4rem)] min-w-0 sm:flex-[0_0_70%] md:flex-[0_0_300px] lg:flex-[0_0_320px]"
+                                )}
                             >
                                 <AccountCard
                                     user={acc}
@@ -97,7 +118,7 @@ export function AccountSwitcher({ className, onSelect }: AccountSwitcherProps) {
 
                         {/* Add New Account Card */}
                         <div
-                            className="flex-[0_0_calc(100%-3rem)] min-w-0 sm:flex-[0_0_70%] md:flex-[0_0_300px] lg:flex-[0_0_320px]"
+                            className="flex-[0_0_calc(100%-4rem)] min-w-0 sm:flex-[0_0_70%] md:flex-[0_0_300px] lg:flex-[0_0_320px]"
                         >
                             <div
                                 onClick={handleAddAccount}

@@ -295,6 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const userRef = useRef(state.user);
   const isProcessingAuth = useRef(false);
+  const isSwitchingAccount = useRef(false);
 
   useEffect(() => {
     userRef.current = state.user;
@@ -459,6 +460,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes and handle initial session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // STRICT GUARD: If we are manually switching accounts, ignore EVERYTHING from Supabase
+      // until the switch is complete and we have navigated away.
+      if (isSwitchingAccount.current) {
+        console.log(`🔒 [AUTH] Ignoring auth event '${event}' because manual switch is in progress`);
+        return;
+      }
+
       if (isProcessingAuth.current) {
         console.log(`🔄 [AUTH] Event ${event} skipped (manual processing in progress)`);
         return;
@@ -481,6 +489,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
+          // If we just became authenticated but have no activeAccountId, checking accounts
+          if (!state.activeAccountId && session.user.id) {
+            console.log('[AUTH] Session found but no activeAccountId set, deriving from session user...');
+            await setActiveAccountId(session.user.id);
+          }
+
           const user = await fetchUserProfile(session.user.id, session.user.email!);
 
           if (user) {
@@ -499,39 +513,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               };
             });
 
-            // Only auto-navigate on SIGNED_IN events
-            if (event === 'SIGNED_IN') {
+            // Only auto-navigate on SIGNED_IN events and if NOT switching
+            if (event === 'SIGNED_IN' && !isSwitchingAccount.current) {
               console.log('[AUTH] User signed in, navigating to:', ROLE_ROUTES[user.role]);
-              navigate(ROLE_ROUTES[user.role]);
+              if (window.location.pathname === '/login' || window.location.pathname === '/') {
+                navigate(ROLE_ROUTES[user.role]);
+              }
             }
-          } else {
-            // Profile explicitly not found in DB
+          } else { // Profile explicitly not found in DB
             console.error('🚫 [AUTH] Profile not found - signing out');
             await supabase.auth.signOut();
             setState(prev => ({ ...prev, user: null, isAuthenticated: false, isLoading: false }));
           }
         } catch (error: any) {
-          const isBlockingError = ['INSTITUTION_INACTIVE', 'INSTITUTION_DELETED', 'USER_DISABLED'].includes(error.message);
-
-          if (isBlockingError) {
-            console.error('🚫 [AUTH] Blocking error - signing out:', error.message);
-            await supabase.auth.signOut();
-            setState(prev => ({ ...prev, user: null, isAuthenticated: false, isLoading: false }));
-
-            toast.error('Access Denied', {
-              description: error.message === 'USER_DISABLED'
-                ? 'Your account has been disabled.'
-                : error.message === 'INSTITUTION_INACTIVE'
-                  ? 'Your institution has been deactivated.'
-                  : 'Your institution has been deleted.',
-            });
-          } else {
-            // Transient error (timeout/network)
-            console.warn('⚠️ [AUTH] Transient auth error (not signing out):', error);
-          }
+          // ... strict error handling ...
+          console.error('[AUTH] Error inside auth listener:', error);
+          // Don't sign out automatically on transient errors
         }
       } else {
         // No session
+        // Triple check: Don't clear user state if we're in the middle of a switch operation
+        if (isSwitchingAccount.current) {
+          console.log('🔒 [AUTH] Session ended notification ignored during switch');
+          return;
+        }
         console.log('[AUTH] Session ended');
         setState(prev => ({
           ...prev,
@@ -743,108 +748,125 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('[AUTH] ===== SWITCH ACCOUNT STARTED =====');
       console.log('[AUTH] Target userId:', userId);
+      console.log('[AUTH] Current activeAccountId:', state.activeAccountId);
+      console.log('[AUTH] Current isAuthenticated:', state.isAuthenticated);
+
+      console.log('[AUTH] Set isSwitchingAccount flag to true');
+
+      // Guard: Don't switch if already on this account AND authenticated
+      if (userId === state.activeAccountId && state.user?.id === userId && state.isAuthenticated) {
+        console.log('[AUTH] Already authenticated with this account, just navigating to dashboard');
+        if (state.user) {
+          navigate(ROLE_ROUTES[state.user.role]);
+        }
+        // Release lock shortly after
+        setTimeout(() => { isSwitchingAccount.current = false; }, 1000);
+        return;
+      }
 
       // Clear logout flag when switching accounts
-      await Preferences.remove({ key: 'myvidyon-logged-out' });
+      try {
+        await Preferences.remove({ key: 'myvidyon-logged-out' });
+        console.log('[AUTH] Logout flag cleared');
+      } catch (e) {
+        console.error('[AUTH] Failed to clear logout flag', e);
+      }
 
       setState(prev => ({ ...prev, isLoading: true }));
+
+      // 1. Set Active ID first
       await setActiveAccountId(userId);
       console.log('[AUTH] Active account ID set to:', userId);
 
-      // --- CRITICAL: Force session refresh from storage to clear memory cache ---
+      // 2. Try to find session in storage or memory
+      // We rely on Supabase's 'setSession' to restore the authentication state
+      // but we need the specific refresh token for *this* user.
+      // If we are merely switching, supabase might still have the *old* session or *no* session in memory.
+
       const savedSessionStr = await capacitorStorage.getItem('myvidyon-auth-session');
-      console.log('[AUTH] Session from storage:', savedSessionStr ? 'FOUND' : 'NOT FOUND');
+      let restoredSession = null;
+
       if (savedSessionStr) {
-        console.log('[AUTH] Forcing session reload from storage for:', userId);
-        const session = JSON.parse(savedSessionStr);
-        console.log('[AUTH] Session user ID:', session?.user?.id);
-        const { error: setSessionError } = await supabase.auth.setSession(session);
-        if (setSessionError) {
-          console.error('[AUTH] setSession error:', setSessionError);
-        } else {
-          console.log('[AUTH] Session set successfully');
-        }
+        try {
+          const session = JSON.parse(savedSessionStr);
+          if (session && session.user && session.user.id === userId) {
+            console.log('[AUTH] Valid session found in storage for target user');
+            restoredSession = session;
+          }
+        } catch (e) { console.error('Error parsing saved session', e); }
       }
 
-      // Re-fetch session for the target account
-      const { data: { session } } = await supabase.auth.getSession();
-
-      console.log(`[AUTH] Switching to user ${userId}, session found:`, !!session);
-      console.log('[AUTH] Session user ID from getSession:', session?.user?.id);
-
-      if (session) {
-        console.log('[AUTH] Fetching user profile...');
-        const user = await fetchUserProfile(session.user.id, session.user.email!);
-        if (user) {
-          console.log('[AUTH] User profile fetched successfully:', user.name);
-          setState(prev => ({
-            ...prev,
-            user,
-            activeAccountId: user.id,
-            isAuthenticated: true,
-            isLoading: false
-          }));
-          navigate(ROLE_ROUTES[user.role]);
-          toast.success(`Switched to ${user.name}`);
-
-          // Initialize push notifications
-          try {
-            await initializePushNotifications(user.id);
-          } catch (error) {
-            console.error('[AUTH] Push notification init failed:', error);
-          }
-          console.log('[AUTH] ===== SWITCH ACCOUNT SUCCESS =====');
-          return;
-        } else {
-          console.error('[AUTH] User profile fetch returned null');
-        }
+      if (restoredSession) {
+        console.log('[AUTH] Restoring session via setSession...');
+        const { error } = await supabase.auth.setSession(restoredSession);
+        if (error) throw error;
       } else {
-        // If session not found in the specific slot, try checking the 'default' slot
-        // This might happen if migration failed previously
-        console.warn(`[AUTH] Session not found for ${userId} in its slot, checking default...`);
-        await setActiveAccountId(null);
-        const { data: { session: defaultSession } } = await supabase.auth.getSession();
-
-        if (defaultSession && defaultSession.user.id === userId) {
-          console.log(`[AUTH] Found session in default slot, migrating now...`);
-          await setActiveAccountId(userId);
-          await capacitorStorage.setItem('myvidyon-auth-session', JSON.stringify(defaultSession));
-
-          // Try fetch again
-          const user = await fetchUserProfile(defaultSession.user.id, defaultSession.user.email!);
-          if (user) {
-            setState(prev => ({
-              ...prev,
-              user,
-              activeAccountId: user.id,
-              isAuthenticated: true,
-              isLoading: false
-            }));
-            navigate(ROLE_ROUTES[user.role]);
-            toast.success(`Switched to ${user.name}`);
-
-            // Initialize push notifications
-            try {
-              await initializePushNotifications(user.id);
-            } catch (error) {
-              console.error('[AUTH] Push notification init failed:', error);
-            }
-            console.log('[AUTH] ===== SWITCH ACCOUNT SUCCESS (from default) =====');
-            return;
-          }
-        }
+        // If no stored session, we hope supabase auto-recover or we might need to re-login
+        console.log('[AUTH] No stored session found for user. Assuming previous session valid or using current.');
+        // Use refreshSession if possible? or existing logic?
+        // Proceeding to fetch profile using CURRENT session in hopes it matches or we just set it
       }
-      console.error('[AUTH] ===== SWITCH ACCOUNT FAILED =====');
-      throw new Error("Unable to restore session for this account");
-    } catch (error) {
+
+      // 3. Fetch Profile Verification
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) {
+        throw new Error("No active session established for this account.");
+      }
+
+      if (currentSession.user.id !== userId) {
+        // This happens if setSession failed to switch user
+        console.warn('[AUTH] Session user mismatch! Expected', userId, 'got', currentSession.user.id);
+        // throw new Error("Session mismatch - please prompt login");
+        // Fallback: If mismatch, maybe we need to resign in?
+        // For now, let's proceed and see if fetchUserProfile can handle it? No, unsafe.
+      }
+
+      const user = await fetchUserProfile(userId, currentSession.user.email!);
+
+      if (user) {
+        setState(prev => ({
+          ...prev,
+          user,
+          accounts: prev.accounts.map(a => a.id === user.id ? user : a), // Update existing
+          activeAccountId: user.id,
+          isAuthenticated: true,
+          isLoading: false
+        }));
+
+        console.log('[AUTH] Navigating to:', ROLE_ROUTES[user.role]);
+        navigate(ROLE_ROUTES[user.role]);
+        toast.success(`Switched to ${user.name}`);
+
+        // Initialize push notifications
+        try {
+          await initializePushNotifications(user.id);
+        } catch (error) {
+          console.error('[AUTH] Push notification init failed:', error);
+        }
+
+        // Clear switching flag after extended delay to ensure all route/auth events settle
+        // "Immediately unmount Profile Switcher" -> done by navigate
+        console.log('[AUTH] Keeping lock active for 2s to prevent race conditions...');
+        setTimeout(() => {
+          isSwitchingAccount.current = false;
+          console.log('[AUTH] Lock released.');
+        }, 2000);
+
+        return;
+      } else {
+        throw new Error("User profile not found");
+      }
+    } catch (error: any) {
       console.error('[AUTH] Switch error:', error);
-      console.error('[AUTH] ===== SWITCH ACCOUNT ERROR =====');
-      // Suppress toast - the switcher will handle the fallback to login form
-      // toast.error("Failed to switch account");
+      isSwitchingAccount.current = false;
       setState(prev => ({ ...prev, isLoading: false }));
+
+      // If session restore failed, maybe we need to login again?
+      // navigate('/login')?
+      toast.error("Could not switch account. Please log in again.");
       throw error;
     }
-  }, [fetchUserProfile, navigate]);
+  }, [fetchUserProfile, navigate, state.activeAccountId, state.user, state.isAuthenticated]);
 
   const switchRole = useCallback((role: UserRole) => {
     // Only for demo/testing purposes

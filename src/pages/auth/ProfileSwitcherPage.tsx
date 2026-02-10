@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AccountSwitcher } from '@/components/auth/AccountSwitcher';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,7 @@ export function ProfileSwitcherPage() {
     };
 
     const handleExitConfirm = async () => {
+        console.log('[PROFILE_SWITCHER] User confirmed exit');
         try {
             await CapacitorApp.exitApp();
         } catch (error) {
@@ -25,6 +26,18 @@ export function ProfileSwitcherPage() {
             window.close();
         }
     };
+
+    // Listen for hardware back button on Android
+    useEffect(() => {
+        const backButtonListener = CapacitorApp.addListener('backButton', () => {
+            console.log('[PROFILE_SWITCHER] Hardware back button pressed');
+            setShowExitDialog(true);
+        });
+
+        return () => {
+            backButtonListener.then(listener => listener.remove());
+        };
+    }, []);
 
     return (
         <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 flex flex-col overflow-x-hidden">
