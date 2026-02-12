@@ -3,6 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from './lib/supabase';
+import { LanguageProvider } from '@/i18n/LanguageContext';
 
 // Initialize Capacitor App lifecycle
 CapacitorApp.addListener('appStateChange', async ({ isActive }) => {
@@ -27,4 +28,8 @@ CapacitorApp.addListener('appStateChange', async ({ isActive }) => {
 });
 
 // Render React app
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+    <LanguageProvider>
+        <App />
+    </LanguageProvider>
+);

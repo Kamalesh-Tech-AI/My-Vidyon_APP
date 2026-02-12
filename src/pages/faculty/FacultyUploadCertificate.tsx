@@ -40,7 +40,31 @@ export function FacultyUploadCertificate() {
             setIsLoadingClass(true);
 
             try {
-                // Try to get faculty's class from timetable_slots (most common class they teach)
+                console.log('[CERTIFICATE] Starting class detection for user:', user.id, user.email);
+
+                // 1. First, try to get explicit class assignment from staff_details (The correct way)
+                const { data: staffData, error: staffError } = await supabase
+                    .from('staff_details')
+                    .select('class_assigned, section_assigned')
+                    .eq('profile_id', user.id)
+                    .maybeSingle(); // Use maybeSingle to avoid error when no record exists
+
+                console.log('[CERTIFICATE] Staff details query result:', { staffData, staffError });
+
+                if (!staffError && staffData && staffData.class_assigned && staffData.section_assigned) {
+                    console.log('[CERTIFICATE] ✅ Found explicit class teacher assignment:', staffData);
+                    setFacultyClass({
+                        class_name: staffData.class_assigned,
+                        section: staffData.section_assigned,
+                        class_id: 'assigned-via-profile' // Placeholder, as we mainly utilize class_name/section for referencing
+                    });
+                    setIsLoadingClass(false);
+                    return;
+                }
+
+                console.log('[CERTIFICATE] ⚠️ No explicit assignment found, falling back to timetable analysis...');
+
+                // 2. Fallback: Try to guess faculty's class from timetable_slots (most common class they teach)
                 const { data: timetableData, error: timetableError } = await supabase
                     .from('timetable_slots')
                     .select(`
@@ -49,7 +73,9 @@ export function FacultyUploadCertificate() {
                         classes:class_id (name)
                     `)
                     .eq('faculty_id', user.id)
-                    .limit(10);
+                    .limit(20); // Increased limit for better accuracy
+
+                console.log('[CERTIFICATE] Timetable query result:', { count: timetableData?.length, error: timetableError });
 
                 if (timetableError) {
                     console.error('[CERTIFICATE] Error fetching timetable:', timetableError);
@@ -78,22 +104,22 @@ export function FacultyUploadCertificate() {
                     const mostCommon = Object.values(classCounts).sort((a, b) => b.count - a.count)[0];
 
                     if (mostCommon) {
-                        console.log('[CERTIFICATE] Faculty class detected:', mostCommon);
+                        console.log('[CERTIFICATE] ✅ Faculty class detected from timetable:', mostCommon);
                         setFacultyClass({
                             class_name: mostCommon.class_name,
                             section: mostCommon.section,
                             class_id: mostCommon.class_id
                         });
                     } else {
-                        console.log('[CERTIFICATE] No class found in timetable');
+                        console.log('[CERTIFICATE] ❌ No class found in timetable counts');
                         toast.error('No class assigned to you. Please contact admin.');
                     }
                 } else {
-                    console.log('[CERTIFICATE] No timetable slots found for faculty');
+                    console.log('[CERTIFICATE] ❌ No timetable slots found for faculty');
                     toast.error('No class assigned to you. Please contact admin.');
                 }
             } catch (error) {
-                console.error('[CERTIFICATE] Error:', error);
+                console.error('[CERTIFICATE] ❌ Error during class detection:', error);
                 toast.error('Failed to load your class information');
             } finally {
                 setIsLoadingClass(false);
@@ -249,7 +275,7 @@ export function FacultyUploadCertificate() {
                 student_email: formData.studentEmail,
                 student_name: formData.studentName,
                 faculty_id: user.id,
-                faculty_name: user.fullName || user.email,
+                faculty_name: user.name || user.email,
                 institution_id: user.institutionId,
                 category: formData.title,
                 course_description: formData.description,

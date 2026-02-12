@@ -189,6 +189,9 @@ export const te: TranslationKeys = {
             downloadingReceipt: "రసీదు డౌన్‌లోడ్ అవుతోంది",
             dueDate: "గడువు తేదీ",
             status: "స్థితి",
+            processingPayment: "చెల్లింపు ప్రాసెస్ అవుతోంది...",
+            paymentSuccess: "చెల్లింపు విజయవంతంగా పూర్తయింది!",
+            processing: "ప్రాసెస్ అవుతోంది...",
         },
         leave: {
             title: "సెలవు దరఖాస్తు",

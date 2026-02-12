@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { translations, Language } from './translations';
 import { TranslationKeys } from './translations/en';
+import { useLanguage } from './LanguageContext';
 
 interface TranslationContextType {
     language: Language;
@@ -14,20 +15,18 @@ const TranslationContext = createContext<TranslationContextType | undefined>(und
 const STORAGE_KEY = 'eduErp_language';
 
 export function TranslationProvider({ children }: { children: ReactNode }) {
-    const [language, setLanguageState] = useState<Language>(() => {
-        // Get saved language from localStorage or default to 'en'
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return (saved as Language) || 'en';
-    });
+    // Adapter: Use the single source of truth from LanguageContext
+    const { currentLanguage, changeLanguage } = useLanguage();
 
-    const setLanguage = (lang: Language) => {
-        setLanguageState(lang);
-        localStorage.setItem(STORAGE_KEY, lang);
-    };
+    // Determine the language key safely (fallback to 'en' if undefined)
+    const activeLanguage = currentLanguage || 'en';
 
-    const t = translations[language];
+    // Select the correct translation object
+    // Cast to any to avoid strict indexing issues if types aren't perfectly aligned yet, 
+    // ensuring we always get an object.
+    const t = translations[activeLanguage as keyof typeof translations] || translations['en'];
 
-    // Helper function to get nested translation by dot notation
+    // Helper function to get nested translation by dot notation (Legacy support)
     const translate = (key: string): string => {
         const keys = key.split('.');
         let value: any = t;
@@ -44,7 +43,12 @@ export function TranslationProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <TranslationContext.Provider value={{ language, setLanguage, t, translate }}>
+        <TranslationContext.Provider value={{
+            language: activeLanguage as Language, // Cast to maintain compatibility
+            setLanguage: changeLanguage,
+            t,
+            translate
+        }}>
             {children}
         </TranslationContext.Provider>
     );

@@ -1,22 +1,13 @@
 import { en } from './en';
-import { es } from './es';
-import { hi } from './hi';
-import { ta } from './ta';
-import { te } from './te';
-import { kn } from './kn';
-import { ml } from './ml';
+// Static translations are no longer imported here for other languages
+// They are fetched dynamically via GoogleTranslationService
 
 export const translations = {
     en,
-    ta,
-    te,
-    kn,
-    ml,
-    es,
-    hi,
+    // Other keys (ta, te, etc.) are populated dynamically at runtime
 };
 
-export type Language = keyof typeof translations;
+export type Language = 'en' | 'ta' | 'te' | 'kn' | 'ml' | 'es' | 'hi';
 
 export const languages: { code: Language; name: string; nativeName: string }[] = [
     { code: 'en', name: 'English', nativeName: 'English' },

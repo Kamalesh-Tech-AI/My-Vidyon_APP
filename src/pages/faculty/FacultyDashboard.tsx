@@ -6,6 +6,7 @@ import { CourseCard } from '@/components/cards/CourseCard';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useFacultyDashboard } from '@/hooks/useFacultyDashboard';
+import { useTranslation } from '@/i18n/TranslationContext';
 import Loader from '@/components/common/Loader';
 import {
   Users,
@@ -23,6 +24,7 @@ import { toast } from 'sonner';
 export function FacultyDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Use custom hook for real-time dashboard data
   const { stats, assignedSubjects, todaySchedule, isLoading } = useFacultyDashboard(
@@ -44,61 +46,61 @@ export function FacultyDashboard() {
     <FacultyLayout>
       <div className="pb-32 sm:pb-24">
         <PageHeader
-          title={`Good morning, ${user?.name?.split(' ')[0] || 'Faculty'}!`}
-          subtitle="Manage your courses and track student progress"
+          title={`${t.common.welcome}, ${user?.name?.split(' ')[0] || t.login.faculty}!`}
+          subtitle={t.dashboard.overview}
         />
 
         {/* MyGate-style Shortcuts */}
         <section className="mb-8">
-          <h3 className="text-lg font-bold mb-4 px-1">Quick Tools</h3>
+          <h3 className="text-lg font-bold mb-4 px-1">{t.dashboard.quickActions}</h3>
           <div className="shortcut-grid">
             <Link to="/faculty/attendance" className="shortcut-card">
               <div className="shortcut-icon-wrapper bg-blue-100 text-blue-600">
                 <UserCheck className="w-6 h-6" />
               </div>
-              <span className="shortcut-label">Attendance</span>
+              <span className="shortcut-label">{t.nav.attendance}</span>
             </Link>
             <Link to="/faculty/timetable" className="shortcut-card">
               <div className="shortcut-icon-wrapper bg-purple-100 text-purple-600">
                 <Calendar className="w-6 h-6" />
               </div>
-              <span className="shortcut-label">Timetable</span>
+              <span className="shortcut-label">{t.nav.timetable}</span>
             </Link>
             <Link to="/faculty/assignments" className="shortcut-card">
               <div className="shortcut-icon-wrapper bg-orange-100 text-orange-600">
                 <BookOpen className="w-6 h-6" />
               </div>
-              <span className="shortcut-label">Assignments</span>
+              <span className="shortcut-label">{t.nav.assignments}</span>
             </Link>
             <Link to="/faculty/marks" className="shortcut-card">
               <div className="shortcut-icon-wrapper bg-green-100 text-green-600">
                 <FileCheck className="w-6 h-6" />
               </div>
-              <span className="shortcut-label">Marks</span>
+              <span className="shortcut-label">{t.nav.marks}</span>
             </Link>
             <Link to="/faculty/students" className="shortcut-card">
               <div className="shortcut-icon-wrapper bg-red-100 text-red-600">
                 <Users className="w-6 h-6" />
               </div>
-              <span className="shortcut-label">Students</span>
+              <span className="shortcut-label">{t.nav.students}</span>
             </Link>
             <Link to="/faculty/leave" className="shortcut-card">
               <div className="shortcut-icon-wrapper bg-indigo-100 text-indigo-600">
                 <Clock className="w-6 h-6" />
               </div>
-              <span className="shortcut-label">Leave</span>
+              <span className="shortcut-label">{t.nav.leave}</span>
             </Link>
             <Link to="/faculty/announcements" className="shortcut-card">
               <div className="shortcut-icon-wrapper bg-yellow-100 text-yellow-600">
                 <Plus className="w-6 h-6" />
               </div>
-              <span className="shortcut-label">Announcements</span>
+              <span className="shortcut-label">{t.nav.announcements}</span>
             </Link>
             <Link to="/faculty/settings" className="shortcut-card">
               <div className="shortcut-icon-wrapper bg-gray-100 text-gray-600">
                 <Settings className="w-6 h-6" />
               </div>
-              <span className="shortcut-label">Settings</span>
+              <span className="shortcut-label">{t.nav.settings}</span>
             </Link>
           </div>
         </section>
@@ -118,7 +120,7 @@ export function FacultyDashboard() {
                 The updated academic calendar for the upcoming semester is now available. Please review the important dates and events.
               </p>
               <div className="mt-2 flex items-center gap-2 text-faculty font-bold text-xs">
-                View Calendar <Calendar className="w-3 h-3" />
+                {t.common.view} Calendar <Calendar className="w-3 h-3" />
               </div>
             </div>
           </div>
@@ -127,7 +129,7 @@ export function FacultyDashboard() {
         {/* Stats Grid - Real-time Data */}
         <div className="stats-grid mb-6 sm:mb-8">
           <StatCard
-            title="Total Students"
+            title={t.faculty.totalStudents}
             value={stats.totalStudents}
             icon={Users}
             iconColor="text-faculty"
@@ -141,7 +143,7 @@ export function FacultyDashboard() {
             change="In assigned classes"
           />
           <StatCard
-            title="Active Subjects"
+            title={t.institution.activeCourses}
             value={stats.activeSubjects}
             icon={BookOpen}
             iconColor="text-success"
@@ -156,7 +158,7 @@ export function FacultyDashboard() {
             changeType="positive"
           />
           <StatCard
-            title="Pending Reviews"
+            title={t.faculty.pendingGrading}
             value={stats.pendingReviews}
             icon={FileCheck}
             iconColor="text-destructive"

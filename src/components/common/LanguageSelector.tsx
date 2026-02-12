@@ -1,6 +1,5 @@
-import { Globe } from 'lucide-react';
-import { useTranslation } from '@/i18n/TranslationContext';
-import { languages } from '@/i18n/translations';
+import { Globe, Check } from 'lucide-react';
+import { useLanguage } from '@/i18n/LanguageContext';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -8,33 +7,38 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export function LanguageSelector() {
-    const { language, setLanguage } = useTranslation();
+    const { currentLanguage, changeLanguage, supportedLanguages } = useLanguage();
 
-    const currentLanguage = languages.find(lang => lang.code === language);
+    const currentLangObj = supportedLanguages.find(lang => lang.code === currentLanguage);
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    <span className="hidden sm:inline">{currentLanguage?.nativeName}</span>
+                <Button variant="outline" size="sm" className="flex items-center gap-2 h-9 border-primary/20 bg-primary/5 hover:bg-primary/10">
+                    <Globe className="w-4 h-4 text-primary" />
+                    <span className="hidden sm:inline font-medium text-primary">{currentLangObj?.nativeName}</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-                {languages.map((lang) => (
+                {supportedLanguages.map((lang) => (
                     <DropdownMenuItem
                         key={lang.code}
-                        onClick={() => setLanguage(lang.code)}
-                        className={`cursor-pointer ${language === lang.code ? 'bg-primary/10 font-semibold' : ''}`}
+                        onSelect={() => {
+                            console.log('Language selected:', lang.code);
+                            changeLanguage(lang.code);
+                        }}
+                        className={cn(
+                            "cursor-pointer flex items-center justify-between",
+                            currentLanguage === lang.code && "bg-primary/10 font-semibold"
+                        )}
                     >
-                        <div className="flex items-center justify-between w-full">
-                            <span>{lang.nativeName}</span>
-                            {language === lang.code && (
-                                <span className="text-primary">✓</span>
-                            )}
-                        </div>
+                        <span>{lang.nativeName}</span>
+                        {currentLanguage === lang.code && (
+                            <Check className="w-4 h-4 text-primary ml-2" />
+                        )}
                     </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>

@@ -19,7 +19,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, X, Eye, Calendar, User, FileText, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Check, X, Eye, Calendar, User, FileText, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -184,18 +185,43 @@ export function FacultyStudentLeaves() {
         }
     };
 
+    // Search state
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // Filter requests based on search query
+    const filteredRequests = requests.filter(request =>
+        request.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        request.rollNo.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // ... (rest of the component logic)
+
     return (
         <FacultyLayout>
             <PageHeader
                 title="Student Leave Requests"
                 subtitle="Manage leave requests from your students"
+                actions={
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="search"
+                            placeholder="Search students..."
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                }
             />
 
             <Card className="p-6">
                 {isLoading ? (
                     <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-                ) : requests.length === 0 ? (
-                    <div className="text-center p-8 text-muted-foreground">No pending leave requests found.</div>
+                ) : filteredRequests.length === 0 ? (
+                    <div className="text-center p-8 text-muted-foreground">
+                        {searchQuery ? "No students found matching your search." : "No pending leave requests found."}
+                    </div>
                 ) : (
                     <Table>
                         <TableHeader>
@@ -209,7 +235,7 @@ export function FacultyStudentLeaves() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {requests.map((request) => (
+                            {filteredRequests.map((request) => (
                                 <TableRow key={request.id}>
                                     <TableCell className="font-medium">
                                         <div className="flex flex-col">

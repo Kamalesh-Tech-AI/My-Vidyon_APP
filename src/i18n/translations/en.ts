@@ -1,5 +1,4 @@
 export const en = {
-    // Common
     common: {
         welcome: 'Welcome',
         loading: 'Loading...',
@@ -25,17 +24,15 @@ export const en = {
         yes: 'Yes',
         no: 'No',
     },
-
-    // Login Page
     login: {
         title: 'My Vidyon',
         subtitle: 'From classrooms to control panels, everything connected',
-        description: 'Comprehensive Education Management Platform',
-        welcomeBack: 'Welcome Back',
+        description: 'Comprehensive Education Management Suite',
+        welcomeBack: 'Welcome back',
         signInMessage: 'Sign in to access your dashboard',
         quickDemoLogin: 'Quick Demo Login',
-        orContinueWith: 'or continue with email',
-        emailAddress: 'Email Address',
+        orContinueWith: 'Or continue with email',
+        emailAddress: 'Email address',
         emailPlaceholder: 'you@example.com',
         password: 'Password',
         passwordPlaceholder: 'Enter your password',
@@ -51,11 +48,9 @@ export const en = {
         institution: 'Institution',
         admin: 'Admin',
     },
-
-    // Navigation
     nav: {
         dashboard: 'Dashboard',
-        courses: 'My Subject',
+        courses: 'My Courses',
         timetable: 'Timetable',
         attendance: 'Attendance',
         assignments: 'Assignments',
@@ -87,8 +82,6 @@ export const en = {
         features: 'Feature Flags',
         config: 'Global Config',
     },
-
-    // Dashboard
     dashboard: {
         overview: 'Overview',
         recentActivity: 'Recent Activity',
@@ -96,8 +89,6 @@ export const en = {
         statistics: 'Statistics',
         quickActions: 'Quick Actions',
     },
-
-    // Student
     student: {
         myProgress: 'My Progress',
         currentGPA: 'Current GPA',
@@ -105,35 +96,28 @@ export const en = {
         pendingAssignments: 'Pending Assignments',
         upcomingExams: 'Upcoming Exams',
     },
-
-    // Faculty
     faculty: {
         myCourses: 'My Courses',
         totalStudents: 'Total Students',
         pendingGrading: 'Pending Grading',
         upcomingClasses: 'Upcoming Classes',
     },
-
-    // Institution
     institution: {
         totalStudents: 'Total Students',
         totalFaculty: 'Total Faculty',
         activeCourses: 'Active Courses',
         departments: 'Departments',
     },
-
-    // Admin
     admin: {
         totalInstitutions: 'Total Institutions',
         totalUsers: 'Total Users',
         systemHealth: 'System Health',
         activeConnections: 'Active Connections',
     },
-
     parent: {
         dashboard: {
-            subtitle: "Manage and monitor your children's academic progress",
-            roll: "Roll",
+            subtitle: "Manage and monitor your children's educational progress",
+            roll: "Roll No",
             attendance: "Attendance",
             status: "Status",
             activeStudent: "Active Student",
@@ -145,7 +129,7 @@ export const en = {
             },
         },
         childDetail: {
-            studentNotFound: "Student Not Found",
+            studentNotFound: "Student not found",
             goBack: "Go Back",
             backToDashboard: "Back to Dashboard",
             performanceOverview: "Student Performance Overview",
@@ -166,7 +150,7 @@ export const en = {
             fromDate: "From Date",
             toDate: "To Date",
             reason: "Reason for Leave",
-            reasonPlaceholder: "Please provide the reason for absence...",
+            reasonPlaceholder: "Please provide a reason for absence...",
             submitRequest: "Submit Request",
             pastLeaveRequests: "Past Leave Requests",
             subject: "Subject",
@@ -177,7 +161,7 @@ export const en = {
             assignment: "Assignment",
             dueDate: "Due Date",
             status: "Status",
-            avgGrade: "Avg. Grade",
+            avgGrade: "Avg Grade",
             nextExam: "Next Exam",
         },
         fees: {
@@ -192,32 +176,31 @@ export const en = {
             action: "Action",
             receipt: "Receipt",
             payNow: "Pay Now",
-            downloadingReceipt: "Downloading receipt",
+            downloadingReceipt: "Downloading Receipt",
             dueDate: "Due Date",
             status: "Status",
-            processingPayment: "Processing payment simulation...",
-            paymentSuccess: "Payment simulated successfully!",
+            processingPayment: "Processing payment...",
+            paymentSuccess: "Payment completed successfully!",
             processing: "Processing...",
         },
         leave: {
             title: "Leave Application",
-            subtitle: "Apply for leave on behalf of your children",
+            subtitle: "Apply for leave on behalf of your child",
             newRequest: "New Leave Request",
-            selectStudent: "Select Child",
+            selectStudent: "Select Student",
             selectChildPlaceholder: "Select child...",
             fromDate: "From Date",
             toDate: "To Date",
             reason: "Reason for Leave",
-            reasonPlaceholder: "Please allow leave because...",
+            reasonPlaceholder: "Please state reason for leave...",
             history: "Leave History",
             note: "Note",
-            noteContent: "Leave applications should ideally be submitted at least 2 days in advance, except for medical emergencies.",
+            noteContent: "Leave applications should be submitted at least 2 days in advance, except in medical emergencies.",
             fillAllFields: "Please fill in all fields",
-            submittedSuccess: "Leave request submitted for",
+            submittedSuccess: "Leave request submitted",
             submitRequest: "Submit Request",
             approved: "Approved",
             pending: "Pending",
-            rejected: "Rejected",
         },
         notifications: {
             title: "Notifications & Alerts",
@@ -227,7 +210,7 @@ export const en = {
             title: "Profile & Settings",
             subtitle: "Manage your account details and preferences",
             parentAccount: "Parent Account",
-            logout: "Logout",
+            logout: "Log out",
             linkedChildren: "Linked Children",
             personalInfo: "Personal Information",
             fullName: "Full Name",
@@ -243,8 +226,6 @@ export const en = {
             passwordSuccess: "Password updated successfully",
         }
     },
-
-    // Messages
     messages: {
         loginSuccess: 'Login successful!',
         loginError: 'Invalid credentials. Please try again.',
