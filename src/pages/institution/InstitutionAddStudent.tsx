@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserPlus, ArrowLeft, Save, Camera, Upload, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import * as faceapi from 'face-api.js';
+import * as faceapi from '@vladmandic/face-api';
 import {
     Select,
     SelectContent,

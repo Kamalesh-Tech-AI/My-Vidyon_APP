@@ -7,7 +7,7 @@ import CryptoJS from 'crypto-js';
 import { Calendar, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const SECRET_KEY = 'myvidyon-qr-secret'; // In production, this should be more secure
+const SECRET_KEY = import.meta.env.VITE_QR_SECRET || 'myvidyon-qr-secret-fallback'; // Use env variable for production
 
 export function InstitutionStaffAttendance() {
     const { user } = useAuth();

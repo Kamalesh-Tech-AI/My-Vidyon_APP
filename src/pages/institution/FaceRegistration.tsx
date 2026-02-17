@@ -6,7 +6,7 @@ import { Camera, Upload, Trash2, CheckCircle2, User, Loader2 } from 'lucide-reac
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import * as tf from '@tensorflow/tfjs';
-import * as faceapi from 'face-api.js';
+import * as faceapi from '@vladmandic/face-api';
 
 export function FaceRegistration() {
     const [image, setImage] = useState<string | null>(null);

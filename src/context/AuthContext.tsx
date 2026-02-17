@@ -713,6 +713,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [navigate, state.user, state.accounts]);
 
+  // Listen for WebSocket authentication errors for immediate revocation
+  useEffect(() => {
+    const handleWsAuthError = () => {
+      console.error('🛑 [AUTH] WebSocket authentication error - forcing logout');
+      logout();
+      toast.error('Session Expired', { description: 'Security verification failed. Please login again.' });
+    };
+
+    window.addEventListener('websocket:auth_error', handleWsAuthError);
+    return () => window.removeEventListener('websocket:auth_error', handleWsAuthError);
+  }, [logout]);
+
   const forgetAccount = useCallback(async (userId: string) => {
     try {
       // 1. If it's the current user, log out first
